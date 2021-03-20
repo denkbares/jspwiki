@@ -73,7 +73,6 @@
 <div id="wikibody" class="${prefs.Orientation}">
 =======
 <div class="container${prefs.Layout=='fixed' ? '' : '-fluid' } ${prefs.Orientation} fixed-header">
-	<div id="header-spacer"></div>
 	<wiki:Include page="Header.jsp"/>
 >>>>>>> 1da44a92d (Replace dynamically injected header spacer with static one):jspwiki-war/src/main/webapp/templates/haddock/ViewTemplate.jsp
 
