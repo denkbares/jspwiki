@@ -43,6 +43,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import java.net.http.HttpRequest;
 import java.security.Principal;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -208,8 +209,7 @@ public class WikiSession implements Session {
     public Principal[] getPrincipals() {
 
         // Take the first non Role as the main Principal
-
-        return m_subject.getPrincipals().stream().filter(AuthenticationManager::isUserPrincipal).toArray(Principal[]::new);
+        return new ArrayList<>( m_subject.getPrincipals() ).stream().filter( AuthenticationManager::isUserPrincipal ).toArray( Principal[]::new );
     }
 
     /** {@inheritDoc} */
