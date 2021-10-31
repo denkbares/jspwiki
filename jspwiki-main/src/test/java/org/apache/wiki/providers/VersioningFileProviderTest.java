@@ -22,6 +22,7 @@ package org.apache.wiki.providers;
 import org.apache.wiki.TestEngine;
 import org.apache.wiki.WikiPage;
 import org.apache.wiki.api.core.Context;
+import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.core.Page;
 import org.apache.wiki.api.providers.PageProvider;
 import org.apache.wiki.api.spi.Wiki;
@@ -424,7 +425,8 @@ public class VersioningFileProviderTest {
         final PageManager mgr = engine.getManager( PageManager.class );
         final PageProvider provider = mgr.getProvider();
 
-        provider.deletePage( NAME1 );
+        final WikiPage p = new WikiPage( (Engine) engine, NAME1 );
+        provider.deletePage( p );
         final File f = new File( files, NAME1+AbstractFileProvider.FILE_EXT );
         Assertions.assertFalse( f.exists(), "file exists" );
     }
@@ -440,7 +442,8 @@ public class VersioningFileProviderTest {
 
         List< Page > l = provider.getVersionHistory( NAME1 );
         Assertions.assertEquals( 3, l.size(), "wrong # of versions" );
-        provider.deleteVersion( NAME1, 2 );
+        final WikiPage p = new WikiPage( (Engine) engine, NAME1 );
+        provider.deleteVersion( p, 2 );
         l = provider.getVersionHistory( NAME1 );
         Assertions.assertEquals( 2, l.size(), "wrong # of versions" );
         Assertions.assertEquals( "v1\r\n", provider.getPageText( NAME1, 1 ), "v1" );

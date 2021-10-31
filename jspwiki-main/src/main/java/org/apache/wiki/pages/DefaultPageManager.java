@@ -569,7 +569,7 @@ public class DefaultPageManager implements PageManager {
         if( page instanceof Attachment ) {
             m_engine.getManager( AttachmentManager.class ).deleteVersion( ( Attachment )page );
         } else {
-            m_provider.deleteVersion( page.getName(), page.getVersion() );
+            m_provider.deleteVersion( page, page.getVersion() );
             // FIXME: If this was the latest, reindex Lucene, update RefMgr
         }
     }
@@ -611,7 +611,7 @@ public class DefaultPageManager implements PageManager {
     @Override
     public void deletePage( final Page page ) throws ProviderException {
         fireEvent( WikiPageEvent.PAGE_DELETE_REQUEST, page.getName() );
-        m_provider.deletePage( page.getName() );
+        m_provider.deletePage( page );
         fireEvent( WikiPageEvent.PAGE_DELETED, page.getName() );
     }
 
