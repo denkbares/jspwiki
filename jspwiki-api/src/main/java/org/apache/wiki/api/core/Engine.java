@@ -18,6 +18,7 @@
  */
 package org.apache.wiki.api.core;
 
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.wiki.api.engine.EngineLifecycleExtension;
 import org.apache.wiki.api.events.CustomWikiEventListener;
@@ -252,18 +253,23 @@ public interface Engine {
      * @return the URL to the file
      */
     default URL findConfigFile( final String name ) {
-        LoggerFactory.getLogger( Engine.class ).info( "looking for " + name + " inside WEB-INF " );
+        final Logger log = LoggerFactory.getLogger( Engine.class );
+        log.info( "looking for " + name + " inside WEB-INF " );
         // Try creating an absolute path first
         File defaultFile = null;
         if( getRootPath() != null ) {
             defaultFile = new File( getRootPath() + "/WEB-INF/" + name );
         }
-        if ( defaultFile != null && defaultFile.exists() ) {
+        if( defaultFile == null || !defaultFile.exists() ) {
+            log.info( "looking for " + name + " as complete path" );
+            defaultFile = new File( name );
+        }
+        if ( defaultFile.exists() ) {
             try {
                 return defaultFile.toURI().toURL();
             } catch ( final MalformedURLException e ) {
                 // Shouldn't happen, but log it if it does
-                LoggerFactory.getLogger( Engine.class ).warn( "Malformed URL: " + e.getMessage() );
+                log.warn( "Malformed URL: " + e.getMessage() );
             }
         }
 
@@ -275,17 +281,18 @@ public interface Engine {
             try {
                 tmpFile = File.createTempFile( "temp." + name, "" );
             } catch( final IOException e ) {
-                LoggerFactory.getLogger( Engine.class ).error( "unable to create a temp file to load onto the policy", e );
+                log.error( "unable to create a temp file to load onto the policy", e );
                 return null;
             }
             tmpFile.deleteOnExit();
-            LoggerFactory.getLogger( Engine.class ).info( "looking for /" + name + " on classpath" );
+            log.info( "looking for /" + name + " on classpath" );
             //  create a tmp file of the policy loaded as an InputStream and return the URL to it
             try( final InputStream is = Engine.class.getResourceAsStream( "/" + name );
                 final OutputStream os = Files.newOutputStream( tmpFile.toPath() ) ) {
                 if( is == null ) {
                     throw new FileNotFoundException( name + " not found" );
                 }
+                log.info( "looking for servlet context resource /WEB-INF/" + name );
                 final URL url = getServletContext().getResource( "/WEB-INF/" + name );
                 if( url != null ) {
                     return url;
@@ -300,9 +307,9 @@ public interface Engine {
                 path = tmpFile.toURI().toURL();
             } catch( final MalformedURLException e ) {
                 // This should never happen unless I screw up
-                LoggerFactory.getLogger( Engine.class ).error( "Your code is b0rked.  You are a bad person.", e );
+                log.error( "Your code is b0rked.  You are a bad person.", e );
             } catch( final IOException e ) {
-                LoggerFactory.getLogger( Engine.class ).error( "failed to load security policy from file " + name + ",stacktrace follows", e );
+                log.error( "failed to load security policy from file " + name + ",stacktrace follows", e );
             }
         }
         return path;
