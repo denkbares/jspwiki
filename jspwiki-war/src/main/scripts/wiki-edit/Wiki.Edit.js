@@ -21,7 +21,7 @@
 /*
 Class: Wiki.Edit
     Wiki.Edit implements the JSPWiki plain editor, with support
-    for JSPWiki's markup, suggestion popups, ajax based page preview, etc...
+    for JSPWIki's markup, suggestion popups, ajax based page preview, etc...
 
     It uses [Snipe] to enhance the plain textarea.
 */
@@ -88,30 +88,6 @@ wiki.add("textarea#editorarea", function( main ){
             menu: getFormElem(".sections > ul"),
             parser: jspwikiSectionParser
         });
-
-
-        LocalCache = "wiki" + wiki.PageName;
-
-        if(LocalCache in localStorage){
-
-            var cache = localStorage.getItem(LocalCache),
-                modal = getFormElem(".localstorage");
-            //get the current text editor value
-            var testvalue = document.querySelector('textarea.editor').value;
-            if (cache!==testvalue) {
-                //console.log("previous edit " + cache);
-                //console.log("Current value " + cache);
-                //if they are different, show the hey...you were previously editing...
-                document.getElementById("previouscontent").value = cache;
-                
-                modal.openModal( function(){
-                    snipe.set("value", cache);
-                }, function(){
-                    //discard the changes
-                    localStorage.removeItem(LocalCache);
-                });
-            }
-        }
 
     }
 
@@ -219,8 +195,7 @@ function livepreview(content, preview, previewToggle){
             url: wiki.XHRPreview,
             data: {
                 page: wiki.PageName,
-                wikimarkup: content,
-                'X-XSRF-TOKEN': wiki.CsrfProtection
+                wikimarkup: content
             },
             update: preview,
             onRequest: renderPreview,
