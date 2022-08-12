@@ -40,6 +40,16 @@ import java.util.Set;
 import java.util.TimeZone;
 import java.util.Vector;
 
+import javax.servlet.jsp.PageContext;
+import javax.servlet.jsp.jstl.fmt.LocaleSupport;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.wiki.api.core.Context;
+import org.apache.wiki.i18n.InternationalizationManager;
+import org.apache.wiki.modules.ModuleManager;
+import org.apache.wiki.preferences.Preferences;
+import org.apache.wiki.util.ClassUtil;
+
 
 /**
  *  This class takes care of managing JSPWiki templates.  This class also provides the ResourceRequest mechanism.
@@ -61,6 +71,9 @@ public interface TemplateManager extends ModuleManager {
 
     /** Requests a script to be loaded. Value is {@value}. */
     String RESOURCE_SCRIPT = "script";
+
+    /** Requests a script to be loaded as module. Value is {@value}. */
+    String RESOURCE_SCRIPT_MODULE = "module";
 
     /** Requests inlined CSS. Value is {@value}. */
     String RESOURCE_INLINECSS = "inlinecss";
@@ -322,7 +335,10 @@ public interface TemplateManager extends ModuleManager {
             resourcemap = new HashMap<>();
         }
 
-        Vector< String > resources = resourcemap.get( type );
+        // Module has to be treated as script for further processing of RESOURCE_INCLUDES variable
+        final String resourceType = type.equals(RESOURCE_SCRIPT_MODULE) ? RESOURCE_SCRIPT : type;
+
+        Vector< String > resources = resourcemap.get( resourceType );
         if( resources == null ) {
             resources = new Vector<>();
         }
@@ -336,6 +352,9 @@ public interface TemplateManager extends ModuleManager {
 
         String resourceString = null;
         switch( type ) {
+        case RESOURCE_SCRIPT_MODULE:
+            resourceString = "<script type='module' src='" + resource + "'></script>";
+            break;
         case RESOURCE_SCRIPT:
             resourceString = "<script type='text/javascript' src='" + resolvedResource + "'></script>";
             break;
@@ -357,7 +376,7 @@ public interface TemplateManager extends ModuleManager {
 
         LoggerFactory.getLogger( TemplateManager.class ).debug( "Request to add a resource: {}", resourceString );
 
-        resourcemap.put( type, resources );
+        resourcemap.put(resourceType, resources );
         ctx.setVariable( RESOURCE_INCLUDES, resourcemap );
     }
 
