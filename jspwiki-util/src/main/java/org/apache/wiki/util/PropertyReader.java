@@ -199,7 +199,7 @@ public final class PropertyReader {
             //  Use the custom property file at the default location
             propertyStream =  locateClassPathResource(context, CUSTOM_JSPWIKI_CONFIG);
         } else {
-            LOG.debug( PARAM_CUSTOMCONFIG + " defined, using " + propertyFile + " as the custom properties file." );
+            LOG.info( PARAM_CUSTOMCONFIG + " defined, using " + propertyFile + " as the custom properties file." );
             propertyStream = Files.newInputStream( new File(propertyFile).toPath() );
         }
         return propertyStream;
@@ -403,7 +403,7 @@ public final class PropertyReader {
         currResourceLocation = createResourceLocation( "/WEB-INF/classes", resourceName );
         result = context.getResourceAsStream( currResourceLocation );
         if( result != null ) {
-            LOG.debug( " Successfully located the following classpath resource : " + currResourceLocation );
+            LOG.info( " Successfully located the following classpath resource : " + currResourceLocation );
             return result;
         }
 
@@ -411,7 +411,7 @@ public final class PropertyReader {
         currResourceLocation = createResourceLocation( "", resourceName );
         result = PropertyReader.class.getResourceAsStream( currResourceLocation );
         if( result != null ) {
-            LOG.debug( " Successfully located the following classpath resource : " + currResourceLocation );
+            LOG.info( " Successfully located the following classpath resource : " + currResourceLocation );
             return result;
         }
 
