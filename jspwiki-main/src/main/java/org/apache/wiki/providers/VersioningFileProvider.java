@@ -18,8 +18,8 @@
  */
 package org.apache.wiki.providers;
 
-import org.slf4j.LoggerFactory;
-import org.slf4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.wiki.InternalWikiException;
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.core.Page;
@@ -33,11 +33,14 @@ import org.apache.wiki.util.FileUtil;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -75,13 +78,16 @@ import java.util.Properties;
  */
 public class VersioningFileProvider extends AbstractFileProvider {
 
-    private static final Logger LOG = LoggerFactory.getLogger( VersioningFileProvider.class );
+    private static final Logger log = LogManager.getLogger( VersioningFileProvider.class );
 
     /** Name of the directory where the old versions are stored. */
     public static final String PAGEDIR = "OLD";
 
     /** Name of the property file which stores the metadata. */
     public static final String PROPERTYFILE = "page.properties";
+
+    public static final String VERSIONING_PROPERTIES_FILE = "versioning.properties";
+    private static final String DATE_PROPERTY_WRITTEN = "date.property.written";
 
     private CachedProperties m_cachedProperties;
 
@@ -92,7 +98,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
     public void initialize( final Engine engine, final Properties properties ) throws NoRequiredPropertyException, IOException {
         super.initialize( engine, properties );
         // some additional sanity checks :
-        final File oldpages = new File( getPageDirectory(), PAGEDIR );
+        final File oldpages = getOldDir();
         if( !oldpages.exists() ) {
             if( !oldpages.mkdirs() ) {
                 throw new IOException( "Failed to create page version directory " + oldpages.getAbsolutePath() );
@@ -105,7 +111,64 @@ public class VersioningFileProvider extends AbstractFileProvider {
                 throw new IOException( "Page version directory is not writable: " + oldpages.getAbsolutePath() );
             }
         }
-        LOG.info( "Using directory " + oldpages.getAbsolutePath() + " for storing old versions of pages" );
+		try {
+        	lazyWriteDateProperties();
+		} catch (Throwable e) {
+			// don't prevent wiki from starting for this optional process
+			log.error("Unable to write date properties, skipping...", e);
+		}
+        log.info( "Using directory " + oldpages.getAbsolutePath() + " for storing old versions of pages" );
+    }
+
+    private void lazyWriteDateProperties() throws IOException, ProviderException {
+        final Properties oldProps = getVersioningProperties();
+        boolean datesWritten = Boolean.parseBoolean((String) oldProps.getOrDefault(DATE_PROPERTY_WRITTEN, "false"));
+        if (!datesWritten) {
+            writeDateProperties();
+            oldProps.put(DATE_PROPERTY_WRITTEN, "true");
+            writeOldProperties(oldProps);
+        }
+    }
+
+	private void writeDateProperties() throws IOException, ProviderException {
+		long start = System.currentTimeMillis();
+		for (Page page : getAllPages()) {
+			List<Page> versionHistory = getVersionHistory(page.getName());
+			if (versionHistory.size() < 2) continue;
+			final Properties pageProps = getPageProperties(page.getName());
+			for (Page pageVersion : versionHistory) {
+				String datePropertyKey = getDatePropertyKey(pageVersion.getVersion());
+				if (pageProps.get(datePropertyKey) == null) {
+					ZonedDateTime date = ZonedDateTime
+							.ofInstant(pageVersion.getLastModified().toInstant(), ZoneId.systemDefault());
+					addVersionDate(date, pageVersion.getVersion(), pageProps);
+				}
+			}
+			putPageProperties(page.getName(), pageProps);
+		}
+		log.info("Written date properties in " + (System.currentTimeMillis() - start) + "ms");
+	}
+
+    private Properties getVersioningProperties() throws IOException {
+		final File versioningPropsFile = new File(getOldDir(), VERSIONING_PROPERTIES_FILE);
+        if (!versioningPropsFile.exists()) return new Properties();
+		final Properties props;
+		try (final InputStream in = new FileInputStream(versioningPropsFile)) {
+			props = new Properties();
+			props.load(in);
+		}
+		return props;
+	}
+
+	private void writeOldProperties(Properties properties) throws IOException {
+		final File oldPropertiesFile = new File(getOldDir(), VERSIONING_PROPERTIES_FILE);
+		try( final OutputStream out = new FileOutputStream( oldPropertiesFile ) ) {
+			properties.store( out, "JSPWiki versioning properties for" );
+		}
+	}
+
+	private File getOldDir() {
+        return new File(getPageDirectory(), PAGEDIR);
     }
 
     /**
@@ -116,7 +179,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
         if( page == null ) {
             throw new InternalWikiException( "Page may NOT be null in the provider!" );
         }
-        final File oldpages = new File( getPageDirectory(), PAGEDIR );
+        final File oldpages = getOldDir();
         return new File( oldpages, mangleName( page ) );
     }
 
@@ -184,13 +247,12 @@ public class VersioningFileProvider extends AbstractFileProvider {
                                 version = res;
                             }
                         } catch( final NumberFormatException e ) {
-                            LOG.debug(e.getMessage(), e);
                         } // It's okay to skip these.
                     }
                 }
             }
         } catch( final IOException e ) {
-            LOG.error( "Unable to figure out latest version - dying...", e );
+            log.error( "Unable to figure out latest version - dying...", e );
         }
 
         return version;
@@ -299,17 +361,17 @@ public class VersioningFileProvider extends AbstractFileProvider {
                 try( final InputStream in = Files.newInputStream( pagedata.toPath() ) ) {
                     result = FileUtil.readContents( in, m_encoding );
                 } catch( final IOException e ) {
-                    LOG.error("Failed to read", e);
+                    log.error("Failed to read", e);
                     throw new ProviderException("I/O error: "+e.getMessage());
                 }
             } else {
-                LOG.warn("Failed to read page from '"+pagedata.getAbsolutePath()+"', possibly a permissions problem");
+                log.warn("Failed to read page from '"+pagedata.getAbsolutePath()+"', possibly a permissions problem");
                 throw new ProviderException("I cannot read the requested page.");
             }
         } else {
             // This is okay.
             // FIXME: is it?
-            LOG.debug("New page");
+            log.info("New page");
         }
 
         return result;
@@ -393,15 +455,19 @@ public class VersioningFileProvider extends AbstractFileProvider {
                 props.setProperty(getChangeNotePropertyKey(versionNumber), changeNote );
             }
 
-            props.put(getDatePropertyKey(versionNumber), ZonedDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME));
+            addVersionDate(ZonedDateTime.now(), versionNumber, props);
 
             // Get additional custom properties from page and add to props
             getCustomProperties( page, props );
             putPageProperties( page.getName(), props );
         } catch( final IOException e ) {
-            LOG.error( "Saving failed", e );
+            log.error( "Saving failed", e );
             throw new ProviderException("Could not save page text: "+e.getMessage());
         }
+    }
+
+    private void addVersionDate(ZonedDateTime date, int versionNumber, Properties props) {
+        props.put(getDatePropertyKey(versionNumber), date.format(DateTimeFormatter.ISO_DATE_TIME));
     }
 
     private String getAuthorPropertyKey(int versionNumber) {
@@ -477,7 +543,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
                 // Set the props values to the page attributes
                 setCustomProperties( p, props );
             } catch( final IOException e ) {
-                LOG.error( "Cannot get author for page" + page + ": ", e );
+                log.error( "Cannot get author for page" + page + ": ", e );
             }
         }
 
@@ -567,6 +633,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
      *  @param page {@inheritDoc}
      *  @throws {@inheritDoc}
      */
+    // FIXME: Should log errors.
     @Override
     public void deletePage( final Page page ) throws ProviderException {
         super.deletePage( page );
@@ -579,7 +646,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
                     Files.delete(file.toPath());
                 }
                 catch (IOException e) {
-                    LOG.error("Can't delete file " + file.getAbsolutePath() + " " + e.getMessage(), e);
+                    log.error("Can't delete file " + file.getAbsolutePath() + " " + e.getMessage(), e);
                     hasError = true;
                 }
             }
@@ -590,7 +657,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
                     Files.delete(propfile.toPath());
                 }
                 catch (IOException e) {
-                    LOG.error("Can't delete file " + propfile.getAbsolutePath() + " " + e.getMessage(), e);
+                    log.error("Can't delete file " + propfile.getAbsolutePath() + " " + e.getMessage(), e);
                     hasError = true;
                 }
             }
@@ -599,7 +666,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
                 Files.delete(dir.toPath());
             }
             catch (IOException e) {
-                LOG.error("Can't delete directory " + propfile.getAbsolutePath() + " " + e.getMessage(), e);
+                log.error("Can't delete directory " + propfile.getAbsolutePath() + " " + e.getMessage(), e);
                 hasError = true;
             }
             if (hasError) {
@@ -629,7 +696,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
                 putPageProperties( page.getName(), props );
                 props.remove(getDatePropertyKey(versionPropertyPrefix));
             } catch( final IOException e ) {
-                LOG.error("Unable to modify page properties",e);
+                log.error("Unable to modify page properties",e);
                 throw new ProviderException("Could not modify page properties: " + e.getMessage());
             }
 
@@ -650,7 +717,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
                     pageFile.setLastModified( previousFile.lastModified() );
                 }
             } catch( final IOException e ) {
-                LOG.error("Something wrong with the page directory - you may have just lost data!",e);
+                log.fatal("Something wrong with the page directory - you may have just lost data!",e);
             }
 
             return;
@@ -659,7 +726,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
         final File pageFile = new File( dir, ""+version+FILE_EXT );
         if( pageFile.exists() ) {
             if( !pageFile.delete() ) {
-                LOG.error("Unable to delete page." + pageFile.getPath() );
+                log.error("Unable to delete page." + pageFile.getPath() );
             }
         } else {
             throw new NoSuchVersionException("Page "+page+", version="+version);
