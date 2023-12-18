@@ -19,8 +19,8 @@
 package org.apache.wiki.providers;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.core.Page;
 import org.apache.wiki.api.exceptions.NoRequiredPropertyException;
@@ -67,7 +67,7 @@ import org.apache.commons.lang3.SystemUtils;
  */
 public abstract class AbstractFileProvider implements PageProvider {
 
-    private static final Logger LOG = LogManager.getLogger(AbstractFileProvider.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AbstractFileProvider.class);
     private String m_pageDirectory = "/tmp/";
     protected String m_encoding;
 

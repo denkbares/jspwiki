@@ -18,8 +18,8 @@
  */
 package org.apache.wiki.providers;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.wiki.InternalWikiException;
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.core.Page;
@@ -71,7 +71,7 @@ import java.util.Properties;
  */
 public class VersioningFileProvider extends AbstractFileProvider {
 
-    private static final Logger LOG = LogManager.getLogger( VersioningFileProvider.class );
+    private static final Logger LOG = LoggerFactory.getLogger( VersioningFileProvider.class );
 
     /** Name of the directory where the old versions are stored. */
     public static final String PAGEDIR = "OLD";
@@ -610,7 +610,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
                     pageFile.setLastModified( previousFile.lastModified() );
                 }
             } catch( final IOException e ) {
-                LOG.fatal("Something wrong with the page directory - you may have just lost data!",e);
+                LOG.error("Something wrong with the page directory - you may have just lost data!",e);
             }
 
             return;

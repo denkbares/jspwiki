@@ -18,8 +18,8 @@
  */
 package org.apache.wiki.auth.login;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.wiki.auth.WikiPrincipal;
 import org.apache.wiki.util.HttpUtil;
 import org.apache.wiki.util.TextUtil;
@@ -62,7 +62,7 @@ public class CookieAssertionLoginModule extends AbstractLoginModule {
     /** The name of the cookie that gets stored to the user browser. */
     public static final String PREFS_COOKIE_NAME = "JSPWikiAssertedName";
 
-    private static final Logger LOG = LogManager.getLogger( CookieAssertionLoginModule.class );
+    private static final Logger LOG = LoggerFactory.getLogger( CookieAssertionLoginModule.class );
 
     /**
      * {@inheritDoc}

@@ -28,8 +28,8 @@ import com.rometools.rome.feed.synd.SyndLink;
 import com.rometools.rome.feed.synd.SyndLinkImpl;
 import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.SyndFeedOutput;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.core.Page;
@@ -63,7 +63,7 @@ import org.apache.wiki.util.HttpUtil;
 // FIXME: Rewrite using some other library
 public class AtomAPIServlet extends HttpServlet {
 
-    private static final Logger LOG = LogManager.getLogger( AtomAPIServlet.class );
+    private static final Logger LOG = LoggerFactory.getLogger( AtomAPIServlet.class );
 
     private static final long serialVersionUID = 0L;
 
