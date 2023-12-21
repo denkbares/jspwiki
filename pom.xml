@@ -53,7 +53,7 @@
     <jrcs-diff.version>0.4.2</jrcs-diff.version>
     <junit.version>5.8.1</junit.version>
     <lucene.version>6.6.6</lucene.version>
-    <mockito.version>4.2.0</mockito.version>
+    <mockito.version>4.5.1</mockito.version>
     <nekohtml.version>1.9.22</nekohtml.version>
     <oro.version>2.0.8</oro.version>
     <sandler.version>0.5</sandler.version>
@@ -720,7 +720,7 @@
             <dependency>
               <groupId>org.mockito</groupId>
               <artifactId>mockito-core</artifactId>
-              <version>4.2.0</version>
+              <version>4.5.1</version>
             </dependency>
           </dependencies>
         </plugin>
