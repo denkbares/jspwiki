@@ -56,7 +56,10 @@ public class SaveWikiPageTask extends Task {
 
 		final Page page = context.getPage();
 
-		WikiPageUtils.checkDuplicatePagesCaseSensitive(context.getEngine(), page.getName());
+		//for page creation: check for page names only differing in case
+		if (!context.getEngine().getManager(PageManager.class).pageExists(page)) {
+			WikiPageUtils.checkDuplicatePagesCaseSensitive(context.getEngine(), page.getName());
+		}
 
 		// Let the rest of the engine handle actual saving.
 		context.getEngine().getManager(PageManager.class).putPageText(page, proposedText);
