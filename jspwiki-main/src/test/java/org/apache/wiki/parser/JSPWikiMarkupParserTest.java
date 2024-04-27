@@ -18,6 +18,14 @@
  */
 package org.apache.wiki.parser;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
+import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
+import java.util.Collection;
+import java.util.Vector;
+
 import org.apache.wiki.HttpMockFactory;
 import org.apache.wiki.LinkCollector;
 import org.apache.wiki.TestEngine;
@@ -38,14 +46,6 @@ import org.apache.wiki.util.TextUtil;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.StringReader;
-import java.nio.charset.StandardCharsets;
-import java.util.Collection;
-import java.util.Vector;
 
 import static org.apache.wiki.TestEngine.with;
 
@@ -1342,10 +1342,10 @@ class JSPWikiMarkupParserTest {
     void testTable1() throws Exception {
         final String src = "|| heading || heading2 \n| Cell 1 | Cell 2 \n| Cell 3 | Cell 4\n\n";
         Assertions.assertEquals( "<table class=\"wikitable\" border=\"1\">" +
-                        "<tr class=\"odd\"><th> heading </th><th> heading2 </th></tr>\n" +
-                        "<tr><td> Cell 1 </td><td> Cell 2 </td></tr>\n" +
+                        "<thead><tr class=\"odd\"><th> heading </th><th> heading2 </th></tr></thead>\n" +
+                        "<tbody><tr><td> Cell 1 </td><td> Cell 2 </td></tr>\n" +
                         "<tr class=\"odd\"><td> Cell 3 </td><td> Cell 4</td></tr>\n" +
-                        "</table><p />",
+                        "</tbody></table><p />",
                 translate( src ) );
     }
 
@@ -1353,10 +1353,10 @@ class JSPWikiMarkupParserTest {
     void testTable2() throws Exception {
         final String src = "||heading||heading2\n|Cell 1| Cell 2\n| Cell 3 |Cell 4\n\n";
         Assertions.assertEquals( "<table class=\"wikitable\" border=\"1\">" +
-                        "<tr class=\"odd\"><th>heading</th><th>heading2</th></tr>\n" +
-                        "<tr><td>Cell 1</td><td> Cell 2</td></tr>\n" +
+                        "<thead><tr class=\"odd\"><th>heading</th><th>heading2</th></tr></thead>\n" +
+                        "<tbody><tr><td>Cell 1</td><td> Cell 2</td></tr>\n" +
                         "<tr class=\"odd\"><td> Cell 3 </td><td>Cell 4</td></tr>\n" +
-                        "</table><p />",
+                        "</tbody></table><p />",
                 translate( src ) );
     }
 
@@ -1364,9 +1364,9 @@ class JSPWikiMarkupParserTest {
     void testTable3() throws Exception {
         final String src = "|Cell 1| Cell 2\n| Cell 3 |Cell 4\n\n";
         Assertions.assertEquals( "<table class=\"wikitable\" border=\"1\">" +
-                        "<tr class=\"odd\"><td>Cell 1</td><td> Cell 2</td></tr>\n" +
+                        "<tbody><tr class=\"odd\"><td>Cell 1</td><td> Cell 2</td></tr>\n" +
                         "<tr><td> Cell 3 </td><td>Cell 4</td></tr>\n" +
-                        "</table><p />",
+                        "</tbody></table><p />",
                 translate( src ) );
     }
 
@@ -1374,8 +1374,8 @@ class JSPWikiMarkupParserTest {
     void testTable4() throws Exception {
         final String src = "|a\nbc";
         Assertions.assertEquals( "<table class=\"wikitable\" border=\"1\">" +
-                        "<tr class=\"odd\"><td>a</td></tr>\n" +
-                        "</table>" +
+                        "<tbody><tr class=\"odd\"><td>a</td></tr>\n" +
+                        "</tbody></table>" +
                         "bc",
                 translate( src ) );
     }
@@ -1388,10 +1388,10 @@ class JSPWikiMarkupParserTest {
         final String src = "Testtable\n||header|cell\n\n|cell||header";
         Assertions.assertEquals( "<p>Testtable\n</p>" +
                         "<table class=\"wikitable\" border=\"1\">" +
-                        "<tr class=\"odd\"><th>header</th><td>cell</td></tr>\n</table><p />\n" +
+                        "<thead><tr class=\"odd\"><th>header</th><td>cell</td></tr></thead>\n</table><p />\n" +
                         "<table class=\"wikitable\" border=\"1\">" +
-                        "<tr class=\"odd\"><td>cell</td><th>header</th></tr>" +
-                        "</table>",
+                        "<tbody><tr class=\"odd\"><td>cell</td><th>header</th></tr>" +
+                        "</tbody></table>",
                 translate( src ) );
     }
 
