@@ -19,8 +19,9 @@
 
 package org.apache.wiki.plugin;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.apache.wiki.api.core.Page;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.core.ContextEnum;
 import org.apache.wiki.api.exceptions.PluginException;
@@ -34,12 +35,14 @@ import org.jdom2.output.Format;
 import org.jdom2.output.XMLOutputter;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * A Plugin that creates an index of pages according to a certain pattern.
@@ -60,7 +63,7 @@ import java.util.regex.Pattern;
  */
 public class IndexPlugin extends AbstractReferralPlugin implements Plugin {
 
-	private static final Logger log = LogManager.getLogger(IndexPlugin.class);
+	private static final Logger log = LoggerFactory.getLogger(IndexPlugin.class);
 
 	private final Namespace xmlns_XHTML = Namespace.getNamespace("http://www.w3.org/1999/xhtml");
 
@@ -148,15 +151,17 @@ public class IndexPlugin extends AbstractReferralPlugin implements Plugin {
 	 * @param pattern Regex pattern specifying prefixes to ignore during sorting. Null indicates no prefixes are
 	 *                ignored.
 	 * @return A list containing page names which matched the filters.
-	 * @throws ProviderException
+	 * @throws ProviderException in case of back end issues
 	 */
 	private List<String> listPages(final Context context, final String include, final String exclude, final Pattern pattern) throws ProviderException {
 		final Pattern includePtrn = include != null ? Pattern.compile(include) : Pattern.compile(".*");
 		final Pattern excludePtrn = exclude != null ? Pattern.compile(exclude) : Pattern.compile("\\p{Cntrl}"); // there are no control characters in page names
 		final List<String> result = new ArrayList<>();
-		final Set<String> pages = context.getEngine().getManager(ReferenceManager.class).findCreated();
+		PageManager pageManager = context.getEngine().getManager(PageManager.class);
+		final Collection<Page> pages = pageManager.getAllPages();
 		Map<String, String> pageNamePrefix = new HashMap<>();
-		for (final String pageName : pages) {
+		for (final Page page : pages) {
+			String pageName = page.getName();
 			if (excludePtrn.matcher(pageName).matches()) {
 				continue;
 			}
@@ -176,7 +181,7 @@ public class IndexPlugin extends AbstractReferralPlugin implements Plugin {
 				result.add(pageNameSortedAfter);
 			}
 		}
-		context.getEngine().getManager(PageManager.class).getPageSorter().sort(result);
+		pageManager.getPageSorter().sort(result);
 
 		if (pattern == null) {
 			return result;
