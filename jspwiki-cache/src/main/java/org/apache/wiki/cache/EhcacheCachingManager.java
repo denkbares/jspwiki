@@ -22,6 +22,7 @@ import net.sf.ehcache.Cache;
 import net.sf.ehcache.CacheManager;
 import net.sf.ehcache.Ehcache;
 import net.sf.ehcache.Element;
+import net.sf.ehcache.event.CacheEventListener;
 import net.sf.ehcache.event.CacheEventListenerAdapter;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
@@ -183,4 +184,11 @@ public class EhcacheCachingManager implements CachingManager, Initializable {
         return enabled( cacheName ) && key != null;
     }
 
+    @Override
+    public boolean registerListener( final String cacheName, final CacheEventListener listener ) {
+        if( enabled( cacheName ) ) {
+            return cacheMap.get( cacheName ).getCacheEventNotificationService().registerListener( listener );
+        }
+        return false;
+    }
 }
