@@ -31,6 +31,7 @@ import org.jdom2.input.SAXBuilder;
 import org.jdom2.xpath.XPathExpression;
 import org.jdom2.xpath.XPathFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -59,7 +60,7 @@ public final class XmlUtil  {
 	 * Parses the given XML file and returns the requested nodes. If there's an error accessing or parsing the file, an
 	 * empty list is returned.
 	 * 
-	 * @param xml file to parse; matches all resources from classpath, filters repeated items.
+	 * @param xml file to parse; You can either provide an absolute path or it tries to  match all resources from classpath, filters repeated items.
 	 * @param requestedNodes requested nodes on the xml file
 	 * @return the requested nodes of the XML file.
 	 */
@@ -69,7 +70,15 @@ public final class XmlUtil  {
 			final Set<Element> readed = new HashSet<>();
 			final SAXBuilder builder = new SAXBuilder();
 			try {
-				final Enumeration< URL > resources = XmlUtil.class.getClassLoader().getResources( xml );
+				Enumeration<URL> resources = null;
+				File file = new File(xml);
+				if (file.isAbsolute() && file.exists()) {
+					URL resourceUrl = file.toURI().toURL();
+					resources = Collections.enumeration(List.of(resourceUrl));
+				}
+				else {
+					resources = XmlUtil.class.getClassLoader().getResources(xml);
+				}
 				while( resources.hasMoreElements() ) {
 					final URL resource = resources.nextElement();
 					LOG.debug( "reading " + resource.toString() );

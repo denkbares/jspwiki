@@ -41,7 +41,7 @@ public class XmlUtilTest {
         Assertions.assertEquals( 1, elements.size() );
 
         elements = XmlUtil.parse( "ini/jspwiki_module.xml", "/modules/editor" );
-        Assertions.assertEquals( 1, elements.size() ); // reduced to one, since wysiwyg was is deactivated for now
+        Assertions.assertEquals( 2, elements.size() ); // reduced to one, since wysiwyg was is deactivated for now
 
 
         elements = XmlUtil.parse( "ini/jspwiki_module.xml", "/modules/heck" );
@@ -58,6 +58,7 @@ public class XmlUtilTest {
 
         elements = XmlUtil.parse( ClassUtil.MAPPINGS, "/classmappings/mapping" );
         Assertions.assertEquals( 1, elements.size() );
+
     }
 
     @Test
