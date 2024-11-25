@@ -22,7 +22,7 @@
 	<parent>
 		<groupId>org.apache.jspwiki</groupId>
 		<artifactId>jspwiki-knowwe-builder</artifactId>
-		<version>2.12.2-SNAPSHOT</version>
+		<version>2.12.3-SNAPSHOT</version>
 	</parent>
 
   <artifactId>jspwiki-knowwe-markdown</artifactId>
@@ -129,6 +129,10 @@
     </dependency>
   </dependencies>
 
+  <properties>
+    <skip-markdown-pages-generation>false</skip-markdown-pages-generation>
+  </properties>
+
   <build>
     <plugins>
       <plugin>
@@ -145,6 +149,20 @@
               <extraConfigFile>${project.basedir}/src/main/javascript/wro.properties</extraConfigFile>
               <jsDestinationFolder>${project.build.outputDirectory}/META-INF/resources/plain/</jsDestinationFolder>
               <wroFile>src/main/javascript/wro.xml</wroFile>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>generate-markdown-pages</id>
+            <goals><goal>test</goal></goals>
+            <configuration>
+              <skipTests>${skip-markdown-pages-generation}</skipTests>
+              <test>WikiSyntaxConverter</test>
             </configuration>
           </execution>
         </executions>

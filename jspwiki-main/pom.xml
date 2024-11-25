@@ -22,7 +22,7 @@
 	<parent>
 		<groupId>org.apache.jspwiki</groupId>
 		<artifactId>jspwiki-knowwe-builder</artifactId>
-		<version>2.12.2-SNAPSHOT</version>
+		<version>2.12.3-SNAPSHOT</version>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
 	<artifactId>jspwiki-knowwe-main</artifactId>
@@ -272,6 +272,7 @@
 								<exclude>**/*Test$*.class</exclude>
 								<exclude>**/*Tests.class</exclude>
 							</excludes>
+              <skip>false</skip>
 							<skipIfEmpty>true</skipIfEmpty>
 						</configuration>
 					</execution>
