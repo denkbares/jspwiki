@@ -22,7 +22,8 @@
   <parent>
     <groupId>org.apache.jspwiki.it</groupId>
     <artifactId>jspwiki-knowwe-it-builder</artifactId>
-    <version>2.12.2-SNAPSHOT</version>
+    <version>2.12.3-SNAPSHOT</version>
+	  <relativePath>../pom.xml</relativePath>
   </parent>
 
   <artifactId>jspwiki-knowwe-selenide-tests</artifactId>
