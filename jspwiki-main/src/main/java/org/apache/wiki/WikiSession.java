@@ -18,9 +18,24 @@
  */
 package org.apache.wiki;
 
+import java.security.Principal;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
+
+import javax.security.auth.Subject;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
+
 import org.apache.commons.lang3.StringUtils;
-import org.slf4j.LoggerFactory;
-import org.slf4j.Logger;
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.core.Session;
 import org.apache.wiki.auth.AuthenticationManager;
@@ -37,21 +52,8 @@ import org.apache.wiki.auth.user.UserProfile;
 import org.apache.wiki.event.WikiEvent;
 import org.apache.wiki.event.WikiSecurityEvent;
 import org.apache.wiki.util.HttpUtil;
-
-import javax.security.auth.Subject;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
-import java.security.Principal;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.WeakHashMap;
-import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -207,7 +209,7 @@ public class WikiSession implements Session {
     /** {@inheritDoc} */
     @Override
     public Principal[] getPrincipals() {
-        return m_subject.getPrincipals().stream().filter(AuthenticationManager::isUserPrincipal).toArray(Principal[]::new);
+        return new ArrayList<>(m_subject.getPrincipals()).stream().filter(AuthenticationManager::isUserPrincipal).toArray(Principal[]::new);
     }
 
     /** {@inheritDoc} */
