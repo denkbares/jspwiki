@@ -303,8 +303,10 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 			}
 			final int latestVersion = findLatestVersion(att);
 			final int versionNumber = latestVersion + 1;
-
-			final File newfile = new File(attDir, versionNumber + "." + getFileExtension(att.getFileName()));
+			final String[] pages = attDir.list(new AttachmentVersionFilter());
+			// make sure to use the right extension in the correct case, independent of file system case-sensitivity settings
+			String extension = pages == null || pages.length == 0 ? getFileExtension(att.getFileName()) : getFileExtension(pages[pages.length - 1]);
+			final File newfile = new File(attDir, versionNumber + "." + extension);
 			try (final OutputStream out = Files.newOutputStream(newfile.toPath())) {
             LOG.info( "Uploading attachment " + att.getFileName() + " to page " + att.getParentName() );
             LOG.info( "Saving attachment contents to " + newfile.getAbsolutePath() );
