@@ -31,64 +31,70 @@ import org.apache.wiki.parser.MarkupParser;
 
 import java.util.List;
 
-
 /**
  * {@link NodeAttributeProviderState} which sets the attributes for local links.
  */
-public class LocalLinkAttributeProviderState implements NodeAttributeProviderState< JSPWikiLink > {
+public class LocalLinkAttributeProviderState implements NodeAttributeProviderState<JSPWikiLink> {
 
-    private final boolean hasRef;
-    private final Context wikiContext;
-    private final LinkParsingOperations linkOperations;
-    private final boolean isImageInlining;
-    private final List< Pattern > inlineImagePatterns;
+	private final boolean hasRef;
+	private final Context wikiContext;
+	private final LinkParsingOperations linkOperations;
+	private final boolean isImageInlining;
+	private final List<Pattern> inlineImagePatterns;
 
-    public LocalLinkAttributeProviderState( final Context wikiContext,
-                                            final boolean hasRef,
-                                            final boolean isImageInlining,
-                                            final List< Pattern > inlineImagePatterns ) {
-        this.hasRef = hasRef;
-        this.wikiContext = wikiContext;
-        this.linkOperations = new LinkParsingOperations( wikiContext );
-        this.isImageInlining = isImageInlining;
-        this.inlineImagePatterns = inlineImagePatterns;
-    }
+	public LocalLinkAttributeProviderState(final Context wikiContext,
+										   final boolean hasRef,
+										   final boolean isImageInlining,
+										   final List<Pattern> inlineImagePatterns) {
+		this.hasRef = hasRef;
+		this.wikiContext = wikiContext;
+		this.linkOperations = new LinkParsingOperations(wikiContext);
+		this.isImageInlining = isImageInlining;
+		this.inlineImagePatterns = inlineImagePatterns;
+	}
 
-    /**
-     * {@inheritDoc}
-     *
-     * @see NodeAttributeProviderState#setAttributes(MutableAttributes, Node)
-     */
-    @Override
-    public void setAttributes( final MutableAttributes attributes, final JSPWikiLink link ) {
-        final int hashMark = link.getUrl().toString().indexOf( '#' );
-        final String attachment = wikiContext.getEngine().getManager( AttachmentManager.class ).getAttachmentInfoName( wikiContext, link.getWikiLink() );
-        if( attachment != null ) {
-            if( !linkOperations.isImageLink( link.getUrl().toString(), isImageInlining, inlineImagePatterns ) ) {
-                attributes.replaceValue( "class", MarkupParser.CLASS_ATTACHMENT );
-                final String attlink = wikiContext.getURL( ContextEnum.PAGE_ATTACH.getRequestContext(), link.getWikiLink() );
-                attributes.replaceValue( "href", attlink );
-            } else {
-                new ImageLinkAttributeProviderState( wikiContext, attachment, hasRef ).setAttributes( attributes, link );
-            }
-        } else if( hashMark != -1 ) { // It's an internal Wiki link, but to a named section
-            final String namedSection = link.getUrl().toString().substring( hashMark + 1 );
-            final String matchedLink = linkOperations.linkIfExists( link.getUrl().toString() );
-            if( matchedLink != null ) {
-                String sectref = "#section-" + wikiContext.getEngine().encodeName( matchedLink + "-" + MarkupParser.wikifyLink( namedSection ) );
-                sectref = sectref.replace('%', '_');
-                link.setUrl( CharSubSequence.of( link.getUrl().toString() + sectref ) );
-                new LocalReadLinkAttributeProviderState( wikiContext ).setAttributes( attributes, link );
-            } else {
-                new LocalEditLinkAttributeProviderState( wikiContext, link.getWikiLink() ).setAttributes( attributes, link );
-            }
-        } else {
-            if( linkOperations.linkExists( link.getWikiLink() ) ) {
-                new LocalReadLinkAttributeProviderState( wikiContext ).setAttributes( attributes, link );
-            } else {
-                new LocalEditLinkAttributeProviderState( wikiContext, link.getWikiLink() ).setAttributes( attributes, link );
-            }
-        }
-    }
-
+	/**
+	 * {@inheritDoc}
+	 *
+	 * @see NodeAttributeProviderState#setAttributes(MutableAttributes, Node)
+	 */
+	@Override
+	public void setAttributes(final MutableAttributes attributes, final JSPWikiLink link) {
+		final int hashMark = link.getUrl().toString().indexOf('#');
+		final String attachment = wikiContext.getEngine()
+				.getManager(AttachmentManager.class)
+				.getAttachmentInfoName(wikiContext, link.getWikiLink());
+		if (attachment != null) {
+			if (!linkOperations.isImageLink(link.getUrl().toString(), isImageInlining, inlineImagePatterns)) {
+				attributes.replaceValue("class", MarkupParser.CLASS_ATTACHMENT);
+				final String attlink = wikiContext.getURL(ContextEnum.PAGE_ATTACH.getRequestContext(), link.getWikiLink());
+				attributes.replaceValue("href", attlink);
+			}
+			else {
+				new ImageLinkAttributeProviderState(wikiContext, attachment, hasRef).setAttributes(attributes, link);
+			}
+		}
+		else if (hashMark != -1) { // It's an internal Wiki link, but to a named section
+			final String namedSection = link.getUrl().toString().substring(hashMark + 1);
+			final String matchedLink = linkOperations.linkIfExists(link.getUrl().toString());
+			if (matchedLink != null) {
+				String sectref = "#section-" + wikiContext.getEngine()
+						.encodeName(matchedLink + "-" + MarkupParser.wikifyLink(namedSection));
+				sectref = sectref.replace('%', '_');
+				link.setUrl(CharSubSequence.of(link.getUrl().toString() + sectref));
+				new LocalReadLinkAttributeProviderState(wikiContext).setAttributes(attributes, link);
+			}
+			else {
+				new LocalEditLinkAttributeProviderState(wikiContext, link.getWikiLink()).setAttributes(attributes, link);
+			}
+		}
+		else {
+			if (linkOperations.linkExists(link.getWikiLink())) {
+				new LocalReadLinkAttributeProviderState(wikiContext).setAttributes(attributes, link);
+			}
+			else {
+				new LocalEditLinkAttributeProviderState(wikiContext, link.getWikiLink()).setAttributes(attributes, link);
+			}
+		}
+	}
 }
