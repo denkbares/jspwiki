@@ -80,7 +80,7 @@ public class LocalLinkNodePostProcessorState implements NodePostProcessorState<J
 		else if (hashMark != -1) { // It's an internal Wiki link, but to a named section
 			final String namedSection = link.getUrl().toString().substring(hashMark + 1);
 			link.setUrl(CharSubSequence.of(link.getUrl().toString().substring(0, hashMark)));
-			final String matchedLink = linkOperations.linkIfExists(link.getUrl().toString());
+            final String matchedLink = linkOperations.linkIfExists( link.getUrl().toString(), null );
 			if (matchedLink != null) {
 				String sectref = "#section-" + wikiContext.getEngine()
 						.encodeName(matchedLink + "-" + MarkupParser.wikifyLink(namedSection));

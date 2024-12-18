@@ -18,6 +18,8 @@
  */
 package org.apache.wiki.providers;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.filefilter.IOFileFilter;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 import org.apache.wiki.InternalWikiException;
@@ -50,10 +52,12 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.Set;
 
 /**
  * Provides a simple directory based repository for Wiki pages.
@@ -106,8 +110,9 @@ public class VersioningFileProvider extends AbstractFileProvider {
 	@Override
 	public void initialize(final Engine engine, final Properties properties) throws NoRequiredPropertyException, IOException {
 		super.initialize(engine, properties);
+
 		// some additional sanity checks :
-		final File oldpages = getOldDir();
+		final File oldpages = getOldDir(null);
 		if (!oldpages.exists()) {
 			if (!oldpages.mkdirs()) {
 				throw new IOException("Failed to create page version directory " + oldpages.getAbsolutePath());
@@ -161,7 +166,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
 	}
 
 	private Properties getVersioningProperties() throws IOException {
-		final File versioningPropsFile = new File(getOldDir(), VERSIONING_PROPERTIES_FILE);
+		final File versioningPropsFile = new File(getOldDir(null), VERSIONING_PROPERTIES_FILE);
 		if (!versioningPropsFile.exists()) return new Properties();
 		final Properties props;
 		try (final InputStream in = new FileInputStream(versioningPropsFile)) {
@@ -172,25 +177,30 @@ public class VersioningFileProvider extends AbstractFileProvider {
 	}
 
 	private void writeOldProperties(Properties properties) throws IOException {
-		final File oldPropertiesFile = new File(getOldDir(), VERSIONING_PROPERTIES_FILE);
+		final File oldPropertiesFile = new File(getOldDir(null), VERSIONING_PROPERTIES_FILE);
 		try (final OutputStream out = new FileOutputStream(oldPropertiesFile)) {
 			properties.store(out, "JSPWiki versioning properties for");
 		}
 	}
 
-	private File getOldDir() {
-		return new File(getPageDirectory(), PAGEDIR);
+	private File getOldDir(String page) {
+		String subFolder = getSubFolderNameOfPage(page);
+		String pageDirectory = getPageDirectory();
+		if (page != null && subFolder != null) {
+			pageDirectory = pageDirectory + File.separator + subFolder;
+		}
+		return new File(pageDirectory, PAGEDIR);
 	}
 
 	/**
 	 * Returns the directory where the old versions of the pages
 	 * are being kept.
 	 */
-	private File findOldPageDir(final String page) {
+	protected File findOldPageDir(final String page) {
 		if (page == null) {
 			throw new InternalWikiException("Page may NOT be null in the provider!");
 		}
-		final File oldpages = getOldDir();
+		final File oldpages = getOldDir(page);
 		return new File(oldpages, mangleName(page));
 	}
 
@@ -331,7 +341,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
 	 *
 	 * @throws NoSuchVersionException if there is no such version.
 	 */
-	private int realVersion(final String page, final int requestedVersion) throws NoSuchVersionException {
+	protected int realVersion(final String page, final int requestedVersion) throws NoSuchVersionException {
 		//  Quickly check for the most common case.
 		if (requestedVersion == WikiProvider.LATEST_VERSION) {
 			return -1;
@@ -371,7 +381,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
 	}
 
 	// FIXME: Should this really be here?
-	private String readFile(final File pagedata) throws ProviderException {
+	protected String readFile(final File pagedata) throws ProviderException {
 		String result = null;
 		if (pagedata.exists()) {
 			if (pagedata.canRead()) {

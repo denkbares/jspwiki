@@ -18,6 +18,8 @@
  */
 package org.apache.wiki.providers;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.filefilter.IOFileFilter;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
@@ -48,9 +50,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.TreeSet;
 
 /**
@@ -67,6 +71,7 @@ import java.util.TreeSet;
 public abstract class AbstractFileProvider implements PageProvider {
 
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractFileProvider.class);
+
 	private String m_pageDirectory = "/tmp/";
 	protected String m_encoding;
 
@@ -116,6 +121,10 @@ public abstract class AbstractFileProvider implements PageProvider {
 
 	private boolean m_windowsHackNeeded;
 
+	public static final String subFolderPrefixSeparator = "::";
+	// sub-wiki-folders; for jspwiki the folder is a prefix/namespace in the page name, e.g. /Subwiki/Main.txt is page Subwiki::Main
+	protected final Set<String> subfolders = new HashSet<>();
+
 	/**
 	 * {@inheritDoc}
 	 *
@@ -156,6 +165,33 @@ public abstract class AbstractFileProvider implements PageProvider {
 		MAX_PROPVALUELENGTH = TextUtil.getIntegerProperty(properties, PROP_CUSTOMPROP_MAXVALUELENGTH, DEFAULT_MAX_PROPVALUELENGTH);
 
 		LOG.info("Wikipages are read from '" + m_pageDirectory + "'");
+
+		initSubFolders();
+	}
+
+	private void initSubFolders() {
+		IOFileFilter trueFilter = new IOFileFilter() {
+			@Override
+			public boolean accept(File file) {
+				return true;
+			}
+
+			@Override
+			public boolean accept(File dir, String name) {
+				return true;
+			}
+		};
+		Collection<File> folders = FileUtils.listFilesAndDirs(new File(m_pageDirectory), trueFilter, trueFilter);
+
+		Collection<File> filteredFolders = folders.stream().filter(file ->
+				file.isDirectory()
+						&& !file.getAbsolutePath().equals(m_pageDirectory)
+						&& !file.getName().equals("OLD")
+						&& !file.getParentFile().getName().equals("OLD")
+						&& !file.getName().endsWith("-att")
+						&& !file.getParentFile().getName().endsWith("-att")
+		).toList();
+		filteredFolders.forEach(folder -> this.subfolders.add(folder.getName()));
 	}
 
 	String getPageDirectory() {
@@ -218,8 +254,41 @@ public abstract class AbstractFileProvider implements PageProvider {
 	 * @param page The name of the page.
 	 * @return A File to the page.  May be null.
 	 */
-	protected File findPage(final String page) {
-		return new File(m_pageDirectory, mangleName(page) + FILE_EXT);
+	protected File findPage(String page) {
+		String mangledName = mangleName(getLocalPageName(page));
+		return new File(m_pageDirectory + File.separator + getSubFolderNameOfPage(page), mangledName + FILE_EXT);
+	}
+
+	public static String getSubFolderNameOfPage(String page) {
+		if(page == null) return null;
+		String[] split = StringUtils.split(page, subFolderPrefixSeparator);
+		if (split.length == 1) {
+			// page of main base wiki folder
+			return "";
+		}
+		else if (split.length == 2) {
+			return split[0];
+		}
+		else {
+			LOG.error("Page name with multiple wiki-subfolder separators found! " + page);
+			return null;
+		}
+	}
+
+	public static String getLocalPageName(String page) {
+		if(page == null) return null;
+		String[] split = StringUtils.split(page, subFolderPrefixSeparator);
+		if (split.length == 1) {
+			// page of main base wiki folder
+			return page;
+		}
+		else if (split.length == 2) {
+			return split[1];
+		}
+		else {
+			LOG.error("Page name with multiple wiki-subfolder separators found! " + page);
+			return null;
+		}
 	}
 
 	/**
@@ -296,19 +365,39 @@ public abstract class AbstractFileProvider implements PageProvider {
 	@Override
 	public Collection<Page> getAllPages() throws ProviderException {
 		LOG.debug("Getting all pages...");
-		final ArrayList<Page> set = new ArrayList<>();
-		final File wikipagedir = new File(m_pageDirectory);
-		final File[] wikipages = wikipagedir.listFiles(new WikiFileFilter());
 
+		final Collection<Page> allPages = new HashSet<>();
+		final Collection<Page> basePages = collectAllWikiPagesInFolder(m_pageDirectory);
+		allPages.addAll(basePages);
+		for (String subfolder : subfolders) {
+			List<Page> folderPages = collectAllWikiPagesInFolder(m_pageDirectory + File.separator + subfolder);
+			allPages.addAll(folderPages);
+		}
+
+		final Collection<Page> returnedPages = new ArrayList<>();
+		for (final Page page : allPages) {
+			final Page info = getPageInfo(page.getName(), WikiProvider.LATEST_VERSION);
+			returnedPages.add(info);
+		}
+
+		return returnedPages;
+	}
+
+	protected List<Page> collectAllWikiPagesInFolder(String folder) throws ProviderException {
+		final ArrayList<Page> set = new ArrayList<>();
+		final File wikipagedir = new File(folder);
+		final File[] wikipages = wikipagedir.listFiles(new WikiFileFilter());
 		if (wikipages == null) {
-			LOG.error("Wikipages directory '" + m_pageDirectory + "' does not exist! Please check " + PROP_PAGEDIR + " in jspwiki.properties.");
+			LOG.error("Wikipages directory '" + folder + "' does not exist! Please check " + PROP_PAGEDIR + " in jspwiki.properties.");
 			throw new ProviderException("Page directory does not exist");
 		}
+		String subFolder = folder.substring(m_pageDirectory.length());
+		String prefix = subFolder.isEmpty() ? "" : subFolder.substring(1) + subFolderPrefixSeparator;
 
 		for (final File wikipage : wikipages) {
 			final String wikiname = wikipage.getName();
 			final int cutpoint = wikiname.lastIndexOf(FILE_EXT);
-			final Page page = getPageInfo(unmangleName(wikiname.substring(0, cutpoint)), PageProvider.LATEST_VERSION);
+			final Page page = getPageInfo(prefix + unmangleName(wikiname.substring(0, cutpoint)), PageProvider.LATEST_VERSION);
 			if (page == null) {
 				// This should not really happen.
 				// FIXME: Should we throw an exception here?
@@ -318,7 +407,6 @@ public abstract class AbstractFileProvider implements PageProvider {
 
 			set.add(page);
 		}
-
 		return set;
 	}
 
