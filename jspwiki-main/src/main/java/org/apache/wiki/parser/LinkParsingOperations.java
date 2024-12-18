@@ -18,6 +18,8 @@
  */
 package org.apache.wiki.parser;
 
+import org.apache.wiki.api.core.Page;
+import org.apache.wiki.providers.AbstractFileProvider;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 import org.apache.oro.text.regex.Pattern;
@@ -185,9 +187,15 @@ public class LinkParsingOperations {
 	 * @param page link name
 	 * @return link name, if it exists; otherwise it returns {@code null}.
 	 */
-	public String linkIfExists(final String page) {
+	public String linkIfExists(String page, Page context) {
 		if (page == null || page.isEmpty()) {
 			return null;
+		}
+
+		// resolve inner subfolder links
+		String subFolderNameOfPage = AbstractFileProvider.getSubFolderNameOfPage(context.getName());
+		if (subFolderNameOfPage != null) {
+			page = subFolderNameOfPage + AbstractFileProvider.subFolderPrefixSeparator + page;
 		}
 		try {
 			return wikiContext.getEngine().getFinalPageName(page);
