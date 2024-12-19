@@ -18,8 +18,6 @@
  */
 package org.apache.wiki.providers;
 
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.filefilter.IOFileFilter;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
@@ -54,7 +52,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import java.util.TreeSet;
 
 /**
@@ -121,9 +118,8 @@ public abstract class AbstractFileProvider implements PageProvider {
 
 	private boolean m_windowsHackNeeded;
 
-	public static final String subFolderPrefixSeparator = "::";
 	// sub-wiki-folders; for jspwiki the folder is a prefix/namespace in the page name, e.g. /Subwiki/Main.txt is page Subwiki::Main
-	protected final Set<String> subfolders = new HashSet<>();
+	protected  Collection<String> subfolders;
 
 	/**
 	 * {@inheritDoc}
@@ -166,32 +162,7 @@ public abstract class AbstractFileProvider implements PageProvider {
 
 		LOG.info("Wikipages are read from '" + m_pageDirectory + "'");
 
-		initSubFolders();
-	}
-
-	private void initSubFolders() {
-		IOFileFilter trueFilter = new IOFileFilter() {
-			@Override
-			public boolean accept(File file) {
-				return true;
-			}
-
-			@Override
-			public boolean accept(File dir, String name) {
-				return true;
-			}
-		};
-		Collection<File> folders = FileUtils.listFilesAndDirs(new File(m_pageDirectory), trueFilter, trueFilter);
-
-		Collection<File> filteredFolders = folders.stream().filter(file ->
-				file.isDirectory()
-						&& !file.getAbsolutePath().equals(m_pageDirectory)
-						&& !file.getName().equals("OLD")
-						&& !file.getParentFile().getName().equals("OLD")
-						&& !file.getName().endsWith("-att")
-						&& !file.getParentFile().getName().endsWith("-att")
-		).toList();
-		filteredFolders.forEach(folder -> this.subfolders.add(folder.getName()));
+		this.subfolders = SubWikiUtils.initSubFolders(m_pageDirectory);
 	}
 
 	String getPageDirectory() {
@@ -255,40 +226,8 @@ public abstract class AbstractFileProvider implements PageProvider {
 	 * @return A File to the page.  May be null.
 	 */
 	protected File findPage(String page) {
-		String mangledName = mangleName(getLocalPageName(page));
-		return new File(m_pageDirectory + File.separator + getSubFolderNameOfPage(page), mangledName + FILE_EXT);
-	}
-
-	public static String getSubFolderNameOfPage(String page) {
-		if(page == null) return null;
-		String[] split = StringUtils.split(page, subFolderPrefixSeparator);
-		if (split.length == 1) {
-			// page of main base wiki folder
-			return "";
-		}
-		else if (split.length == 2) {
-			return split[0];
-		}
-		else {
-			LOG.error("Page name with multiple wiki-subfolder separators found! " + page);
-			return null;
-		}
-	}
-
-	public static String getLocalPageName(String page) {
-		if(page == null) return null;
-		String[] split = StringUtils.split(page, subFolderPrefixSeparator);
-		if (split.length == 1) {
-			// page of main base wiki folder
-			return page;
-		}
-		else if (split.length == 2) {
-			return split[1];
-		}
-		else {
-			LOG.error("Page name with multiple wiki-subfolder separators found! " + page);
-			return null;
-		}
+		String mangledName = mangleName(SubWikiUtils.getLocalPageName(page));
+		return new File(m_pageDirectory + File.separator + SubWikiUtils.getSubFolderNameOfPage(page), mangledName + FILE_EXT);
 	}
 
 	/**
@@ -392,7 +331,7 @@ public abstract class AbstractFileProvider implements PageProvider {
 			throw new ProviderException("Page directory does not exist");
 		}
 		String subFolder = folder.substring(m_pageDirectory.length());
-		String prefix = subFolder.isEmpty() ? "" : subFolder.substring(1) + subFolderPrefixSeparator;
+		String prefix = subFolder.isEmpty() ? "" : subFolder.substring(1) + SubWikiUtils.subFolderPrefixSeparator;
 
 		for (final File wikipage : wikipages) {
 			final String wikiname = wikipage.getName();

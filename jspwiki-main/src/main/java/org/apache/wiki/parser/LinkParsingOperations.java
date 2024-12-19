@@ -19,7 +19,7 @@
 package org.apache.wiki.parser;
 
 import org.apache.wiki.api.core.Page;
-import org.apache.wiki.providers.AbstractFileProvider;
+import org.apache.wiki.providers.SubWikiUtils;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 import org.apache.oro.text.regex.Pattern;
@@ -184,18 +184,19 @@ public class LinkParsingOperations {
 	/**
 	 * Returns link name, if it exists; otherwise it returns {@code null}.
 	 *
-	 * @param page link name
+	 * @param centerPage           link name
+	 * @param linkSourcePage
 	 * @return link name, if it exists; otherwise it returns {@code null}.
 	 */
-	public String linkIfExists(String page, Page context) {
+	public String linkIfExists(String page, Page centerPage, String linkSourcePage) {
 		if (page == null || page.isEmpty()) {
 			return null;
 		}
 
 		// resolve inner subfolder links
-		String subFolderNameOfPage = AbstractFileProvider.getSubFolderNameOfPage(context.getName());
-		if (subFolderNameOfPage != null) {
-			page = subFolderNameOfPage + AbstractFileProvider.subFolderPrefixSeparator + page;
+		String subFolderNameOfPage = SubWikiUtils.getSubFolderNameOfPage(linkSourcePage);
+		if (subFolderNameOfPage != null && !subFolderNameOfPage.isEmpty()) {
+			page = subFolderNameOfPage + SubWikiUtils.subFolderPrefixSeparator + page;
 		}
 		try {
 			return wikiContext.getEngine().getFinalPageName(page);
