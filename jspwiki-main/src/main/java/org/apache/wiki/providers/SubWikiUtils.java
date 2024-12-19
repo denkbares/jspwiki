@@ -24,17 +24,17 @@ public class SubWikiUtils {
 
 	public static final String subFolderPrefixSeparator = "&&";
 	private static final Logger LOG = LoggerFactory.getLogger(SubWikiUtils.class);
-	public static final String PAGE_NAME_WITH_MULTIPLE_WIKI_SUBFOLDER_SEPARATORS_FOUND = "Page name with multiple wiki-subfolder separators found! ";
+	private static final String MESSAGE_INVALID_PAGE_NAME = "Page name with multiple wiki-subfolder separators found! ";
 
 	/**
 	 * For a global page name (with sub-wiki prefix e.g. MyWiki&&Main)
-	 * this method returns the sub-wiki name (which is always equal to the subfolder name.
+	 * this method returns the sub-wiki name (which is always equal to the subfolder name).
 	 *
 	 * @param page global page name
 	 * @return sub-wiki folder name
 	 */
 	public static String getSubFolderNameOfPage(@NotNull String page) {
-		String[] split = StringUtils.split(page, subFolderPrefixSeparator);
+		String[] split = page.split(subFolderPrefixSeparator);
 		if (split.length == 1) {
 			// page of main base wiki folder
 			return "";
@@ -43,7 +43,7 @@ public class SubWikiUtils {
 			return split[0];
 		}
 		else {
-			LOG.error(PAGE_NAME_WITH_MULTIPLE_WIKI_SUBFOLDER_SEPARATORS_FOUND + page);
+			LOG.error(MESSAGE_INVALID_PAGE_NAME + page);
 			return null;
 		}
 	}
@@ -54,8 +54,9 @@ public class SubWikiUtils {
 	 * @param globalPageName global page name
 	 * @return the local page name (without sub-wiki prefix)
 	 */
-	public static String getLocalPageName(@NotNull String globalPageName) {
-		String[] split = StringUtils.split(globalPageName, subFolderPrefixSeparator);
+	static String getLocalPageName(@NotNull String globalPageName) {
+		String[] split = globalPageName.split(subFolderPrefixSeparator);
+
 		if (split.length == 1) {
 			// globalPageName of main base wiki folder
 			return globalPageName;
@@ -64,7 +65,7 @@ public class SubWikiUtils {
 			return split[1];
 		}
 		else {
-			LOG.error(PAGE_NAME_WITH_MULTIPLE_WIKI_SUBFOLDER_SEPARATORS_FOUND + globalPageName);
+			LOG.error(MESSAGE_INVALID_PAGE_NAME + globalPageName);
 			return null;
 		}
 	}
@@ -86,7 +87,7 @@ public class SubWikiUtils {
 	 * @param m_pageDirectory folder path to be scanned
 	 * @return list of folders
 	 */
-	public static List<String> initSubFolders(String m_pageDirectory) {
+	static List<String> initSubFolders(String m_pageDirectory) {
 		List<String> result = new ArrayList<>();
 		IOFileFilter trueFilter = new IOFileFilter() {
 			@Override
