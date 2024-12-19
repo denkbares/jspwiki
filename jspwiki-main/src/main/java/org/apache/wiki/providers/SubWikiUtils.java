@@ -103,6 +103,7 @@ public class SubWikiUtils {
 
 		Collection<File> filteredFolders = folders.stream().filter(file ->
 				file.isDirectory()
+						&& !file.getAbsolutePath().equals(".git")
 						&& !file.getAbsolutePath().equals(m_pageDirectory)
 						&& !file.getName().equals("OLD")
 						&& !file.getParentFile().getName().equals("OLD")
