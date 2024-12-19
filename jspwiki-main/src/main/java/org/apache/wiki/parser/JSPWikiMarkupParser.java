@@ -791,7 +791,7 @@ public class JSPWikiMarkupParser extends MarkupParser {
 	 * chain is also called.
 	 */
 	private Element makeCamelCaseLink(final String wikiname, Page centerPage, Page sourcePage) {
-		final String matchedLink = m_linkParsingOperations.linkIfExists(wikiname, centerPage, sourcePage.getName());
+		final String matchedLink = m_linkParsingOperations.linkIfExists(wikiname,  sourcePage.getName());
 		callMutatorChain(m_localLinkMutatorChain, wikiname);
 		if (matchedLink != null) {
 			makeLink(READ, matchedLink, wikiname, null, null, centerPage);
@@ -1102,7 +1102,7 @@ public class JSPWikiMarkupParser extends MarkupParser {
 					linkref = linkref.substring(0, hashMark);
 					linkref = MarkupParser.cleanLink(linkref);
 					callMutatorChain(m_localLinkMutatorChain, linkref);
-					final String matchedLink = m_linkParsingOperations.linkIfExists(linkref, currentCenterPage, linkSourcePage);
+					final String matchedLink = m_linkParsingOperations.linkIfExists(linkref, linkSourcePage);
 					if (matchedLink != null) {
 						String sectref = "section-" + m_engine.encodeName(matchedLink + "-" + wikifyLink(namedSection));
 						sectref = sectref.replace('%', '_');
@@ -1114,6 +1114,7 @@ public class JSPWikiMarkupParser extends MarkupParser {
 				}
 				else {
 
+					linkref = MarkupParser.cleanLink(linkref);
 					String expandedLinkRef = linkref;
 					if (!linkSourcePage.equals("LeftMenu")
 							&& !linkSourcePage.equals("LeftMenuFooter")
@@ -1122,9 +1123,8 @@ public class JSPWikiMarkupParser extends MarkupParser {
 						expandedLinkRef = expandSubWikiNamespace(linkref, currentCenterPage.getName());
 					}
 					// It's an internal Wiki link
-					expandedLinkRef = MarkupParser.cleanLink(expandedLinkRef);
 					callMutatorChain(m_localLinkMutatorChain, expandedLinkRef);
-					final String matchedLink = m_linkParsingOperations.linkIfExists(expandedLinkRef, currentCenterPage, linkSourcePage);
+					final String matchedLink = m_linkParsingOperations.linkIfExists(expandedLinkRef, linkSourcePage);
 					if (matchedLink != null) {
 						makeLink(READ, matchedLink, linktext, null, link.getAttributes(), currentCenterPage);
 					}

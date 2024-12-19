@@ -106,7 +106,6 @@ public class VersioningFileProvider extends AbstractFileProvider {
 	@Override
 	public void initialize(final Engine engine, final Properties properties) throws NoRequiredPropertyException, IOException {
 		super.initialize(engine, properties);
-
 		// some additional sanity checks :
 		final File oldpages = getOldDir(null);
 		if (!oldpages.exists()) {
@@ -340,7 +339,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
 	 *
 	 * @throws NoSuchVersionException if there is no such version.
 	 */
-	protected int realVersion(final String page, final int requestedVersion) throws NoSuchVersionException {
+	private int realVersion(final String page, final int requestedVersion) throws NoSuchVersionException {
 		//  Quickly check for the most common case.
 		if (requestedVersion == WikiProvider.LATEST_VERSION) {
 			return -1;
@@ -380,7 +379,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
 	}
 
 	// FIXME: Should this really be here?
-	protected String readFile(final File pagedata) throws ProviderException {
+	private String readFile(final File pagedata) throws ProviderException {
 		String result = null;
 		if (pagedata.exists()) {
 			if (pagedata.canRead()) {
