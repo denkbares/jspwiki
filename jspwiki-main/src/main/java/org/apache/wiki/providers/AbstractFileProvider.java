@@ -19,6 +19,7 @@
 package org.apache.wiki.providers;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.lucene.index.DocIDMerger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 import org.apache.wiki.api.core.Engine;
@@ -119,7 +120,7 @@ public abstract class AbstractFileProvider implements PageProvider {
 	private boolean m_windowsHackNeeded;
 
 	// sub-wiki-folders; for jspwiki the folder is a prefix/namespace in the page name, e.g. /Subwiki/Main.txt is page Subwiki::Main
-	protected  Collection<String> subfolders;
+	protected Collection<String> subfolders;
 
 	/**
 	 * {@inheritDoc}
@@ -226,8 +227,14 @@ public abstract class AbstractFileProvider implements PageProvider {
 	 * @return A File to the page.  May be null.
 	 */
 	protected File findPage(String page) {
-		String mangledName = mangleName(SubWikiUtils.getLocalPageName(page));
-		return new File(m_pageDirectory + File.separator + SubWikiUtils.getSubFolderNameOfPage(page), mangledName + FILE_EXT);
+		String localPageName = SubWikiUtils.getLocalPageName(page);
+		String subfolderPathExtension = "";
+		String subwikiFolder = SubWikiUtils.getSubFolderNameOfPage(page);
+		if (subwikiFolder != null && !subwikiFolder.isEmpty()) {
+			subfolderPathExtension = File.separator + subwikiFolder;
+		}
+		String mangledName = mangleName(localPageName);
+		return new File(m_pageDirectory + subfolderPathExtension, mangledName + FILE_EXT);
 	}
 
 	/**

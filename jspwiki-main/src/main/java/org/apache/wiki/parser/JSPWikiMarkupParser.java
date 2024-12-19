@@ -1122,9 +1122,9 @@ public class JSPWikiMarkupParser extends MarkupParser {
 						expandedLinkRef = expandSubWikiNamespace(linkref, currentCenterPage.getName());
 					}
 					// It's an internal Wiki link
-					linkref = MarkupParser.cleanLink(linkref);
-					callMutatorChain(m_localLinkMutatorChain, linkref);
-					final String matchedLink = m_linkParsingOperations.linkIfExists(linkref, currentCenterPage, linkSourcePage);
+					expandedLinkRef = MarkupParser.cleanLink(expandedLinkRef);
+					callMutatorChain(m_localLinkMutatorChain, expandedLinkRef);
+					final String matchedLink = m_linkParsingOperations.linkIfExists(expandedLinkRef, currentCenterPage, linkSourcePage);
 					if (matchedLink != null) {
 						makeLink(READ, matchedLink, linktext, null, link.getAttributes(), currentCenterPage);
 					}
