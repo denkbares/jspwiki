@@ -116,6 +116,11 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 	private final ReentrantReadWriteLock attachmentLock = new ReentrantReadWriteLock();
 
 	/**
+	 * extension for sub-wikis @link{{@link SubWikiUtils}}
+	 */
+	private List<String> subfolders;
+
+	/**
 	 * {@inheritDoc}
 	 */
 	@Override
@@ -147,6 +152,8 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 		if (!f.isDirectory()) {
 			throw new IOException("Your attachment storage points to a file, not a directory: '" + m_storageDir + "'");
 		}
+
+		this.subfolders = SubWikiUtils.initSubFolders(m_storageDir);
 	}
 
 	/**
@@ -155,9 +162,16 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 	 * @param wikipage Page to which this attachment is attached.
 	 */
 	private File findPageDir(String wikipage) throws ProviderException {
-		wikipage = mangleName(wikipage);
+		String localPagename = SubWikiUtils.getLocalPageName(wikipage);
+		String subWikiFolder = SubWikiUtils.getSubFolderNameOfPage(wikipage);
+		String folderPathSuffix = "";
+		if(subWikiFolder != null && !subWikiFolder.isEmpty()) {
+			folderPathSuffix = File.separator + subWikiFolder;
+		}
 
-		final File f = new File(m_storageDir, wikipage + DIR_EXTENSION);
+		wikipage = mangleName(localPagename);
+
+		final File f = new File(m_storageDir+folderPathSuffix, wikipage + DIR_EXTENSION);
 		if (f.exists() && !f.isDirectory()) {
 			throw new ProviderException("Storage dir '" + f.getAbsolutePath() + "' is not a directory!");
 		}

@@ -18,8 +18,6 @@
  */
 package org.apache.wiki.providers;
 
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.filefilter.IOFileFilter;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 import org.apache.wiki.InternalWikiException;
@@ -52,12 +50,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Properties;
-import java.util.Set;
 
 /**
  * Provides a simple directory based repository for Wiki pages.
@@ -184,10 +180,12 @@ public class VersioningFileProvider extends AbstractFileProvider {
 	}
 
 	private File getOldDir(String page) {
-		String subFolder = getSubFolderNameOfPage(page);
 		String pageDirectory = getPageDirectory();
-		if (page != null && subFolder != null) {
-			pageDirectory = pageDirectory + File.separator + subFolder;
+		if (page != null) {
+			String subFolder = SubWikiUtils.getSubFolderNameOfPage(page);
+			if (subFolder != null) {
+				pageDirectory = pageDirectory + File.separator + subFolder;
+			}
 		}
 		return new File(pageDirectory, PAGEDIR);
 	}
@@ -201,7 +199,8 @@ public class VersioningFileProvider extends AbstractFileProvider {
 			throw new InternalWikiException("Page may NOT be null in the provider!");
 		}
 		final File oldpages = getOldDir(page);
-		return new File(oldpages, mangleName(page));
+		String localPageName = SubWikiUtils.getLocalPageName(page);
+		return new File(oldpages, mangleName(localPageName));
 	}
 
 	/**
