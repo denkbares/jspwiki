@@ -184,25 +184,33 @@ public class LinkParsingOperations {
 	/**
 	 * Returns link name, if it exists; otherwise it returns {@code null}.
 	 *
-	 * @param centerPage           link name
 	 * @param linkSourcePage
 	 * @return link name, if it exists; otherwise it returns {@code null}.
 	 */
-	public String linkIfExists(String page, Page centerPage, String linkSourcePage) {
-		if (page == null || page.isEmpty()) {
+	public String linkIfExists(String globalOrLocalTargetPageName, String linkSourcePage) {
+		if (globalOrLocalTargetPageName == null || globalOrLocalTargetPageName.isEmpty()) {
 			return null;
 		}
 
 		// resolve inner subfolder links
-		String subFolderNameOfPage = SubWikiUtils.getSubFolderNameOfPage(linkSourcePage);
-		if (subFolderNameOfPage != null && !subFolderNameOfPage.isEmpty()) {
-			page = subFolderNameOfPage + SubWikiUtils.subFolderPrefixSeparator + page;
+		String subFolderNameOfSourcePage = SubWikiUtils.getSubFolderNameOfPage(linkSourcePage);
+		String subFolderNameOfTargetPage = SubWikiUtils.getSubFolderNameOfPage(globalOrLocalTargetPageName);
+		String globalTargetPageName;
+		if ((subFolderNameOfTargetPage == null || subFolderNameOfTargetPage.isEmpty())
+				&& subFolderNameOfSourcePage != null && !subFolderNameOfSourcePage.isEmpty()
+		) {
+			// we need to expand the sub-wiki prefix to obtain a global name
+			globalTargetPageName = subFolderNameOfTargetPage + SubWikiUtils.subFolderPrefixSeparator + globalOrLocalTargetPageName;
+		}
+		else {
+			// there is already a prefix
+			globalTargetPageName = globalOrLocalTargetPageName;
 		}
 		try {
-			return wikiContext.getEngine().getFinalPageName(page);
+			return wikiContext.getEngine().getFinalPageName(globalTargetPageName);
 		}
 		catch (final ProviderException e) {
-			LOG.warn("TranslatorReader got a faulty page name [" + page + "]!", e);
+			LOG.warn("TranslatorReader got a faulty page name [" + globalOrLocalTargetPageName + "]!", e);
 			return null;
 		}
 	}

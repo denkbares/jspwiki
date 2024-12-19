@@ -76,7 +76,7 @@ public class LocalLinkAttributeProviderState implements NodeAttributeProviderSta
 		}
 		else if (hashMark != -1) { // It's an internal Wiki link, but to a named section
 			final String namedSection = link.getUrl().toString().substring(hashMark + 1);
-            final String matchedLink = linkOperations.linkIfExists( link.getUrl().toString(), null, null);
+            final String matchedLink = linkOperations.linkIfExists( link.getUrl().toString(),  null);
 			if (matchedLink != null) {
 				String sectref = "#section-" + wikiContext.getEngine()
 						.encodeName(matchedLink + "-" + MarkupParser.wikifyLink(namedSection));
