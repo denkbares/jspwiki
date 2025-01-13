@@ -81,7 +81,7 @@ public class SubWikiUtils {
 	}
 
 	/**
-	 * Scans the given folder for wiki sub-folders. Returns the set of detected subfoldres.
+	 * Scans the given folder for wiki sub-folders. Returns the set of detected subfolders.
 	 *
 	 * @param m_pageDirectory folder path to be scanned
 	 * @return list of folders
