@@ -1,0 +1,59 @@
+MultiFolder Extension
+========================
+The JSPWiki fork has been extended to manage sub-wiki-folders in a way that allows to run multiple 
+wiki content-folders in one JSPWiki (i.e. also KnowWE).
+There is one main wiki folder which is the same folder as before the extension, hence the extension is of course 100% backwards 
+compatible. 
+The idea is to consider wikis like modules with dependencies, i.e. one wiki might know (link to) another, but then not vice versa.
+
+Pitfalls & Non-backwards-compatibilities
+---------------
+There are two minor dangers regarding backwards compatibility:
+* If a wiki content has page names that contain the sequence `&&` then it will be the apocalypse. -> not allowed
+* Hopefully never been done because it would be weird: If you have/had inside your wiki folder arbitrary other folders folder besides the attachment folders, 
+then those will now be interpreted as sub-wikis while they had been ignored before.
+
+Limitations
+---------------
+The sub-wiki mechanism right now is not (yet) working recursively. Hence, You may only have one level of nested wikis.
+Maybe this possibility will be added in the future.
+
+Sub-Wikis
+========================
+Sub-wikis are sub-folders within the wiki content folder of the main wiki. The folder name defines the namespace of that 
+sub-wiki. They should not refer to outside to the main-wiki or to sibling wiki as a sub-wiki is thought of as an 
+independent module, not knowing other wikis outside. Consequently, normal wiki links in a sub-wiki always refer to the
+local sub-wiki namespace.
+
+__Note:__ Attachment folders (ending on `-att` and History folders `OLD`) are of course excluded from sub-wiki interpretation.
+Further, also `.git` folders are excluded.
+
+Attachments
+---------------
+Attachments are stored in each sub-wiki-folder separately.
+
+History via VersioningFileProvider
+---------------
+The VersioningFileProvider has been extended to manage the history of each (sub-)wiki in its distinct `OLD`-Folder.
+Hence, after editing multiple Wikis together, they can be detached from another again, started separately and the history
+prevails.
+
+References from Main-Wiki to Sub-Wiki
+---------------------------------------
+When we have a page in a sub-wiki `Sub1` such as `/mainWikiContent/Sub1/MyBike.txt` and You want to link to it from
+main wiki, then we need to use the sub-wiki namespace as prefix in the link:
+
+```
+[Sub1&&MyBike]
+```
+
+__Note:__ If the page BikeStructure does not yet exist in the sub-wiki `Sub1` then it will be created there as usual in JSPWiki.
+Furthermore: If the sub-wiki `Sub1` does not yet exist, it will be created, that is a corresponding wiki content folder with
+name `Sub1` will be created within the main wiki content folder.
+
+
+KnowWE-Compilation
+-------------------
+KnowWE is completely multi-folder-agnostic. The JSPWiki-`PageProvider` will for sub-wiki pages add
+the sub-wiki namespace as prefix for the page name. Hence, the KnowWE-Article-Manager will treat everything as one wiki.
+When using package-compilers, this can bring the benefit of flexible modular knowledge compilation.
