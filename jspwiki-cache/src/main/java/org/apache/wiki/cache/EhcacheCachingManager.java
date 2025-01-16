@@ -48,17 +48,16 @@ public class EhcacheCachingManager implements CachingManager, Initializable {
 	private static final int DEFAULT_CACHE_EXPIRY_PERIOD = 24 * 60 * 60;
 
 	final Map<String, Cache> cacheMap = new ConcurrentHashMap<>();
-	final Map<String, CacheInfo> cacheStats = new ConcurrentHashMap<>();
-	CacheManager cacheManager;
+	private final Map<String, CacheInfo> cacheStats = new ConcurrentHashMap<>();
+	private CacheManager cacheManager;
 
 	/** {@inheritDoc} */
 	@Override
 	public void shutdown() {
-		if (!cacheMap.isEmpty()) {
-			CacheManager.getInstance().shutdown();
-			cacheMap.clear();
-			cacheStats.clear();
-		}
+		LOG.info("Shutting down local CacheManager: "+cacheManager);
+		cacheMap.clear();
+		cacheStats.clear();
+		cacheManager.shutdown();
 	}
 
 	/** {@inheritDoc} */
@@ -70,7 +69,7 @@ public class EhcacheCachingManager implements CachingManager, Initializable {
 		if (useCache) {
 			final URL location = this.getClass().getResource(confLocation);
 			LOG.info("Reading ehcache configuration file from classpath on /{}", location);
-			cacheManager = CacheManager.create(location);
+			cacheManager = CacheManager.newInstance(location);
 			registerCache(CACHE_ATTACHMENTS);
 			registerCache(CACHE_ATTACHMENTS_COLLECTION);
 			registerCache(CACHE_ATTACHMENTS_DYNAMIC);
