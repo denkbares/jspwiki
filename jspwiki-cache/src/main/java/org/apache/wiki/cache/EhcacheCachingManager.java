@@ -56,7 +56,9 @@ public class EhcacheCachingManager implements CachingManager, Initializable {
 		LOG.info("Shutting down local CacheManager: "+cacheManager);
 		cacheMap.clear();
 		cacheStats.clear();
-		cacheManager.shutdown();
+		if(cacheManager != null) {
+			cacheManager.shutdown();
+		}
 	}
 
 	/** {@inheritDoc} */
