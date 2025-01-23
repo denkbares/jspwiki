@@ -54,10 +54,12 @@ public class EhcacheCachingManager implements CachingManager, Initializable {
 	/** {@inheritDoc} */
 	@Override
 	public void shutdown() {
-		LOG.info("Shutting down local CacheManager: "+cacheManager);
+		LOG.info("Shutting down local CacheManager: " + cacheManager);
 		cacheMap.clear();
 		cacheStats.clear();
-		cacheManager.shutdown();
+		if (cacheManager != null)  { // in case initialize was not called, e.g. in tests
+			cacheManager.shutdown();
+		}
 	}
 
 	/** {@inheritDoc} */
