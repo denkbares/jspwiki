@@ -4,12 +4,12 @@ The JSPWiki fork has been extended to manage sub-wiki-folders in a way that allo
 wiki content-folders in one JSPWiki (i.e. also KnowWE).
 There is one main wiki folder which is the same folder as before the extension, hence the extension is of course 100% backwards 
 compatible. 
-The idea is to consider wikis like modules with dependencies, i.e. one wiki might know (link to) another, but then not vice versa.
+The idea is to consider wikis like modules with dependencies, i.e. one wiki might know (link to) another.
 
 Pitfalls & Non-backwards-compatibilities
 ---------------
 There are two minor dangers regarding backwards compatibility:
-* If a wiki content has page names that contain the sequence `&&` then it will be the apocalypse. -> not allowed
+* If a wiki content has page names that contain the sequence `&&` then it will be the apocalypse. -> not allowed (@see SubWikiUtils.java)
 * Hopefully never been done because it would be weird: If you have/had inside your wiki folder arbitrary other folders folder besides the attachment folders, 
 then those will now be interpreted as sub-wikis while they had been ignored before.
 
@@ -57,3 +57,27 @@ KnowWE-Compilation
 KnowWE is completely multi-folder-agnostic. The JSPWiki-`PageProvider` will for sub-wiki pages add
 the sub-wiki namespace as prefix for the page name. Hence, the KnowWE-Article-Manager will treat everything as one wiki.
 When using package-compilers, this can bring the benefit of flexible modular knowledge compilation.
+
+
+Usage Modes:
+========================
+Nested Mode: (default)
+---------------
+If nothing else is configured, then the 'main' wiki content lives in the base-dir folder (as always). If no
+additional sub-wikis exist, this is exactly as JSPWiki was working for ages. If however additional sub-wikis
+exists, each lives inside the base-dir folder in a distinct sub-wiki-folder - leading to an untidy _nested_ folder structure.
+In that folder structure, main-wiki files, main-wiki-attachment folders, the main-wiki-OLD-folder are wildly mixed up with the sub-wikis.
+If You want to work with sub-wikis in a more tidy way, use the Flat-Mode as described below.
+
+Flat Mode:
+---------------
+To confiure the flat-mode, You have to specify a distinct folder name for the main-wiki-content. Then, the main-wiki-content
+(txt-files, attachments, OLD-folder,....) is stored there. You can do so by specifiying the folder by 'jspwiki.mainFolder' in
+the jspwiki-custom.properties file, as for example:
+
+```
+jspwiki.mainFolder = MainContent
+```
+In that example, the main-wiki-content, for example the LeftMenu.txt, will be stored as: `$basedir/MainContent/LeftMenu.txt`
+
+__Note:__ In the flat mode, You can create links from any sub-wiki into the main wiki. That is not possible in the nested mode. 
