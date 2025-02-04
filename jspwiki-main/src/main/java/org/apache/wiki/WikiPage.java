@@ -25,6 +25,7 @@ import org.apache.wiki.auth.acl.Acl;
 import org.apache.wiki.auth.acl.AclEntry;
 import org.apache.wiki.auth.acl.AclImpl;
 import org.apache.wiki.pages.PageManager;
+import org.apache.wiki.providers.SubWikiUtils;
 
 import java.util.Date;
 import java.util.Enumeration;
@@ -58,7 +59,7 @@ public class WikiPage implements Page {
      */
     public WikiPage( final Engine engine, final String name ) {
         m_engine = engine;
-        m_name = name;
+        m_name = SubWikiUtils.expandPageNameWithMainPrefix(name, m_engine.getWikiProperties());
         m_wiki = engine.getApplicationName();
     }
 

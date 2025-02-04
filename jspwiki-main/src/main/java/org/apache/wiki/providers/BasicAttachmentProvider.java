@@ -156,7 +156,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 	 */
 	private File findPageDir(String wikipage) throws ProviderException {
 		String localPageName = SubWikiUtils.getLocalPageName(wikipage);
-		String subWikiFolder = SubWikiUtils.getSubFolderNameOfPage(wikipage);
+		String subWikiFolder = SubWikiUtils.getSubFolderNameOfPage(wikipage, m_engine.getWikiProperties());
 		String folderPathSuffix = "";
 		if(subWikiFolder != null && !subWikiFolder.isEmpty()) {
 			folderPathSuffix = File.separator + subWikiFolder;
