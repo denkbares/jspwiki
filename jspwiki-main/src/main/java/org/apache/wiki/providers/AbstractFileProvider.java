@@ -19,7 +19,7 @@
 package org.apache.wiki.providers;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.lucene.index.DocIDMerger;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 import org.apache.wiki.api.core.Engine;
@@ -163,11 +163,26 @@ public abstract class AbstractFileProvider implements PageProvider {
 
 		LOG.info("Wikipages are read from '" + m_pageDirectory + "'");
 
-		this.subfolders = SubWikiUtils.initSubFolders(m_pageDirectory);
+		this.subfolders = SubWikiUtils.initSubFolders(m_pageDirectory, properties);
 	}
 
 	String getPageDirectory() {
-		return m_pageDirectory;
+		return getPageDirectory(null);
+	}
+
+	String getPageDirectory(@Nullable String pageName) {
+		Properties wikiProperties = this.m_engine.getWikiProperties();
+		String folder = null;
+		if (pageName != null) {
+			folder = SubWikiUtils.getSubFolderNameOfPage(pageName, wikiProperties);
+		} else {
+			folder = SubWikiUtils.getMainWikiFolder(wikiProperties);
+		}
+		String suffix = "";
+		if (folder != null || !folder.isEmpty()) {
+			suffix = File.separator + folder;
+		}
+		return m_pageDirectory + suffix;
 	}
 
 	private static final String[] WINDOWS_DEVICE_NAMES = {
@@ -227,14 +242,21 @@ public abstract class AbstractFileProvider implements PageProvider {
 	 * @return A File to the page.  May be null.
 	 */
 	protected File findPage(String page) {
+		this.m_engine.getWikiProperties();
 		String localPageName = SubWikiUtils.getLocalPageName(page);
 		String subfolderPathExtension = "";
-		String subwikiFolder = SubWikiUtils.getSubFolderNameOfPage(page);
+		String subwikiFolder = SubWikiUtils.getSubFolderNameOfPage(page, m_engine.getWikiProperties());
 		if (subwikiFolder != null && !subwikiFolder.isEmpty()) {
 			subfolderPathExtension = File.separator + subwikiFolder;
 		}
 		String mangledName = mangleName(localPageName);
-		return new File(m_pageDirectory + subfolderPathExtension, mangledName + FILE_EXT);
+		String folder = m_pageDirectory + subfolderPathExtension;
+		File folderFile = new File(folder);
+		if(! folderFile.exists()) {
+			// might be that the first page of a new sub-wiki is created -> then create new folder
+			folderFile.mkdirs();
+		}
+		return new File(folder, mangledName + FILE_EXT);
 	}
 
 	/**
@@ -313,7 +335,7 @@ public abstract class AbstractFileProvider implements PageProvider {
 		LOG.debug("Getting all pages...");
 
 		final Collection<Page> allPages = new HashSet<>();
-		final Collection<Page> basePages = collectAllWikiPagesInFolder(m_pageDirectory);
+		final Collection<Page> basePages = collectAllWikiPagesInFolder(getPageDirectory());
 		allPages.addAll(basePages);
 		for (String subfolder : subfolders) {
 			List<Page> folderPages = collectAllWikiPagesInFolder(m_pageDirectory + File.separator + subfolder);
@@ -332,22 +354,31 @@ public abstract class AbstractFileProvider implements PageProvider {
 	protected List<Page> collectAllWikiPagesInFolder(String folder) throws ProviderException {
 		final ArrayList<Page> set = new ArrayList<>();
 		final File wikipagedir = new File(folder);
+		if(!wikipagedir.exists()) {
+			// might be start of an empty (nested-)wiki (e.g. testing)
+			wikipagedir.mkdirs();
+		}
 		final File[] wikipages = wikipagedir.listFiles(new WikiFileFilter());
 		if (wikipages == null) {
 			LOG.error("Wikipages directory '" + folder + "' does not exist! Please check " + PROP_PAGEDIR + " in jspwiki.properties.");
 			throw new ProviderException("Page directory does not exist");
 		}
-		String subFolder = folder.substring(m_pageDirectory.length());
-		String prefix = subFolder.isEmpty() ? "" : subFolder.substring(1) + SubWikiUtils.subFolderPrefixSeparator;
+		String pageDirectory = m_pageDirectory;
+		if(!m_pageDirectory.endsWith(File.separator)) {
+			pageDirectory += File.separator;
+		}
+		String subFolder = folder.substring(pageDirectory.length());
+		String prefix = subFolder.isEmpty() ? "" : subFolder + SubWikiUtils.SUB_FOLDER_PREFIX_SEPARATOR;
 
-		for (final File wikipage : wikipages) {
-			final String wikiname = wikipage.getName();
-			final int cutpoint = wikiname.lastIndexOf(FILE_EXT);
-			final Page page = getPageInfo(prefix + unmangleName(wikiname.substring(0, cutpoint)), PageProvider.LATEST_VERSION);
+		for (final File wikiFile : wikipages) {
+			final String wikiFileName = wikiFile.getName();
+			final int cutpoint = wikiFileName.lastIndexOf(FILE_EXT);
+			String pageName = prefix + unmangleName(wikiFileName.substring(0, cutpoint));
+			final Page page = getPageInfo(pageName, PageProvider.LATEST_VERSION);
 			if (page == null) {
 				// This should not really happen.
 				// FIXME: Should we throw an exception here?
-				LOG.error("Page " + wikiname + " was found in directory listing, but could not be located individually.");
+				LOG.error("Page " + wikiFileName + " was found in directory listing, but could not be located individually.");
 				continue;
 			}
 

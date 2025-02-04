@@ -18,7 +18,6 @@
  */
 package org.apache.wiki.parser;
 
-import org.apache.wiki.api.core.Page;
 import org.apache.wiki.providers.SubWikiUtils;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
@@ -193,14 +192,14 @@ public class LinkParsingOperations {
 		}
 
 		// resolve inner subfolder links
-		String subFolderNameOfSourcePage = SubWikiUtils.getSubFolderNameOfPage(linkSourcePage);
-		String subFolderNameOfTargetPage = SubWikiUtils.getSubFolderNameOfPage(globalOrLocalTargetPageName);
+		String subFolderNameOfSourcePage = SubWikiUtils.getSubFolderNameOfPage(linkSourcePage, wikiContext.getEngine().getWikiProperties());
+		String subFolderNameOfTargetPage = SubWikiUtils.getSubFolderNameOfPage(globalOrLocalTargetPageName, wikiContext.getEngine().getWikiProperties());
 		String globalTargetPageName;
 		if ((subFolderNameOfTargetPage == null || subFolderNameOfTargetPage.isEmpty())
 				&& subFolderNameOfSourcePage != null && !subFolderNameOfSourcePage.isEmpty()
 		) {
 			// we need to expand the sub-wiki prefix to obtain a global name
-			globalTargetPageName = subFolderNameOfTargetPage + SubWikiUtils.subFolderPrefixSeparator + globalOrLocalTargetPageName;
+			globalTargetPageName = subFolderNameOfTargetPage + SubWikiUtils.SUB_FOLDER_PREFIX_SEPARATOR + globalOrLocalTargetPageName;
 		}
 		else {
 			// there is already a prefix

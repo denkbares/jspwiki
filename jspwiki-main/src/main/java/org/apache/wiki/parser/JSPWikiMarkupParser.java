@@ -407,9 +407,13 @@ public class JSPWikiMarkupParser extends MarkupParser {
 	}
 
 	private String expandSubWikiNamespace(String link, String globalPageName) {
+		if(SubWikiUtils.isGlobalName(link)) {
+			// is already expanded
+			return link;
+		}
 		String subWikiFolder = null;
 		if (globalPageName != null) {
-			subWikiFolder = SubWikiUtils.getSubFolderNameOfPage(globalPageName);
+			subWikiFolder = SubWikiUtils.getSubFolderNameOfPage(globalPageName, m_engine.getWikiProperties());
 		}
 		if (subWikiFolder != null && !subWikiFolder.isEmpty()) {
 			link = SubWikiUtils.concatSubWikiAndLocalPageName(subWikiFolder, link);
@@ -1115,14 +1119,7 @@ public class JSPWikiMarkupParser extends MarkupParser {
 				else {
 
 					linkref = MarkupParser.cleanLink(linkref);
-					String expandedLinkRef = linkref;
-					if (!linkSourcePage.equals("LeftMenu")
-							&& !linkSourcePage.equals("LeftMenuFooter")
-							&& !linkSourcePage.equals("RightPanel")
-					) {
-						expandedLinkRef = expandSubWikiNamespace(linkref, currentCenterPage.getName());
-					}
-					// It's an internal Wiki link
+					String expandedLinkRef =  expandSubWikiNamespace(linkref, linkSourcePage);
 					callMutatorChain(m_localLinkMutatorChain, expandedLinkRef);
 					final String matchedLink = m_linkParsingOperations.linkIfExists(expandedLinkRef, linkSourcePage);
 					if (matchedLink != null) {

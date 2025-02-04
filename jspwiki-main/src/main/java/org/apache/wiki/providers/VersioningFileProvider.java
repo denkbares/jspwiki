@@ -179,14 +179,8 @@ public class VersioningFileProvider extends AbstractFileProvider {
 	}
 
 	private File getOldDir(String page) {
-		String pageDirectory = getPageDirectory();
-		if (page != null) {
-			String subFolder = SubWikiUtils.getSubFolderNameOfPage(page);
-			if (subFolder != null) {
-				pageDirectory = pageDirectory + File.separator + subFolder;
-			}
-		}
-		return new File(pageDirectory, PAGEDIR);
+
+		return new File(getPageDirectory(), PAGEDIR);
 	}
 
 	/**

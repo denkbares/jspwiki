@@ -6,11 +6,11 @@ package org.apache.wiki.providers;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Properties;
 
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.filefilter.IOFileFilter;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,9 +21,10 @@ import org.slf4j.LoggerFactory;
  */
 public class SubWikiUtils {
 
-	public static final String subFolderPrefixSeparator = "&&";
+	public static final String SUB_FOLDER_PREFIX_SEPARATOR = "&&";
 	private static final Logger LOG = LoggerFactory.getLogger(SubWikiUtils.class);
 	private static final String MESSAGE_INVALID_PAGE_NAME = "Page name with multiple wiki-subfolder separators found! ";
+	private static final String MAIN_FOLDER_NAME = "jspwiki.mainFolder";
 
 	/**
 	 * For a global page name (with sub-wiki prefix e.g. MyWiki&&Main)
@@ -32,11 +33,11 @@ public class SubWikiUtils {
 	 * @param page global page name
 	 * @return sub-wiki folder name
 	 */
-	public static String getSubFolderNameOfPage(@NotNull String page) {
-		String[] split = page.split(subFolderPrefixSeparator);
+	public static String getSubFolderNameOfPage(@NotNull String page, @NotNull Properties properties) {
+		String[] split = page.split(SUB_FOLDER_PREFIX_SEPARATOR);
 		if (split.length == 1) {
 			// page of main base wiki folder
-			return "";
+			return getMainWikiFolder(properties);
 		}
 		else if (split.length == 2) {
 			return split[0];
@@ -47,14 +48,30 @@ public class SubWikiUtils {
 		}
 	}
 
+	public static String expandPageNameWithMainPrefix(@NotNull String pageName, @NotNull Properties properties) {
+		String result = pageName;
+		String subFolderName = getSubFolderNameOfPage(pageName, properties);
+		String localName = getLocalPageName(pageName);
+		if(subFolderName != null && !subFolderName.isEmpty() ) {
+			if (!pageName.equals(concatSubWikiAndLocalPageName(subFolderName, localName))) {
+				result = concatSubWikiAndLocalPageName(subFolderName, pageName);
+			}
+		}
+		return result;
+	}
+
+	public static String getMainWikiFolder(@NotNull Properties properties) {
+		return properties.getProperty(MAIN_FOLDER_NAME, "");
+	}
+
 	/**
 	 * Returns the local name (inside a sub-wiki scope) of a global page name (with sub-wiki prefix).
 	 *
 	 * @param globalPageName global page name
 	 * @return the local page name (without sub-wiki prefix)
 	 */
-	static String getLocalPageName(@NotNull String globalPageName) {
-		String[] split = globalPageName.split(subFolderPrefixSeparator);
+	public static String getLocalPageName(@NotNull String globalPageName) {
+		String[] split = globalPageName.split(SUB_FOLDER_PREFIX_SEPARATOR);
 
 		if (split.length == 1) {
 			// globalPageName of main base wiki folder
@@ -77,7 +94,7 @@ public class SubWikiUtils {
 	 * @return global page name
 	 */
 	public static @NotNull String concatSubWikiAndLocalPageName(@NotNull String subwiki, @NotNull String localPageName) {
-		return subwiki + subFolderPrefixSeparator + localPageName;
+		return subwiki + SUB_FOLDER_PREFIX_SEPARATOR + localPageName;
 	}
 
 	/**
@@ -86,22 +103,12 @@ public class SubWikiUtils {
 	 * @param m_pageDirectory folder path to be scanned
 	 * @return list of folders
 	 */
-	static List<String> initSubFolders(String m_pageDirectory) {
+	static List<String> initSubFolders(String m_pageDirectory, Properties wikiProperties) {
 		List<String> result = new ArrayList<>();
-		IOFileFilter trueFilter = new IOFileFilter() {
-			@Override
-			public boolean accept(File file) {
-				return true;
-			}
+		File baseDir = new File(m_pageDirectory);
+		File[] folders2 = baseDir.listFiles();
 
-			@Override
-			public boolean accept(File dir, String name) {
-				return true;
-			}
-		};
-		Collection<File> folders = FileUtils.listFilesAndDirs(new File(m_pageDirectory), trueFilter, trueFilter);
-
-		Collection<File> filteredFolders = folders.stream().filter(file ->
+		Collection<File> filteredFolders = Arrays.asList(folders2).stream().filter(file ->
 				file.isDirectory()
 						&& !file.getAbsolutePath().equals(".git")
 						&& !file.getAbsolutePath().equals(m_pageDirectory)
@@ -109,8 +116,18 @@ public class SubWikiUtils {
 						&& !file.getParentFile().getName().equals("OLD")
 						&& !file.getName().endsWith("-att")
 						&& !file.getParentFile().getName().endsWith("-att")
+						&& !file.getName().equals(SubWikiUtils.getMainWikiFolder(wikiProperties))
 		).toList();
 		filteredFolders.forEach(folder -> result.add(folder.getName()));
 		return result;
 	}
+
+	public static boolean isGlobalName(String pageName) {
+		return pageName.contains(SUB_FOLDER_PREFIX_SEPARATOR);
+	}
+
+	public static boolean isLocalName(String pageName) {
+		return !isGlobalName(pageName);
+	}
+
 }
