@@ -140,7 +140,8 @@ public class FileSystemProvider extends AbstractFileProvider {
     @Override
     public void deletePage( final Page page) throws ProviderException {
         super.deletePage(page);
-        final File file = new File( getPageDirectory(), mangleName(page.getName())+PROP_EXT );
+        // TODO: fix for multi wikis!
+        final File file = new File( getPageDirectory(page.getName()), mangleName(page.getName())+PROP_EXT );
         if( file.exists() ) {
             file.delete();
         }
@@ -151,6 +152,7 @@ public class FileSystemProvider extends AbstractFileProvider {
      */
     @Override
     public void movePage(final Page from, final String to ) throws ProviderException {
+        // TODO: fix for multi-wiki
         final File fromPage = findPage( from.getName() );
         final File toPage = findPage( to );
         fromPage.renameTo( toPage );

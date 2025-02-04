@@ -18,6 +18,7 @@
  */
 package org.apache.wiki.tags;
 
+import org.apache.wiki.providers.SubWikiUtils;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 import org.apache.wiki.api.core.Engine;
@@ -97,11 +98,12 @@ public class InsertPageTag extends WikiTagBase {
         //      AND we got the page from the wikiContext.
         //
 
+
         if( m_pageName == null ) {
             insertedPage = m_wikiContext.getPage();
-            if( !engine.getManager( PageManager.class ).wikiPageExists(insertedPage) ) return SKIP_BODY;
+             if( !engine.getManager( PageManager.class ).wikiPageExists(insertedPage) ) return SKIP_BODY;
         } else {
-            insertedPage = engine.getManager( PageManager.class ).getPage( m_pageName );
+            insertedPage = engine.getManager( PageManager.class ).getPage( SubWikiUtils.expandPageNameWithMainPrefix(m_pageName, m_wikiContext.getEngine().getWikiProperties()));
         }
 
         if( insertedPage != null ) {
