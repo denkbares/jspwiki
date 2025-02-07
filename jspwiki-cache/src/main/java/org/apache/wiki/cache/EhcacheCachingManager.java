@@ -21,6 +21,8 @@ package org.apache.wiki.cache;
 import net.sf.ehcache.Cache;
 import net.sf.ehcache.CacheManager;
 import net.sf.ehcache.Element;
+import net.sf.ehcache.config.Configuration;
+import net.sf.ehcache.config.ConfigurationFactory;
 import net.sf.ehcache.event.CacheEventListener;
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.engine.Initializable;
@@ -48,20 +50,23 @@ public class EhcacheCachingManager implements CachingManager, Initializable {
 	private static final int DEFAULT_CACHE_EXPIRY_PERIOD = 24 * 60 * 60;
 
 	final Map<String, Cache> cacheMap = new ConcurrentHashMap<>();
-	final Map<String, CacheInfo> cacheStats = new ConcurrentHashMap<>();
-	CacheManager cacheManager;
+	private final Map<String, CacheInfo> cacheStats = new ConcurrentHashMap<>();
+	private CacheManager cacheManager;
 
-	/** {@inheritDoc} */
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void shutdown() {
-		if (!cacheMap.isEmpty()) {
-			CacheManager.getInstance().shutdown();
-			cacheMap.clear();
-			cacheStats.clear();
-		}
+		LOG.info("Shutting down local CacheManager: " + cacheManager);
+		cacheMap.clear();
+		cacheStats.clear();
+		cacheManager.shutdown();
 	}
 
-	/** {@inheritDoc} */
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void initialize(final Engine engine, final Properties props) throws WikiException {
 		final String cacheEnabled = TextUtil.getStringProperty(props, PROP_CACHE_ENABLE, PROP_USECACHE_DEPRECATED, "true");
@@ -70,7 +75,11 @@ public class EhcacheCachingManager implements CachingManager, Initializable {
 		if (useCache) {
 			final URL location = this.getClass().getResource(confLocation);
 			LOG.info("Reading ehcache configuration file from classpath on /{}", location);
-			cacheManager = CacheManager.create(location);
+			Configuration configuration = ConfigurationFactory.parseConfiguration(location);
+			if (configuration.getName() == null) {
+				configuration.name(engine.getApplicationName());
+			}
+			cacheManager = CacheManager.newInstance(configuration);
 			registerCache(CACHE_ATTACHMENTS);
 			registerCache(CACHE_ATTACHMENTS_COLLECTION);
 			registerCache(CACHE_ATTACHMENTS_DYNAMIC);
@@ -95,13 +104,17 @@ public class EhcacheCachingManager implements CachingManager, Initializable {
 		cacheStats.put(cacheName, new CacheInfo(cacheName, cache.getCacheConfiguration().getMaxEntriesLocalHeap()));
 	}
 
-	/** {@inheritDoc} */
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public boolean enabled(final String cacheName) {
 		return cacheMap.get(cacheName) != null;
 	}
 
-	/** {@inheritDoc} */
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public CacheInfo info(final String cacheName) {
 		if (enabled(cacheName)) {
@@ -122,7 +135,9 @@ public class EhcacheCachingManager implements CachingManager, Initializable {
 		return Collections.emptyList();
 	}
 
-	/** {@inheritDoc} */
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	@SuppressWarnings("unchecked")
 	public <T, E extends Exception> T get(final String cacheName, final Serializable key, final CheckedSupplier<T, E> supplier) throws E {
@@ -145,7 +160,9 @@ public class EhcacheCachingManager implements CachingManager, Initializable {
 		return null;
 	}
 
-	/** {@inheritDoc} */
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void put(final String cacheName, final Serializable key, final Object val) {
 		if (keyAndCacheAreNotNull(cacheName, key)) {
@@ -153,7 +170,9 @@ public class EhcacheCachingManager implements CachingManager, Initializable {
 		}
 	}
 
-	/** {@inheritDoc} */
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void remove(final String cacheName, final Serializable key) {
 		if (keyAndCacheAreNotNull(cacheName, key)) {
@@ -168,8 +187,6 @@ public class EhcacheCachingManager implements CachingManager, Initializable {
 		}
 		return false;
 	}
-
-
 
 	boolean keyAndCacheAreNotNull(final String cacheName, final Serializable key) {
 		return enabled(cacheName) && key != null;
