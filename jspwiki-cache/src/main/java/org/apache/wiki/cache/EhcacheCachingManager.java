@@ -21,6 +21,8 @@ package org.apache.wiki.cache;
 import net.sf.ehcache.Cache;
 import net.sf.ehcache.CacheManager;
 import net.sf.ehcache.Element;
+import net.sf.ehcache.config.Configuration;
+import net.sf.ehcache.config.ConfigurationFactory;
 import net.sf.ehcache.event.CacheEventListener;
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.engine.Initializable;
@@ -72,6 +74,11 @@ public class EhcacheCachingManager implements CachingManager, Initializable {
 			final URL location = this.getClass().getResource(confLocation);
 			LOG.info("Reading ehcache configuration file from classpath on /{}", location);
 			cacheManager = CacheManager.newInstance(location);
+			Configuration configuration = ConfigurationFactory.parseConfiguration(location);
+			if (configuration.getName() == null) {
+				configuration.name(engine.getApplicationName());
+			}
+			cacheManager = CacheManager.newInstance(configuration);
 			registerCache(CACHE_ATTACHMENTS);
 			registerCache(CACHE_ATTACHMENTS_COLLECTION);
 			registerCache(CACHE_ATTACHMENTS_DYNAMIC);
