@@ -274,7 +274,7 @@ public class TestEngine extends WikiEngine {
     /**
      *  Copied from FileSystemProvider
      */
-    protected static String mangleName( String pagename ) {
+    public static String mangleName( String pagename ) {
         final Properties properties = new Properties();
         final String m_encoding = properties.getProperty( WikiEngine.PROP_ENCODING, AbstractFileProvider.DEFAULT_ENCODING );
 

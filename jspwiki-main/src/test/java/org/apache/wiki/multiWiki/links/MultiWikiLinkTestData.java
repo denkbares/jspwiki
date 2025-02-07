@@ -2,11 +2,11 @@
  * Copyright (C) 2025 denkbares GmbH. All rights reserved.
  */
 
-package org.apache.wiki.multiWiki;
+package org.apache.wiki.multiWiki.links;
 
 import org.apache.wiki.providers.SubWikiUtils;
 
-public class MultiWikiTestData {
+public class MultiWikiLinkTestData {
 
 	static final String WIKI_PREFIX_B = "WikiB";
 
