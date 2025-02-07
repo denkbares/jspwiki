@@ -264,8 +264,7 @@ public class WikiEngine implements Engine {
         m_useUTF8        = StandardCharsets.UTF_8.name().equals( TextUtil.getStringProperty( props, PROP_ENCODING, StandardCharsets.ISO_8859_1.name() ) );
         m_saveUserInfo   = TextUtil.getBooleanProperty( props, PROP_STOREUSERNAME, m_saveUserInfo );
         m_frontPage      = TextUtil.getStringProperty( props, PROP_FRONTPAGE, "Main" );
-        m_templateDir    = TextUtil.getStringProperty( props, PROP_TEMPLATEDIR, "default" );
-        enforceValidTemplateDirectory();
+        updateTemplateDir();
 
         //
         //  Initialize the important modules.  Any exception thrown by the managers means that we will not start up.
@@ -344,6 +343,11 @@ public class WikiEngine implements Engine {
 
         LOG.info( "WikiEngine configured." );
         m_isConfigured = true;
+    }
+
+    public void updateTemplateDir() {
+        m_templateDir    = TextUtil.getStringProperty(m_properties, PROP_TEMPLATEDIR, "default" );
+        enforceValidTemplateDirectory();
     }
 
     void createAndFindWorkingDirectory( final Properties props ) throws WikiException {
