@@ -19,13 +19,24 @@
 
 package org.apache.wiki;
 
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.StringReader;
+import java.util.AbstractMap;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Properties;
+
+import javax.servlet.ServletContext;
+import javax.servlet.http.HttpServletRequest;
+
 import net.sourceforge.stripes.mock.MockHttpServletRequest;
 import net.sourceforge.stripes.mock.MockHttpSession;
 import net.sourceforge.stripes.mock.MockServletContext;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.wiki.api.Release;
-import org.slf4j.LoggerFactory;
-import org.slf4j.Logger;
 import org.apache.wiki.api.core.Attachment;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.core.ContextEnum;
@@ -50,18 +61,8 @@ import org.apache.wiki.render.RenderingManager;
 import org.apache.wiki.util.FileUtil;
 import org.apache.wiki.util.PropertyReader;
 import org.apache.wiki.util.TextUtil;
-
-import javax.servlet.ServletContext;
-import javax.servlet.http.HttpServletRequest;
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.StringReader;
-import java.util.AbstractMap;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Properties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *  Simple test engine that always assumes pages are found.
@@ -319,7 +320,7 @@ public class TestEngine extends WikiEngine {
     /**
      *  Copied from FileSystemProvider
      */
-    protected static String mangleName( String pagename ) {
+    public static String mangleName( String pagename ) {
         final Properties properties = new Properties();
         final String m_encoding = properties.getProperty( WikiEngine.PROP_ENCODING, AbstractFileProvider.DEFAULT_ENCODING );
 

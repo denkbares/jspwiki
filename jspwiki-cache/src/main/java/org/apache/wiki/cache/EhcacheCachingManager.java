@@ -75,7 +75,7 @@ public class EhcacheCachingManager implements CachingManager, Initializable {
 			LOG.info("Reading ehcache configuration file from classpath on /{}", location);
 			cacheManager = CacheManager.newInstance(location);
 			Configuration configuration = ConfigurationFactory.parseConfiguration(location);
-			if (configuration.getName() == null) {
+			if (configuration.getName() == null && engine != null) {
 				configuration.name(engine.getApplicationName());
 			}
 			cacheManager = CacheManager.newInstance(configuration);

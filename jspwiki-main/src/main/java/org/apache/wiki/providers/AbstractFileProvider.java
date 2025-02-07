@@ -242,7 +242,6 @@ public abstract class AbstractFileProvider implements PageProvider {
 	 * @return A File to the page.  May be null.
 	 */
 	protected File findPage(String page) {
-		this.m_engine.getWikiProperties();
 		String localPageName = SubWikiUtils.getLocalPageName(page);
 		String subfolderPathExtension = "";
 		String subwikiFolder = SubWikiUtils.getSubFolderNameOfPage(page, m_engine.getWikiProperties());

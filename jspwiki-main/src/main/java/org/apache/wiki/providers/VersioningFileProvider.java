@@ -179,8 +179,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
 	}
 
 	private File getOldDir(String page) {
-
-		return new File(getPageDirectory(), PAGEDIR);
+		return new File(getPageDirectory(page), PAGEDIR);
 	}
 
 	/**
