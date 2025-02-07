@@ -21,7 +21,19 @@ import org.slf4j.LoggerFactory;
  */
 public class SubWikiUtils {
 
+	/*
+	PREFIX-SEPARATORS START
+	if you change this separator, You need to
+	a) change all three constants consistently (otherwise at least the tests will break)
+	b) You need real thorough checking if still everything works fine in the front-end
+	 */
 	public static final String SUB_FOLDER_PREFIX_SEPARATOR = "&&";
+	public static final String SUB_FOLDER_PREFIX_SEPARATOR_URLENCODED = "%26%26";
+	public static final String SUB_FOLDER_PREFIX_SEPARATOR_HTML = "&amp;&amp;";
+	/*
+	PREFIX-SEPARATORS END
+	 */
+
 	private static final Logger LOG = LoggerFactory.getLogger(SubWikiUtils.class);
 	private static final String MESSAGE_INVALID_PAGE_NAME = "Page name with multiple wiki-subfolder separators found! ";
 	private static final String MAIN_FOLDER_NAME = "jspwiki.mainFolder";

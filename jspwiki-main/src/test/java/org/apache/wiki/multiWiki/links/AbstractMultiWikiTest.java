@@ -2,7 +2,7 @@
  * Copyright (C) 2025 denkbares GmbH. All rights reserved.
  */
 
-package org.apache.wiki.multiWiki;
+package org.apache.wiki.multiWiki.links;
 
 import org.apache.wiki.TestEngine;
 import org.junit.jupiter.api.AfterEach;

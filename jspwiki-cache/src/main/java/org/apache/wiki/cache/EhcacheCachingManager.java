@@ -61,7 +61,9 @@ public class EhcacheCachingManager implements CachingManager, Initializable {
 		LOG.info("Shutting down local CacheManager: " + cacheManager);
 		cacheMap.clear();
 		cacheStats.clear();
-		cacheManager.shutdown();
+		if(cacheManager != null) {
+			cacheManager.shutdown();
+		}
 	}
 
 	/**
@@ -76,7 +78,7 @@ public class EhcacheCachingManager implements CachingManager, Initializable {
 			final URL location = this.getClass().getResource(confLocation);
 			LOG.info("Reading ehcache configuration file from classpath on /{}", location);
 			Configuration configuration = ConfigurationFactory.parseConfiguration(location);
-			if (configuration.getName() == null) {
+			if (configuration.getName() == null && engine != null) {
 				configuration.name(engine.getApplicationName());
 			}
 			cacheManager = CacheManager.newInstance(configuration);
