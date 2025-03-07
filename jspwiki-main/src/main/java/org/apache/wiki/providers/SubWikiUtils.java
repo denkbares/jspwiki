@@ -64,7 +64,8 @@ public class SubWikiUtils {
 		String result = pageName;
 		String subFolderName = getSubFolderNameOfPage(pageName, properties);
 		String localName = getLocalPageName(pageName);
-		if(subFolderName != null && !subFolderName.isEmpty() ) {
+		if (subFolderName != null && !subFolderName.isEmpty()) {
+			assert localName != null;
 			if (!pageName.equals(concatSubWikiAndLocalPageName(subFolderName, localName))) {
 				result = concatSubWikiAndLocalPageName(subFolderName, pageName);
 			}
@@ -115,12 +116,19 @@ public class SubWikiUtils {
 	 * @param m_pageDirectory folder path to be scanned
 	 * @return list of folders
 	 */
-	static List<String> initSubFolders(String m_pageDirectory, Properties wikiProperties) {
+	public static @NotNull List<String> getAllSubWikiFoldersWithoutMain(@NotNull String m_pageDirectory, @NotNull Properties wikiProperties) {
+		String mainWikiFolder = SubWikiUtils.getMainWikiFolder(wikiProperties);
+		List<String> allSubWikiFoldersInclMain = getAllSubWikiFoldersInclMain(m_pageDirectory);
+		allSubWikiFoldersInclMain.remove(mainWikiFolder);
+		return allSubWikiFoldersInclMain;
+	}
+
+	public static @NotNull List<String> getAllSubWikiFoldersInclMain(@NotNull String m_pageDirectory) {
 		List<String> result = new ArrayList<>();
 		File baseDir = new File(m_pageDirectory);
-		File[] folders2 = baseDir.listFiles();
-
-		Collection<File> filteredFolders = Arrays.asList(folders2).stream().filter(file ->
+		File[] folders = baseDir.listFiles();
+		assert folders != null;
+		Collection<File> filteredFolders = Arrays.stream(folders).filter(file ->
 				file.isDirectory()
 						&& !file.getAbsolutePath().equals(".git")
 						&& !file.getAbsolutePath().equals(m_pageDirectory)
@@ -128,7 +136,6 @@ public class SubWikiUtils {
 						&& !file.getParentFile().getName().equals("OLD")
 						&& !file.getName().endsWith("-att")
 						&& !file.getParentFile().getName().endsWith("-att")
-						&& !file.getName().equals(SubWikiUtils.getMainWikiFolder(wikiProperties))
 		).toList();
 		filteredFolders.forEach(folder -> result.add(folder.getName()));
 		return result;
@@ -141,5 +148,4 @@ public class SubWikiUtils {
 	public static boolean isLocalName(String pageName) {
 		return !isGlobalName(pageName);
 	}
-
 }
