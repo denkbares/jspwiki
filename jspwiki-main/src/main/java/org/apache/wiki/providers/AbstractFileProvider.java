@@ -163,7 +163,7 @@ public abstract class AbstractFileProvider implements PageProvider {
 
 		LOG.info("Wikipages are read from '" + m_pageDirectory + "'");
 
-		this.subfolders = SubWikiUtils.initSubFolders(m_pageDirectory, properties);
+		this.subfolders = SubWikiUtils.getAllSubWikiFoldersWithoutMain(m_pageDirectory, properties);
 	}
 
 	String getPageDirectory() {
