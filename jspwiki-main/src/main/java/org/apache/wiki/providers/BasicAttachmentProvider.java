@@ -18,21 +18,6 @@
  */
 package org.apache.wiki.providers;
 
-import org.slf4j.LoggerFactory;
-import org.slf4j.Logger;
-import org.apache.wiki.api.core.Attachment;
-import org.apache.wiki.api.core.Engine;
-import org.apache.wiki.api.core.Page;
-import org.apache.wiki.api.exceptions.NoRequiredPropertyException;
-import org.apache.wiki.api.exceptions.ProviderException;
-import org.apache.wiki.api.providers.AttachmentProvider;
-import org.apache.wiki.api.providers.WikiProvider;
-import org.apache.wiki.api.search.QueryItem;
-import org.apache.wiki.api.spi.Wiki;
-import org.apache.wiki.pages.PageTimeComparator;
-import org.apache.wiki.util.FileUtil;
-import org.apache.wiki.util.TextUtil;
-
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FilenameFilter;
@@ -49,6 +34,22 @@ import java.util.Properties;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import org.apache.wiki.api.core.Attachment;
+import org.apache.wiki.api.core.Engine;
+import org.apache.wiki.api.core.Page;
+import org.apache.wiki.api.exceptions.NoRequiredPropertyException;
+import org.apache.wiki.api.exceptions.ProviderException;
+import org.apache.wiki.api.providers.AttachmentProvider;
+import org.apache.wiki.api.providers.WikiProvider;
+import org.apache.wiki.api.search.QueryItem;
+import org.apache.wiki.api.spi.Wiki;
+import org.apache.wiki.pages.PageTimeComparator;
+import org.apache.wiki.util.FileUtil;
+import org.apache.wiki.util.TextUtil;
+import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Provides basic, versioning attachments.
@@ -115,6 +116,9 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 
 	private final ReentrantReadWriteLock attachmentLock = new ReentrantReadWriteLock();
 
+	// sub-wiki-folders; for jspwiki the folder is a prefix/namespace in the page name, e.g. /Subwiki/Main.txt is page Subwiki::Main
+	protected Collection<String> subfolders;
+
 	/**
 	 * {@inheritDoc}
 	 */
@@ -147,6 +151,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 		if (!f.isDirectory()) {
 			throw new IOException("Your attachment storage points to a file, not a directory: '" + m_storageDir + "'");
 		}
+		this.subfolders = SubWikiUtils.getAllSubWikiFoldersWithoutMain(m_storageDir, properties);
 	}
 
 	/**
@@ -158,13 +163,13 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 		String localPageName = SubWikiUtils.getLocalPageName(wikipage);
 		String subWikiFolder = SubWikiUtils.getSubFolderNameOfPage(wikipage, m_engine.getWikiProperties());
 		String folderPathSuffix = "";
-		if(subWikiFolder != null && !subWikiFolder.isEmpty()) {
+		if (subWikiFolder != null && !subWikiFolder.isEmpty()) {
 			folderPathSuffix = File.separator + subWikiFolder;
 		}
 
 		wikipage = mangleName(localPageName);
 
-		final File f = new File(m_storageDir+folderPathSuffix, wikipage + DIR_EXTENSION);
+		final File f = new File(m_storageDir + folderPathSuffix, wikipage + DIR_EXTENSION);
 		if (f.exists() && !f.isDirectory()) {
 			throw new ProviderException("Storage dir '" + f.getAbsolutePath() + "' is not a directory!");
 		}
@@ -288,8 +293,9 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 		if (propertyFile.exists()) {
 			try (final InputStream in = Files.newInputStream(propertyFile.toPath())) {
 				props.load(in);
-            } catch( final IOException ioe ) {
-                LOG.error( ioe.getMessage() );
+			}
+			catch (final IOException ioe) {
+				LOG.error(ioe.getMessage());
 			}
 		}
 
@@ -315,8 +321,8 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 			String extension = pages == null || pages.length == 0 ? getFileExtension(att.getFileName()) : getFileExtension(pages[pages.length - 1]);
 			final File newfile = new File(attDir, versionNumber + "." + extension);
 			try (final OutputStream out = Files.newOutputStream(newfile.toPath())) {
-            LOG.info( "Uploading attachment " + att.getFileName() + " to page " + att.getParentName() );
-            LOG.info( "Saving attachment contents to " + newfile.getAbsolutePath() );
+				LOG.info("Uploading attachment " + att.getFileName() + " to page " + att.getParentName());
+				LOG.info("Saving attachment contents to " + newfile.getAbsolutePath());
 				FileUtil.copyContents(data, out);
 
 				final Properties props = getPageProperties(att);
@@ -474,35 +480,55 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 	public List<Attachment> listAllChanged(final Date timestamp) throws ProviderException {
 		attachmentLock.readLock().lock();
 		try {
-			final File attDir = new File(m_storageDir);
-			if (!attDir.exists()) {
-				throw new ProviderException("Specified attachment directory " + m_storageDir + " does not exist!");
-			}
-
 			final ArrayList<Attachment> list = new ArrayList<>();
-			final String[] pagesWithAttachments = attDir.list(new AttachmentFilter());
-
-			if (pagesWithAttachments != null) {
-				for (final String pagesWithAttachment : pagesWithAttachments) {
-					String pageId = unmangleName(pagesWithAttachment);
-					pageId = pageId.substring(0, pageId.length() - DIR_EXTENSION.length());
-
-					final Collection<Attachment> c = listAttachments(Wiki.contents().page(m_engine, pageId));
-					for (final Attachment att : c) {
-						if (att.getLastModified().after(timestamp)) {
-							list.add(att);
-						}
-					}
-				}
+			list.addAll(collectAttachments(timestamp, SubWikiUtils.getMainWikiFolder(m_engine.getWikiProperties())));
+			for (String subfolder : subfolders) {
+				list.addAll(collectAttachments(timestamp, subfolder));
 			}
-
-			list.sort(new PageTimeComparator());
-
 			return list;
 		}
 		finally {
 			attachmentLock.readLock().unlock();
 		}
+	}
+
+	String getPageDirectory(@Nullable String pageName) {
+		return SubWikiUtils.getPageDirectory(pageName, m_storageDir, this.m_engine.getWikiProperties());
+	}
+
+	private Collection<Attachment> collectAttachments(Date timestamp, String subfolder) throws ProviderException {
+		String folder;
+		if (subfolder == null || subfolder.isBlank()) {
+			// this is the case that the main wiki is directly in the storage dir
+			folder = getPageDirectory(null);
+		}
+		else {
+			folder = m_storageDir + File.separator + subfolder;
+		}
+		List<Attachment> list = new ArrayList<>();
+		final File attDir = new File(folder);
+		if (!attDir.exists()) {
+			throw new ProviderException("Specified attachment directory " + m_storageDir + " does not exist!");
+		}
+
+		final String[] pagesWithAttachments = attDir.list(new AttachmentFilter());
+
+		if (pagesWithAttachments != null) {
+			for (final String pagesWithAttachment : pagesWithAttachments) {
+				String pageId = SubWikiUtils.concatSubWikiAndLocalPageName(subfolder, unmangleName(pagesWithAttachment), m_engine.getWikiProperties());
+				pageId = pageId.substring(0, pageId.length() - DIR_EXTENSION.length());
+
+				final Collection<Attachment> c = listAttachments(Wiki.contents().page(m_engine, pageId));
+				for (final Attachment att : c) {
+					if (att.getLastModified().after(timestamp)) {
+						list.add(att);
+					}
+				}
+			}
+		}
+
+		list.sort(new PageTimeComparator());
+		return list;
 	}
 
 	/**
@@ -515,7 +541,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 			final Attachment att = new org.apache.wiki.attachment.Attachment(m_engine, page.getName(), name);
 			final File dir = findAttachmentDir(att);
 			if (!dir.exists()) {
-            // LOG.debug("Attachment dir not found - thus no attachment can exist.");
+				// LOG.debug("Attachment dir not found - thus no attachment can exist.");
 				return null;
 			}
 
@@ -691,7 +717,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 			final File srcDir = findPageDir(oldParent.getName());
 			final File destDir = findPageDir(newParent);
 
-        LOG.debug( "Trying to move all attachments from " + srcDir + " to " + destDir );
+			LOG.debug("Trying to move all attachments from " + srcDir + " to " + destDir);
 
 			// If it exists, we're overwriting an old page (this has already been confirmed at a higher level), so delete any existing attachments.
 			if (destDir.exists()) {
