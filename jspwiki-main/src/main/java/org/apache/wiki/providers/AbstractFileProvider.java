@@ -171,19 +171,9 @@ public abstract class AbstractFileProvider implements PageProvider {
 	}
 
 	String getPageDirectory(@Nullable String pageName) {
-		Properties wikiProperties = this.m_engine.getWikiProperties();
-		String folder = null;
-		if (pageName != null) {
-			folder = SubWikiUtils.getSubFolderNameOfPage(pageName, wikiProperties);
-		} else {
-			folder = SubWikiUtils.getMainWikiFolder(wikiProperties);
-		}
-		String suffix = "";
-		if (folder != null || !folder.isEmpty()) {
-			suffix = File.separator + folder;
-		}
-		return m_pageDirectory + suffix;
+		return SubWikiUtils.getPageDirectory(pageName, m_pageDirectory, this.m_engine.getWikiProperties());
 	}
+
 
 	private static final String[] WINDOWS_DEVICE_NAMES = {
 			"con", "prn", "nul", "aux", "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",

@@ -416,7 +416,7 @@ public class JSPWikiMarkupParser extends MarkupParser {
 			subWikiFolder = SubWikiUtils.getSubFolderNameOfPage(globalPageName, m_engine.getWikiProperties());
 		}
 		if (subWikiFolder != null && !subWikiFolder.isEmpty()) {
-			link = SubWikiUtils.concatSubWikiAndLocalPageName(subWikiFolder, link);
+			link = SubWikiUtils.concatSubWikiAndLocalPageNameNonMain(subWikiFolder, link);
 		}
 		return link;
 	}
