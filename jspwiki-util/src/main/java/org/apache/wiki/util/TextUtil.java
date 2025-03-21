@@ -223,6 +223,21 @@ public final class TextUtil {
     }
 
     /**
+     *  Reverts html encoding  {@link TextUtil#replaceEntities}
+     *
+     *  @param src The source string.
+     *  @return The decoded string.
+     */
+    public static String unReplaceEntities( String src ) {
+        src = replaceString( src, "&amp;", "&"  );
+        src = replaceString( src, "&lt;", "<"  );
+        src = replaceString( src, "&gt;", ">"  );
+        src = replaceString( src, "&quot;", "\""  );
+
+        return src;
+    }
+
+    /**
      *  Replaces a string with another string.
      *
      *  @param orig Original string.  Null is safe.
@@ -645,6 +660,8 @@ public final class TextUtil {
         if( text == null ) {
             return null;
         }
+
+
 
         text = text.trim();
         final StringBuilder clean = new StringBuilder( text.length() );

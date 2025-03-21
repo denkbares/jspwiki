@@ -18,11 +18,15 @@
  */
 package org.apache.wiki.attachment;
 
-import net.sf.ehcache.Cache;
-import net.sf.ehcache.CacheManager;
-import net.sf.ehcache.Element;
-import org.slf4j.LoggerFactory;
-import org.slf4j.Logger;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.List;
+import java.util.Properties;
+
 import org.apache.wiki.api.core.Attachment;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.core.Engine;
@@ -38,15 +42,8 @@ import org.apache.wiki.references.ReferenceManager;
 import org.apache.wiki.search.SearchManager;
 import org.apache.wiki.util.ClassUtil;
 import org.apache.wiki.util.TextUtil;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.List;
-import java.util.Properties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Default implementation for {@link AttachmentManager}.
@@ -171,23 +168,14 @@ public class DefaultAttachmentManager implements AttachmentManager {
 		//  Figure out the parent page of this attachment.  If we can't find it, we'll assume this refers directly to the attachment.
 		final int cutpt = attachmentname.lastIndexOf('/');
 		if (cutpt != -1) {
-			String parentPage = attachmentname.substring(0, cutpt);
-			parentPage = MarkupParser.cleanLink(parentPage);
-			attachmentname = attachmentname.substring(cutpt + 1);
 
+			String parentPage = attachmentname.substring(0, cutpt);
 			// If we for some reason have an empty parent page name; this can't be an attachment
 			if (parentPage.isEmpty()) {
 				return null;
 			}
-
-			currentPage = m_engine.getManager(PageManager.class).getPage(parentPage);
-
-			// Go check for legacy name
-			// FIXME: This should be resolved using CommandResolver, not this adhoc way.  This also assumes that the
-			//        legacy charset is a subset of the full allowed set.
-			if (currentPage == null) {
-				currentPage = m_engine.getManager(PageManager.class).getPage(MarkupParser.wikifyLink(parentPage));
-			}
+			attachmentname = attachmentname.substring(cutpt + 1);
+			currentPage = findCurrentPage(parentPage);
 		}
 
 		//  If the page cannot be determined, we cannot possibly find the attachments.
@@ -202,6 +190,26 @@ public class DefaultAttachmentManager implements AttachmentManager {
 		}
 
 		return att;
+	}
+
+	private Page findCurrentPage(String parentPage) {
+		PageManager manager = m_engine.getManager(PageManager.class);
+		String parentPageCleaned = MarkupParser.cleanLink(parentPage);
+		Page currentPage = manager.getPage(parentPageCleaned);
+
+		// Go check for legacy name
+		// FIXME: This should be resolved using CommandResolver, not this adhoc way.  This also assumes that the
+		//        legacy charset is a subset of the full allowed set.
+		if (currentPage == null) {
+			currentPage = manager.getPage(MarkupParser.wikifyLink(parentPageCleaned));
+		}
+
+		if (currentPage == null) {
+			// for some reason in some cases the attachment name is coming HTML-Encoded while should not... try without
+			currentPage = manager.getPage(TextUtil.unReplaceEntities(parentPage));
+		}
+
+		return currentPage;
 	}
 
 	/**
