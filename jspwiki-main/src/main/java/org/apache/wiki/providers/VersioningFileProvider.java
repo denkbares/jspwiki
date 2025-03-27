@@ -455,7 +455,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
 
 			String authorFirst = null;
 			// if the following file exists, we are NOT migrating from FileSystemProvider
-			final File pagePropFile = new File(getPageDirectory() + File.separator + PAGEDIR + File.separator + mangleName(page.getName()) + File.separator + "page" + FileSystemProvider.PROP_EXT);
+			final File pagePropFile = new File(getMainPageDirectory() + File.separator + PAGEDIR + File.separator + mangleName(page.getName()) + File.separator + "page" + FileSystemProvider.PROP_EXT);
 			if (firstUpdate && !pagePropFile.exists()) {
 				// we might not yet have a versioned author because the old page was last maintained by FileSystemProvider
 				final Properties props2 = getHeritagePageProperties(page.getName());
@@ -662,7 +662,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
 	 * Simulate an initial version.
 	 */
 	private Properties getHeritagePageProperties(final String page) throws IOException {
-		final File propertyFile = new File(getPageDirectory(), mangleName(page) + FileSystemProvider.PROP_EXT);
+		final File propertyFile = new File(getMainPageDirectory(), mangleName(page) + FileSystemProvider.PROP_EXT);
 		if (propertyFile.exists()) {
 			final long lastModified = propertyFile.lastModified();
 

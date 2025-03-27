@@ -166,7 +166,7 @@ public abstract class AbstractFileProvider implements PageProvider {
 		this.subfolders = SubWikiUtils.getAllSubWikiFoldersWithoutMain(m_pageDirectory, properties);
 	}
 
-	String getPageDirectory() {
+	String getMainPageDirectory() {
 		return getPageDirectory(null);
 	}
 
@@ -324,7 +324,7 @@ public abstract class AbstractFileProvider implements PageProvider {
 		LOG.debug("Getting all pages...");
 
 		final Collection<Page> allPages = new HashSet<>();
-		final Collection<Page> basePages = collectAllWikiPagesInFolder(getPageDirectory());
+		final Collection<Page> basePages = collectAllWikiPagesInFolder(getMainPageDirectory());
 		allPages.addAll(basePages);
 		for (String subfolder : subfolders) {
 			List<Page> folderPages = collectAllWikiPagesInFolder(m_pageDirectory + File.separator + subfolder);
