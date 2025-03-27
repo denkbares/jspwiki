@@ -89,6 +89,7 @@ public class CachingProvider implements PageProvider {
                 allRequested = false; // signal that the cache no longer contains all elements...
             }
         });
+        allRequested = false;
 
         //  Find and initialize real provider.
         final String classname;
