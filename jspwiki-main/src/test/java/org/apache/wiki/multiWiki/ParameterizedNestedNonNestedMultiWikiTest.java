@@ -10,6 +10,7 @@ import java.util.Properties;
 
 import org.apache.wiki.TestEngine;
 import org.apache.wiki.api.core.Engine;
+import org.apache.wiki.multiWiki.links.AbstractMultiWikiTest;
 import org.apache.wiki.providers.SubWikiUtils;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.AfterAll;
@@ -65,24 +66,26 @@ public abstract class ParameterizedNestedNonNestedMultiWikiTest {
 		Properties propertiesNonNestedVersioning = getTestProperties();
 		propertiesNonNestedVersioning.put(JSPWIKI_MAIN_FOLDER_PROPERTY, WIKI_PREFIX_MAIN);
 		propertiesNonNestedVersioning.put("jspwiki.applicationName", "TestEngineNonNestedVersioning");
-		propertiesNonNestedVersioning.put("jspwiki.pageProvider", "VersioningFileProvider");
+		AbstractMultiWikiTest.addStandardMultiWikiProperties(propertiesNonNestedVersioning);
 		testEngineNonNestedVersioning = TestEngine.build(propertiesNonNestedVersioning);
 
 
 		Properties propertiesNestedVersioning = getTestProperties();
 		propertiesNestedVersioning.put("jspwiki.applicationName", "TestEngineNestedVersioning");
-		propertiesNestedVersioning.put("jspwiki.pageProvider", "VersioningFileProvider");
+		AbstractMultiWikiTest.addStandardMultiWikiProperties(propertiesNestedVersioning);
 		testEngineNestedVersioning = TestEngine.build(propertiesNestedVersioning);
 
 
 		Properties propertiesNonNested = getTestProperties();
 		propertiesNonNested.put(JSPWIKI_MAIN_FOLDER_PROPERTY, WIKI_PREFIX_MAIN);
 		propertiesNonNested.put("jspwiki.applicationName", "TestEngineNonNested");
+		AbstractMultiWikiTest.addStandardMultiWikiPropertiesWithoutVersioning(propertiesNonNested);
 		testEngineNonNested = TestEngine.build(propertiesNonNested);
 
 
 		Properties propertiesNested = getTestProperties();
 		propertiesNested.put("jspwiki.applicationName", "TestEngineNested");
+		AbstractMultiWikiTest.addStandardMultiWikiPropertiesWithoutVersioning(propertiesNested);
 		testEngineNested = TestEngine.build(propertiesNested);
 
 	}

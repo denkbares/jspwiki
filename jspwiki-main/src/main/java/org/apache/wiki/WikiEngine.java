@@ -307,7 +307,8 @@ public class WikiEngine implements Engine {
             initReferenceManager();
 
             //  Hook the different manager routines into the system.
-            getManager( FilterManager.class ).addPageFilter( getManager( ReferenceManager.class ), -1001 );
+            ReferenceManager manager = getManager(ReferenceManager.class);
+            getManager( FilterManager.class ).addPageFilter(manager, -1001 );
             getManager( FilterManager.class ).addPageFilter( getManager( SearchManager.class ), -1002 );
         } catch( final RuntimeException e ) {
             // RuntimeExceptions may occur here, even if they shouldn't.

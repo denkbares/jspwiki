@@ -19,7 +19,6 @@
 package org.apache.wiki.pages;
 
 import org.apache.commons.lang3.ArrayUtils;
-import org.apache.wiki.providers.SubWikiUtils;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 import org.apache.wiki.WikiBackgroundThread;
@@ -216,7 +215,7 @@ public class DefaultPageManager implements PageManager {
     }
 
     @Override
-    public void saveText( final Context context, String text ) throws WikiException {
+    public void saveText( final Context context, final String text ) throws WikiException {
         // Check if page data actually changed; bail if not
         final Page page = context.getPage();
         final String oldText = getPureText( page );

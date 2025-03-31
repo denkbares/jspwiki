@@ -4,6 +4,8 @@
 
 package org.apache.wiki.multiWiki.links;
 
+import java.util.Properties;
+
 import org.apache.wiki.TestEngine;
 import org.apache.wiki.multiWiki.ParameterizedNestedNonNestedMultiWikiTest;
 import org.apache.wiki.providers.SubWikiUtils;
@@ -11,6 +13,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import static org.apache.wiki.TestEngine.getTestProperties;
 import static org.apache.wiki.multiWiki.ParameterizedNestedNonNestedMultiWikiTest.*;
 import static org.apache.wiki.multiWiki.links.MultiWikiLinkTestData.*;
 
@@ -23,7 +26,9 @@ public class MultiWikiNonNestedExistingLinksBTest extends AbstractMultiWikiTest 
 
 	@BeforeAll
 	public static void init() {
-		testEngine = TestEngine.build();
+		Properties props =  getTestProperties();
+		addStandardMultiWikiProperties(props);
+		testEngine = TestEngine.build(props);
 	}
 
 	@Test
