@@ -4,6 +4,8 @@
 
 package org.apache.wiki.multiWiki.links;
 
+import java.util.Properties;
+
 import org.apache.wiki.TestEngine;
 import org.apache.wiki.multiWiki.ParameterizedNestedNonNestedMultiWikiTest;
 import org.apache.wiki.providers.SubWikiUtils;
@@ -11,6 +13,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import static org.apache.wiki.TestEngine.getTestProperties;
 import static org.apache.wiki.TestEngine.with;
 import static org.apache.wiki.multiWiki.links.MultiWikiLinkTestData.*;
 import static org.apache.wiki.multiWiki.links.MultiWikiLinkTestData.PAGE_NAME_B1;
@@ -23,11 +26,14 @@ import static org.apache.wiki.multiWiki.links.MultiWikiLinkTestData.PAGE_NAME_B1
  */
 public class MultiWikiNestedExistingLinksBTest extends AbstractMultiWikiTest{
 
-	private static final String WIKI_PREFIX_MAIN = "Main";
+
 
 	@BeforeAll
 	public static void init() {
-		testEngine = TestEngine.build(with("jspwiki.mainFolder", WIKI_PREFIX_MAIN));
+		Properties properties = getTestProperties();
+		addStandardMultiWikiProperties(properties);
+		properties.put("jspwiki.mainFolder", WIKI_PREFIX_MAIN);
+		testEngine = TestEngine.build(properties);
 	}
 
 	@Test

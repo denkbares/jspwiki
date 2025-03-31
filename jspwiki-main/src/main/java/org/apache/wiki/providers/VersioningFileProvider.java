@@ -107,7 +107,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
 	public void initialize(final Engine engine, final Properties properties) throws NoRequiredPropertyException, IOException {
 		super.initialize(engine, properties);
 		// some additional sanity checks :
-		final File oldpages = getOldDir(null);
+		final File oldpages = getOldDir();
 		if (!oldpages.exists()) {
 			if (!oldpages.mkdirs()) {
 				throw new IOException("Failed to create page version directory " + oldpages.getAbsolutePath());
@@ -160,8 +160,8 @@ public class VersioningFileProvider extends AbstractFileProvider {
 		LOG.info("Written date properties in " + (System.currentTimeMillis() - start) + "ms");
 	}
 
-	private Properties getVersioningProperties() throws IOException {
-		final File versioningPropsFile = new File(getOldDir(null), VERSIONING_PROPERTIES_FILE);
+	protected Properties getVersioningProperties() throws IOException {
+		final File versioningPropsFile = new File(getOldDir(), VERSIONING_PROPERTIES_FILE);
 		if (!versioningPropsFile.exists()) return new Properties();
 		final Properties props;
 		try (final InputStream in = new FileInputStream(versioningPropsFile)) {
@@ -171,15 +171,19 @@ public class VersioningFileProvider extends AbstractFileProvider {
 		return props;
 	}
 
-	private void writeOldProperties(Properties properties) throws IOException {
-		final File oldPropertiesFile = new File(getOldDir(null), VERSIONING_PROPERTIES_FILE);
+	protected void writeOldProperties(Properties properties) throws IOException {
+		final File oldPropertiesFile = new File(getOldDir(), VERSIONING_PROPERTIES_FILE);
 		try (final OutputStream out = new FileOutputStream(oldPropertiesFile)) {
 			properties.store(out, "JSPWiki versioning properties for");
 		}
 	}
 
-	private File getOldDir(String page) {
-		return new File(getPageDirectory(page), PAGEDIR);
+	protected File getOldDir(String page) {
+		return new File(getPageDirectory(), PAGEDIR);
+	}
+
+	private File getOldDir() {
+		return getOldDir(null);
 	}
 
 	/**
@@ -190,9 +194,8 @@ public class VersioningFileProvider extends AbstractFileProvider {
 		if (page == null) {
 			throw new InternalWikiException("Page may NOT be null in the provider!");
 		}
-		final File oldpages = getOldDir(page);
-		String localPageName = SubWikiUtils.getLocalPageName(page);
-		return new File(oldpages, mangleName(localPageName));
+		final File oldpages = getOldDir();
+		return new File(oldpages, mangleName(page));
 	}
 
 	/**
@@ -455,7 +458,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
 
 			String authorFirst = null;
 			// if the following file exists, we are NOT migrating from FileSystemProvider
-			final File pagePropFile = new File(getMainPageDirectory() + File.separator + PAGEDIR + File.separator + mangleName(page.getName()) + File.separator + "page" + FileSystemProvider.PROP_EXT);
+			final File pagePropFile = new File(getPageDirectory() + File.separator + PAGEDIR + File.separator + mangleName(page.getName()) + File.separator + "page" + FileSystemProvider.PROP_EXT);
 			if (firstUpdate && !pagePropFile.exists()) {
 				// we might not yet have a versioned author because the old page was last maintained by FileSystemProvider
 				final Properties props2 = getHeritagePageProperties(page.getName());
@@ -662,7 +665,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
 	 * Simulate an initial version.
 	 */
 	private Properties getHeritagePageProperties(final String page) throws IOException {
-		final File propertyFile = new File(getMainPageDirectory(), mangleName(page) + FileSystemProvider.PROP_EXT);
+		final File propertyFile = new File(getPageDirectory(), mangleName(page) + FileSystemProvider.PROP_EXT);
 		if (propertyFile.exists()) {
 			final long lastModified = propertyFile.lastModified();
 

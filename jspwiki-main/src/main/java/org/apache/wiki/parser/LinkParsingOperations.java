@@ -18,7 +18,6 @@
  */
 package org.apache.wiki.parser;
 
-import org.apache.wiki.providers.SubWikiUtils;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 import org.apache.oro.text.regex.Pattern;
@@ -30,6 +29,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
+
 /**
  * Link parsing operations.
  *
@@ -37,15 +37,13 @@ import java.util.List;
  */
 public class LinkParsingOperations {
 
-	private static final Logger LOG = LoggerFactory.getLogger(LinkParsingOperations.class);
-	private final Context wikiContext;
+	private static final Logger LOG = LoggerFactory.getLogger( LinkParsingOperations.class );
+	protected final Context wikiContext;
 
 	/**
-	 * This list contains all IANA registered URI protocol types as of September 2004 + a few well-known extra types.
-	 * <p>
-	 * JSPWiki recognises all of them as external links.
-	 * <p>
-	 * This array is sorted during class load, so you can just dump here whatever you want in whatever order you want.
+	 *  This list contains all IANA registered URI protocol types as of September 2004 + a few well-known extra types.
+	 *  JSPWiki recognises all of them as external links.
+	 *  This array is sorted during class load, so you can just dump here whatever you want in whatever order you want.
 	 */
 	static final String[] EXTERNAL_LINKS = {
 			"http:", "ftp:", "https:", "mailto:",
@@ -61,34 +59,34 @@ public class LinkParsingOperations {
 	};
 
 	static {
-		Arrays.sort(EXTERNAL_LINKS);
+		Arrays.sort( EXTERNAL_LINKS );
 	}
 
-	public LinkParsingOperations(final Context wikiContext) {
+	public LinkParsingOperations( final Context wikiContext ) {
 		this.wikiContext = wikiContext;
 	}
 
 	/**
-	 * Returns true, if the link in question is an access rule.
+	 *  Returns true, if the link in question is an access rule.
 	 *
 	 * @param link The link text
 	 * @return {@code true}, if this represents an access rule.
 	 */
-	public boolean isAccessRule(final String link) {
+	public boolean isAccessRule( final String link ) {
 		return link.startsWith("{ALLOW") || link.startsWith("{DENY");
 	}
 
 	/**
-	 * Returns true if the link is really command to insert a plugin.
-	 * <p>
-	 * Currently we just check if the link starts with "{INSERT", or just plain "{" but not "{$".
+	 *  Returns true if the link is really command to insert a plugin.
+	 *  <P>
+	 *  Currently we just check if the link starts with "{INSERT", or just plain "{" but not "{$".
 	 *
-	 * @param link Link text, i.e. the contents of text between [].
-	 * @return True, if this link seems to be a command to insert a plugin here.
+	 *  @param link Link text, i.e. the contents of text between [].
+	 *  @return True, if this link seems to be a command to insert a plugin here.
 	 */
-	public boolean isPluginLink(final String link) {
-		return link.startsWith("{INSERT") ||
-				(link.startsWith("{") && !link.startsWith("{$"));
+	public boolean isPluginLink( final String link ) {
+		return link.startsWith( "{INSERT" ) ||
+				( link.startsWith( "{" ) && !link.startsWith( "{$" ) );
 	}
 
 	/**
@@ -97,20 +95,20 @@ public class LinkParsingOperations {
 	 * @param link The link text
 	 * @return {@code true}, if this represents a metadata link.
 	 */
-	public boolean isMetadata(final String link) {
-		return link.startsWith("{SET");
+	public boolean isMetadata( final String link ) {
+		return link.startsWith( "{SET" );
 	}
 
 	/**
 	 * Returns true if the link is really command to insert a variable.
-	 * <p>
+	 * <P>
 	 * Currently we just check if the link starts with "{$".
 	 *
 	 * @param link The link text
 	 * @return {@code true}, if this represents a variable link.
 	 */
-	public boolean isVariableLink(final String link) {
-		return link.startsWith("{$");
+	public boolean isVariableLink( final String link ) {
+		return link.startsWith( "{$" );
 	}
 
 	/**
@@ -118,8 +116,8 @@ public class LinkParsingOperations {
 	 *
 	 * @return {@code true}, if this Link represents an InterWiki link, {@code false} otherwise.
 	 */
-	public boolean isInterWikiLink(final String page) {
-		return interWikiLinkAt(page) != -1;
+	public boolean isInterWikiLink( final String page ) {
+		return interWikiLinkAt( page ) != -1;
 	}
 
 	/**
@@ -127,8 +125,8 @@ public class LinkParsingOperations {
 	 *
 	 * @return {@code true}, if this Link represents an InterWiki link, {@code false} otherwise.
 	 */
-	public int interWikiLinkAt(final String page) {
-		return page.indexOf(':');
+	public int interWikiLinkAt( final String page ) {
+		return page.indexOf( ':' );
 	}
 
 	/**
@@ -137,22 +135,21 @@ public class LinkParsingOperations {
 	 * @param page The link to check.
 	 * @return true, if this is a link outside of this wiki.
 	 */
-	public boolean isExternalLink(final String page) {
-		final int idx = Arrays.binarySearch(EXTERNAL_LINKS, page, new StartingComparator());
+	public boolean isExternalLink( final String page ) {
+		final int idx = Arrays.binarySearch( EXTERNAL_LINKS, page, new StartingComparator() );
 
 		// We need to check here once again; otherwise we might get a match for something like "h".
-		return idx >= 0 && page.startsWith(EXTERNAL_LINKS[idx]);
+		return idx >= 0 && page.startsWith( EXTERNAL_LINKS[ idx ] );
 	}
 
 	/**
-	 * Matches the given link to the list of image name patterns to determine whether it should be treated as an inline
-	 * image or not.
+	 *  Matches the given link to the list of image name patterns to determine whether it should be treated as an inline image or not.
 	 */
-	public boolean isImageLink(String link, final boolean isImageInlining, final List<Pattern> inlineImagePatterns) {
-		if (isImageInlining) {
+	public boolean isImageLink( String link, final boolean isImageInlining, final List< Pattern > inlineImagePatterns ) {
+		if( isImageInlining ) {
 			link = link.toLowerCase();
-			for (final Pattern p : inlineImagePatterns) {
-				if (new Perl5Matcher().matches(link, p)) {
+			for( final Pattern p : inlineImagePatterns ) {
+				if( new Perl5Matcher().matches( link, p ) ) {
 					return true;
 				}
 			}
@@ -167,15 +164,14 @@ public class LinkParsingOperations {
 	 * @param page link name
 	 * @return {@code true}, if the link name exists; otherwise it returns {@code false}.
 	 */
-	public boolean linkExists(final String page) {
-		if (page == null || page.isEmpty()) {
+	public boolean linkExists( final String page ) {
+		if( page == null || page.isEmpty() ) {
 			return false;
 		}
 		try {
-			return wikiContext.getEngine().getFinalPageName(page) != null;
-		}
-		catch (final ProviderException e) {
-			LOG.warn("TranslatorReader got a faulty page name [" + page + "]!", e);
+			return wikiContext.getEngine().getFinalPageName( page ) != null;
+		} catch( final ProviderException e ) {
+			LOG.warn( "TranslatorReader got a faulty page name [" + page + "]!", e );
 			return false;
 		}
 	}
@@ -183,42 +179,26 @@ public class LinkParsingOperations {
 	/**
 	 * Returns link name, if it exists; otherwise it returns {@code null}.
 	 *
-	 * @param linkSourcePage
+	 * @param page link name
+	 * @param linkSourcePage source, not used in this implementation
 	 * @return link name, if it exists; otherwise it returns {@code null}.
 	 */
-	public String linkIfExists(String globalOrLocalTargetPageName, String linkSourcePage) {
-		if (globalOrLocalTargetPageName == null || globalOrLocalTargetPageName.isEmpty()) {
+	public String linkIfExists( final String page, String linkSourcePage ) {
+		if( page == null || page.isEmpty() ) {
 			return null;
 		}
-
-		// resolve inner subfolder links
-		String subFolderNameOfSourcePage = SubWikiUtils.getSubFolderNameOfPage(linkSourcePage, wikiContext.getEngine().getWikiProperties());
-		String subFolderNameOfTargetPage = SubWikiUtils.getSubFolderNameOfPage(globalOrLocalTargetPageName, wikiContext.getEngine().getWikiProperties());
-		String globalTargetPageName;
-		if ((subFolderNameOfTargetPage == null || subFolderNameOfTargetPage.isEmpty())
-				&& subFolderNameOfSourcePage != null && !subFolderNameOfSourcePage.isEmpty()
-		) {
-			// we need to expand the sub-wiki prefix to obtain a global name
-			globalTargetPageName = subFolderNameOfTargetPage + SubWikiUtils.SUB_FOLDER_PREFIX_SEPARATOR + globalOrLocalTargetPageName;
-		}
-		else {
-			// there is already a prefix
-			globalTargetPageName = globalOrLocalTargetPageName;
-		}
 		try {
-			return wikiContext.getEngine().getFinalPageName(globalTargetPageName);
-		}
-		catch (final ProviderException e) {
-			LOG.warn("TranslatorReader got a faulty page name [" + globalOrLocalTargetPageName + "]!", e);
+			return wikiContext.getEngine().getFinalPageName( page );
+		} catch( final ProviderException e ) {
+			LOG.warn( "TranslatorReader got a faulty page name [" + page + "]!", e );
 			return null;
 		}
 	}
 
 	/**
-	 * Compares two Strings, and if one starts with the other, then returns 0. Otherwise just like the normal Comparator
-	 * for strings.
+	 * Compares two Strings, and if one starts with the other, then returns 0. Otherwise just like the normal Comparator for strings.
 	 */
-	private static class StartingComparator implements Comparator<String> {
+	private static class StartingComparator implements Comparator< String > {
 
 		/**
 		 * {@inheritDoc}
@@ -226,17 +206,18 @@ public class LinkParsingOperations {
 		 * @see Comparator#compare(Object, Object)
 		 */
 		@Override
-		public int compare(final String s1, final String s2) {
-			if (s1.length() > s2.length()) {
-				if (s1.startsWith(s2) && s2.length() > 1) {
+		public int compare( final String s1, final String s2 ) {
+			if( s1.length() > s2.length() ) {
+				if( s1.startsWith( s2 ) && s2.length() > 1 ) {
 					return 0;
 				}
-			}
-			else if (s2.startsWith(s1) && s1.length() > 1) {
+			} else if( s2.startsWith( s1 ) && s1.length() > 1 ) {
 				return 0;
 			}
 
-			return s1.compareTo(s2);
+			return s1.compareTo( s2 );
 		}
+
 	}
+
 }
