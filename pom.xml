@@ -155,6 +155,7 @@
     <module>jspwiki-it-tests</module><!-- IT tests are launched only if -Pintegration-tests is given -->
     <module>jspwiki-plugins</module>
     <module>jspwiki-bom</module>
+    <module>jspwiki-multiwiki</module>
   </modules>
 
   <dependencyManagement> <!-- defines what configuration is going to be used if, and only if, the dependency is used -->

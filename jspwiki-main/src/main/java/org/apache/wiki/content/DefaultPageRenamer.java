@@ -342,13 +342,6 @@ public class DefaultPageRenamer implements PageRenamer {
 
 		realLink = MarkupParser.cleanLink(realLink);
 		final String oldStyleRealLink = MarkupParser.wikifyLink(realLink);
-
-		//WikiPage realPage  = context.getEngine().getPage( reallink );
-		// WikiPage p2 = context.getEngine().getPage( from );
-
-		// System.out.println("   "+reallink+" :: "+ from);
-		// System.out.println("   "+p+" :: "+p2);
-
 		//
 		//  Yes, these point to the same page.
 		//
