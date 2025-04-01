@@ -26,6 +26,7 @@ import org.apache.wiki.auth.acl.Acl;
 import org.apache.wiki.auth.acl.AclEntry;
 import org.apache.wiki.auth.acl.AclImpl;
 import org.apache.wiki.pages.PageManager;
+import org.apache.wiki.pages.PageNameResolver;
 import org.apache.wiki.pages.PageNameResolverManager;
 
 import java.util.Date;
@@ -61,7 +62,12 @@ public class WikiPage implements Page {
     public WikiPage( final Engine engine, final String name ) {
         m_engine = engine;
         PageNameResolverManager manager = engine.getManager(PageNameResolverManager.class);
-        m_name = manager.getPageNameResolver().resolvePageName(name, m_engine.getWikiProperties());
+        if(manager != null) {
+            PageNameResolver pageNameResolver = manager.getPageNameResolver();
+            m_name = pageNameResolver.resolvePageName(name, m_engine.getWikiProperties());
+        } else {
+            m_name = name;
+        }
         m_wiki = engine.getApplicationName();
     }
 
