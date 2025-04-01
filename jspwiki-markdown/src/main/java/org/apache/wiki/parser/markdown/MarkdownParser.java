@@ -23,6 +23,7 @@ import com.vladsch.flexmark.util.ast.Node;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.auth.AuthorizationManager;
 import org.apache.wiki.auth.UserManager;
+import org.apache.wiki.parser.LinkParsingOperations;
 import org.apache.wiki.parser.MarkupParser;
 import org.apache.wiki.parser.WikiDocument;
 
@@ -38,7 +39,7 @@ public class MarkdownParser extends MarkupParser {
     private final Parser parser;
 
     public MarkdownParser( final Context context, final Reader in ) {
-        super( context, in );
+        super( context, in, new LinkParsingOperations(context));
         if( context.getEngine().getManager( UserManager.class ).getUserDatabase() == null || 
             context.getEngine().getManager( AuthorizationManager.class ) == null ) {
             disableAccessRules();

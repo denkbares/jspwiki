@@ -31,16 +31,24 @@ import org.apache.wiki.pages.PageManager;
 import org.apache.wiki.references.ReferenceManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collection;
+import java.util.Properties;
 
+import static org.apache.wiki.TestEngine.getTestProperties;
 import static org.apache.wiki.TestEngine.with;
 
 
 public class PageRenamerTest {
 
-    TestEngine m_engine = TestEngine.build( with( Engine.PROP_MATCHPLURALS, "true" ) );
+    TestEngine m_engine;
+
+    @BeforeEach
+    void init() {
+        m_engine = TestEngine.build( with( Engine.PROP_MATCHPLURALS, "true" ) );
+    }
 
     @AfterEach
     public void tearDown() {

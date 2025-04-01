@@ -18,7 +18,6 @@
 */
 package org.apache.wiki.parser;
 
-import org.apache.wiki.providers.SubWikiUtils;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 import org.apache.oro.text.GlobCompiler;
@@ -360,7 +359,7 @@ public abstract class MarkupParser {
      *  @since 2.6
      */
     public static String wikifyLink( final String link ) {
-        return TextUtil.cleanString( link, TextUtil.LEGACY_CHARS_ALLOWED + SubWikiUtils.SUB_FOLDER_PREFIX_SEPARATOR);
+        return TextUtil.cleanString( link, TextUtil.LEGACY_CHARS_ALLOWED + '&' /* not so nice hack for multi wiki separator*/);
     }
 
 }

@@ -19,7 +19,9 @@
 package org.apache.wiki;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.wiki.providers.SubWikiUtils;
+import org.apache.wiki.content.DefaultPageRenamerManager;
+import org.apache.wiki.pages.DefaultPageNameResolverManager;
+import org.apache.wiki.pages.PageNameResolverManager;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 import org.apache.wiki.api.Release;
@@ -278,6 +280,7 @@ public class WikiEngine implements Engine {
             initComponent( CommandResolver.class, this, props );
             initComponent( urlclass.getName(), URLConstructor.class );
             initComponent( CachingManager.class, this, props );
+            initComponent( DefaultPageNameResolverManager.class, props);
             initComponent( PageManager.class, this, props );
             initComponent( PluginManager.class, this, props );
             initComponent( DifferenceManager.class, this, props );
@@ -297,7 +300,7 @@ public class WikiEngine implements Engine {
             initComponent( TemplateManager.class, this, props );
             initComponent( FilterManager.class, this, props );
             initComponent( AdminBeanManager.class, this );
-            initComponent( PageRenamer.class, this, props );
+            initComponent( DefaultPageRenamerManager.class, this, props );
 
             // RenderingManager depends on FilterManager events.
             initComponent( RenderingManager.class );
@@ -565,7 +568,7 @@ public class WikiEngine implements Engine {
     /** {@inheritDoc} */
     @Override
     public String getFrontPage() {
-        return SubWikiUtils.expandPageNameWithMainPrefix(m_frontPage, this.m_properties);
+        return getManager(PageNameResolverManager.class).getPageNameResolver().resolvePageName(m_frontPage, this.m_properties);
     }
 
     /** {@inheritDoc} */
