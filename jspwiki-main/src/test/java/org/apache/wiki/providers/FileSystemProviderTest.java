@@ -25,6 +25,7 @@ import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.core.Page;
 import org.apache.wiki.pages.PageManager;
 import org.apache.wiki.util.FileUtil;
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,24 +42,27 @@ import static org.apache.wiki.TestEngine.with;
 
 public class FileSystemProviderTest {
 
-    FileSystemProvider m_provider;
-    FileSystemProvider m_providerUTF8;
+    AbstractFileProvider m_provider;
+    AbstractFileProvider m_providerUTF8;
     Properties props = TestEngine.getTestProperties();
+    Properties propsUTF8 = TestEngine.getTestProperties();
 
-    Engine m_engine = TestEngine.build( with( PageManager.PROP_PAGEPROVIDER, "FileSystemProvider" ),
-                                        with( FileSystemProvider.PROP_PAGEDIR, "./target/jspwiki.test.pages" ) );
+    Engine m_engine;
 
     @BeforeEach
     public void setUp() throws Exception {
         props.setProperty( PageManager.PROP_PAGEPROVIDER, "FileSystemProvider" );
         props.setProperty( FileSystemProvider.PROP_PAGEDIR, "./target/jspwiki.test.pages" );
 
+        m_engine = TestEngine.build( with( PageManager.PROP_PAGEPROVIDER, "FileSystemProvider" ),
+                with( FileSystemProvider.PROP_PAGEDIR, "./target/jspwiki.test.pages" ) );
         m_provider = new FileSystemProvider();
         m_provider.initialize( m_engine, props );
 
         props.setProperty( Engine.PROP_ENCODING, StandardCharsets.UTF_8.name() );
         m_providerUTF8 = new FileSystemProvider();
         m_providerUTF8.initialize( m_engine, props );
+
     }
 
     @AfterEach
@@ -72,7 +76,7 @@ public class FileSystemProviderTest {
 
         m_provider.putPageText( page, "test" );
 
-        final File resultfile = new File(  props.getProperty( FileSystemProvider.PROP_PAGEDIR ) , "%C5%E4Test.txt" );
+        final File resultfile = getPageFile(props.getProperty(FileSystemProvider.PROP_PAGEDIR), "%C5%E4Test.txt");
 
         Assertions.assertTrue( resultfile.exists(), "No such file" );
 
@@ -83,11 +87,12 @@ public class FileSystemProviderTest {
 
     @Test
     public void testScandinavianLettersUTF8() throws Exception {
-        final WikiPage page = new WikiPage(m_engine, "\u00c5\u00e4Test");
+        String pageName = "\u00c5\u00e4Test";
+        final WikiPage page = new WikiPage(m_engine, pageName);
 
         m_providerUTF8.putPageText( page, "test\u00d6" );
 
-        final File resultfile = new File(  props.getProperty( FileSystemProvider.PROP_PAGEDIR ) , "%C3%85%C3%A4Test.txt" );
+        final File resultfile = new File(  m_providerUTF8.findPage(pageName).getParentFile() , "%C3%85%C3%A4Test.txt" );
 
         Assertions.assertTrue( resultfile.exists(), "No such file" );
 
@@ -109,7 +114,7 @@ public class FileSystemProviderTest {
 
         m_providerUTF8.putPageText( page, "test" );
 
-        final File resultfile = new File(  props.getProperty( FileSystemProvider.PROP_PAGEDIR ) , "Test%2FFoobar.txt" );
+        final File resultfile = getPageFile(props.getProperty(FileSystemProvider.PROP_PAGEDIR), "Test%2FFoobar.txt");
 
         Assertions.assertTrue( resultfile.exists(), "No such file" );
 
@@ -127,7 +132,7 @@ public class FileSystemProviderTest {
 
         m_provider.putPageText( page, "test" );
 
-        final File resultfile = new File(  props.getProperty( FileSystemProvider.PROP_PAGEDIR ) , "Test%2FFoobar.txt" );
+        final File resultfile = getPageFile(props.getProperty(FileSystemProvider.PROP_PAGEDIR), "Test%2FFoobar.txt");
 
         Assertions.assertTrue( resultfile.exists(), "No such file" );
 
@@ -145,7 +150,7 @@ public class FileSystemProviderTest {
 
         m_provider.putPageText( page, "test" );
 
-        final File resultfile = new File(  props.getProperty( FileSystemProvider.PROP_PAGEDIR ) , "%2ETest.txt" );
+        final File resultfile = getPageFile(props.getProperty(FileSystemProvider.PROP_PAGEDIR), "%2ETest.txt");
 
         Assertions.assertTrue( resultfile.exists(), "No such file" );
 
@@ -171,12 +176,12 @@ public class FileSystemProviderTest {
         }
         finally
         {
-            File resultfile = new File(  props.getProperty( FileSystemProvider.PROP_PAGEDIR ), "%C5%E4Test.txt" );
+            File resultfile = getPageFile(props.getProperty(FileSystemProvider.PROP_PAGEDIR), "%C5%E4Test.txt");
             try {
                 resultfile.delete();
             } catch( final Exception e) {}
 
-            resultfile = new File(  props.getProperty( FileSystemProvider.PROP_PAGEDIR ), "%C5%E4Test.properties" );
+            resultfile = getPageFile(props.getProperty(FileSystemProvider.PROP_PAGEDIR), "%C5%E4Test.properties");
             try {
                 resultfile.delete();
             } catch( final Exception e) {}
@@ -254,21 +259,21 @@ public class FileSystemProviderTest {
 
         m_provider.putPageText( p, "v1" );
 
-        File f = new File( files, "Test"+FileSystemProvider.FILE_EXT );
+        File f = getPageFile(files, "Test" + FileSystemProvider.FILE_EXT);
 
         Assertions.assertTrue( f.exists(), "file does not exist" );
 
-        f = new File( files, "Test.properties" );
+        f = getPageFile(files, "Test.properties");
 
         Assertions.assertTrue( f.exists(), "property file does not exist" );
 
         m_provider.deletePage( p );
 
-        f = new File( files, "Test"+FileSystemProvider.FILE_EXT );
+        f = getPageFile(files, "Test" + FileSystemProvider.FILE_EXT);
 
         Assertions.assertFalse( f.exists(), "file exists" );
 
-        f = new File( files, "Test.properties" );
+        f = getPageFile(files, "Test.properties");
 
         Assertions.assertFalse( f.exists(), "properties exist" );
     }
@@ -278,7 +283,7 @@ public class FileSystemProviderTest {
         final String pageDir = props.getProperty( FileSystemProvider.PROP_PAGEDIR );
         final String pageName = "CustomPropertiesTest";
         final String fileName = pageName+FileSystemProvider.FILE_EXT;
-        final File file = new File (pageDir,fileName);
+        final File file = getPageFile(pageDir, fileName);
 
         Assertions.assertFalse( file.exists() );
         final WikiPage testPage = new WikiPage(m_engine,pageName);
@@ -301,4 +306,7 @@ public class FileSystemProviderTest {
         Assertions.assertFalse( file.exists() );
     }
 
+    protected  @NotNull File getPageFile(String pageDir, String fileName) {
+        return new File(pageDir, fileName);
+    }
 }

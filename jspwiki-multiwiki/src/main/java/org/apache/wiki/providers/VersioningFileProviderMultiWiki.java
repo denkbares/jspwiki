@@ -4,12 +4,14 @@
 
 package org.apache.wiki.providers;
 
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
 import java.util.Collection;
 import java.util.Properties;
 
@@ -95,17 +97,23 @@ public class VersioningFileProviderMultiWiki extends VersioningFileProvider {
 		return new File(oldpages, mangleName(localPageName));
 	}
 
+	@Override
+	protected Properties getHeritagePageProperties(final String page) throws IOException {
+		return super.getHeritagePageProperties(SubWikiUtils.getLocalPageName(page));
+
+	}
+
 	/**
 	 * All the other methods are delegated to a standard (non-versioning) MultiWikiFileProvider.
 	 */
-	private  AbstractFileProvider delegateMultiWikiProvider;
+	private AbstractFileProvider delegateMultiWikiProvider;
 	private boolean delegateInitialized = false;
 
 	private static class VersioningFileProviderMultiWikiDelegate extends AbstractMultiWikiFileProvider {
 
 		private final VersioningFileProviderMultiWiki parent;
 
-		public VersioningFileProviderMultiWikiDelegate(VersioningFileProviderMultiWiki parent) {
+		VersioningFileProviderMultiWikiDelegate(VersioningFileProviderMultiWiki parent) {
 			this.parent = parent;
 		}
 

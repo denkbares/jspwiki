@@ -21,7 +21,7 @@ public abstract class ParameterizedNestedNonNestedMultiWikiTest {
 
 	public static final String JSPWIKI_MAIN_FOLDER_PROPERTY = "jspwiki.mainFolder";
 	public static final String LOCAL_PAGE_NAME = "MyPage";
-	protected static final String WIKI_PREFIX_MAIN = "Main";
+	public static final String WIKI_PREFIX_MAIN = "Main";
 	protected static final String WIKI_PREFIX_WIKI2 = "Wiki2";
 
 	@BeforeAll
@@ -61,31 +61,60 @@ public abstract class ParameterizedNestedNonNestedMultiWikiTest {
 
 
 	protected static void doInit() {
-		Properties propertiesNonNestedVersioning = getTestProperties();
-		propertiesNonNestedVersioning.put(JSPWIKI_MAIN_FOLDER_PROPERTY, WIKI_PREFIX_MAIN);
-		propertiesNonNestedVersioning.put("jspwiki.applicationName", "TestEngineNonNestedVersioning");
-		AbstractMultiWikiTest.addStandardMultiWikiProperties(propertiesNonNestedVersioning);
+		Properties propertiesNonNestedVersioning = getMultiWikiNonNestedVersioningProperties();
 		testEngineNonNestedVersioning = TestEngine.build(propertiesNonNestedVersioning);
 
 
 		Properties propertiesNestedVersioning = getTestProperties();
 		propertiesNestedVersioning.put("jspwiki.applicationName", "TestEngineNestedVersioning");
-		AbstractMultiWikiTest.addStandardMultiWikiProperties(propertiesNestedVersioning);
+		addStandardMultiWikiProperties(propertiesNestedVersioning);
 		testEngineNestedVersioning = TestEngine.build(propertiesNestedVersioning);
 
 
 		Properties propertiesNonNested = getTestProperties();
 		propertiesNonNested.put(JSPWIKI_MAIN_FOLDER_PROPERTY, WIKI_PREFIX_MAIN);
 		propertiesNonNested.put("jspwiki.applicationName", "TestEngineNonNested");
-		AbstractMultiWikiTest.addStandardMultiWikiPropertiesWithoutVersioning(propertiesNonNested);
+		addStandardMultiWikiPropertiesWithoutVersioning(propertiesNonNested);
 		testEngineNonNested = TestEngine.build(propertiesNonNested);
 
 
 		Properties propertiesNested = getTestProperties();
 		propertiesNested.put("jspwiki.applicationName", "TestEngineNested");
-		AbstractMultiWikiTest.addStandardMultiWikiPropertiesWithoutVersioning(propertiesNested);
+		addStandardMultiWikiPropertiesWithoutVersioning(propertiesNested);
 		testEngineNested = TestEngine.build(propertiesNested);
 
+	}
+
+	public static @NotNull Properties getMultiWikiNonNestedVersioningProperties() {
+		Properties propertiesNonNestedVersioning = getTestProperties();
+		propertiesNonNestedVersioning.put(JSPWIKI_MAIN_FOLDER_PROPERTY, WIKI_PREFIX_MAIN);
+		propertiesNonNestedVersioning.put("jspwiki.applicationName", "TestEngineNonNestedVersioning");
+		addStandardMultiWikiProperties(propertiesNonNestedVersioning);
+		return propertiesNonNestedVersioning;
+	}
+
+	public static @NotNull Properties getMultiWikiNestedVersioningProperties() {
+		Properties propertiesNonNestedVersioning = getTestProperties();
+		propertiesNonNestedVersioning.put("jspwiki.applicationName", "TestEngineNestedVersioning");
+		addStandardMultiWikiProperties(propertiesNonNestedVersioning);
+		return propertiesNonNestedVersioning;
+	}
+
+	public static void addStandardMultiWikiProperties(Properties properties) {
+		standardPropertiesMultiWiki(properties);
+		properties.put("jspwiki.pageProvider", "VersioningFileProviderMultiWiki");
+	}
+
+	static void addStandardMultiWikiPropertiesWithoutVersioning(Properties properties) {
+		standardPropertiesMultiWiki(properties);
+		properties.put("jspwiki.pageProvider", "FileSystemProviderMultiWiki");
+	}
+
+	private static void standardPropertiesMultiWiki(Properties properties) {
+		properties.put("jspwiki.renderingManager.markupParser", "org.apache.wiki.parser.JSPWikiMarkupParserMultiWiki");
+		properties.put("jspwiki.pageRenamer", "DefaultPageRenamerMultiWiki");
+		properties.put("jspwiki.pageNameResolver", "MultiWikiPageNameResolver");
+		properties.put("jspwiki.attachmentProvider", "BasicAttachmentProviderMultiWiki");
 	}
 
 	protected static void doTearDown() {

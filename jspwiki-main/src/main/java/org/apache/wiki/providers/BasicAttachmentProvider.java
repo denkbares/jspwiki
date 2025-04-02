@@ -165,11 +165,11 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 		return f;
 	}
 
-	private static String mangleName(final String wikiname) {
+	protected static String mangleName(final String wikiname) {
 		return TextUtil.urlEncodeUTF8(wikiname);
 	}
 
-	private static String unmangleName(final String filename) {
+	protected static String unmangleName(final String filename) {
 		return TextUtil.urlDecodeUTF8(filename);
 	}
 

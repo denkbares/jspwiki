@@ -31,9 +31,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.apache.wiki.TestEngine.getTestProperties;
+import static org.apache.wiki.multiwiki.ParameterizedNestedNonNestedMultiWikiTest.addStandardMultiWikiProperties;
 import static org.apache.wiki.multiwiki.ParameterizedNestedNonNestedMultiWikiTest.getGlobalPageName;
 import static org.apache.wiki.multiwiki.ParameterizedNestedNonNestedMultiWikiTest.getMainPrefix;
-import static org.apache.wiki.multiwiki.AbstractMultiWikiTest.addStandardMultiWikiProperties;
 import static org.apache.wiki.multiwiki.links.MultiWikiLinkTestData.*;
 
 /**

@@ -19,6 +19,7 @@
 package org.apache.wiki.content;
 
 import org.apache.wiki.utils.WikiPageUtils;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 import org.apache.wiki.api.core.Attachment;
@@ -329,6 +330,10 @@ public class DefaultPageRenamer implements PageRenamer {
 	 * This method does a correct replacement of a single link, taking into account anchors and attachments.
 	 */
 	protected String replaceSingleLink(final String original, final String from, final String newlink ) {
+		return doReplaceSingleLink(original, from, newlink);
+	}
+
+	protected static @NotNull String doReplaceSingleLink(String original, String from, String newlink) {
 		final int hash = original.indexOf('#');
 		final int slash = original.indexOf('/');
 		String realLink = original;

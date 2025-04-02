@@ -23,12 +23,11 @@ import org.junit.jupiter.params.provider.MethodSource;
 import static org.apache.wiki.providers.AbstractFileProvider.FILE_EXT;
 import static org.junit.jupiter.api.Assertions.*;
 
-public  class MultiWikiPersistenceTest extends ParameterizedNestedNonNestedMultiWikiTest {
-
+public class MultiWikiPersistenceTest extends ParameterizedNestedNonNestedMultiWikiTest {
 
 	@ParameterizedTest
 	@MethodSource("provideEnginesAll")
-	public void saveNewPageMain(TestEngine testEngine) throws WikiException, IOException {
+	void saveNewPageMain(TestEngine testEngine) throws WikiException, IOException {
 		String mainPrefix = getMainPrefix(testEngine);
 		String globalPageName = getGlobalPageName(mainPrefix, LOCAL_PAGE_NAME);
 		doTestCreateNewPage(testEngine, globalPageName, mainPrefix);
@@ -37,7 +36,7 @@ public  class MultiWikiPersistenceTest extends ParameterizedNestedNonNestedMulti
 
 	@ParameterizedTest
 	@MethodSource("provideEnginesAll")
-	public void saveNewPageWiki2(TestEngine testEngine) throws WikiException, IOException {
+	void saveNewPageWiki2(TestEngine testEngine) throws WikiException, IOException {
 		String pageName = WIKI_PREFIX_WIKI2 + SubWikiUtils.SUB_FOLDER_PREFIX_SEPARATOR + "MyPage";
 		doTestCreateNewPage(testEngine, pageName, WIKI_PREFIX_WIKI2);
 		doTestAttachment(testEngine, pageName, WIKI_PREFIX_WIKI2);
@@ -86,8 +85,7 @@ public  class MultiWikiPersistenceTest extends ParameterizedNestedNonNestedMulti
 		String localPageName = SubWikiUtils.getLocalPageName(page);
 		String folder = getFolder(engine, subwikiFolder);
 		String oldFolder = folder+File.separator+"OLD";
-		String oldFolderPage = oldFolder+File.separator+TestEngine.mangleName(localPageName);
-		return oldFolderPage;
+		return oldFolder+File.separator+TestEngine.mangleName(localPageName);
 	}
 
 	private static @NotNull String getFolder(TestEngine engine, String subwikiFolder) {
@@ -96,13 +94,12 @@ public  class MultiWikiPersistenceTest extends ParameterizedNestedNonNestedMulti
 		return m_pageDirectory + File.separator + subwikiFolder;
 	}
 
-	protected static File findAttachment(TestEngine engine, String page, String subwikiFolder, String attachmentFileName) {
+	static File findAttachment(TestEngine engine, String page, String subwikiFolder, String attachmentFileName) {
 		String folder = getFolder(engine, subwikiFolder);
 		String attachmentFolderName = folder + File.separator + SubWikiUtils.getLocalPageName(page) + "-att" + File.separator;
 		File attachmentFolder = new File(attachmentFolderName);
 		File attachmentFileFolder = new File(attachmentFolder, attachmentFileName + "-dir");
 		String fileEnding = attachmentFileName.substring(attachmentFileName.lastIndexOf("."));
-		File attachmentFile = new File(attachmentFileFolder, "1" + fileEnding);
-		return attachmentFile;
+		return new File(attachmentFileFolder, "1" + fileEnding);
 	}
 }

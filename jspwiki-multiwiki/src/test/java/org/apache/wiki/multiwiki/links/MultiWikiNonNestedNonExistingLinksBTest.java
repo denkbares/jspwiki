@@ -4,18 +4,13 @@
 
 package org.apache.wiki.multiwiki.links;
 
-import java.util.Properties;
-
 import org.apache.wiki.TestEngine;
-import org.apache.wiki.multiwiki.AbstractMultiWikiTest;
+import org.apache.wiki.multiwiki.ParameterizedNestedNonNestedMultiWikiTest;
 import org.apache.wiki.providers.SubWikiUtils;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
-import static org.apache.wiki.TestEngine.getTestProperties;
-import static org.apache.wiki.multiwiki.ParameterizedNestedNonNestedMultiWikiTest.getGlobalPageNameHTML;
-import static org.apache.wiki.multiwiki.ParameterizedNestedNonNestedMultiWikiTest.getGlobalPageNameUrlencoded;
 import static org.apache.wiki.multiwiki.links.MultiWikiLinkTestData.*;
 
 /**
@@ -23,17 +18,13 @@ import static org.apache.wiki.multiwiki.links.MultiWikiLinkTestData.*;
  * a) link without prefix
  * b) link with prefix (which is probably never used, compliance-functionality only)
  */
-public class MultiWikiNonNestedNonExistingLinksBTest extends AbstractMultiWikiTest {
+public class MultiWikiNonNestedNonExistingLinksBTest extends ParameterizedNestedNonNestedMultiWikiTest {
 
-	@BeforeAll
-	public static void init() {
-		Properties props =  getTestProperties();
-		addStandardMultiWikiProperties(props);
-		testEngine = TestEngine.build(props);
-	}
 
-	@Test
-	public void testCreatePageLinksB() throws Exception {
+	// the test is not interesting for each of those parameterized engines, however doesn't hurt to run them all
+	@ParameterizedTest
+	@MethodSource("provideEnginesAll")
+	public void testCreatePageLinksB(TestEngine testEngine) throws Exception {
 		String globalPageNameB1 = WIKI_PREFIX_B + SubWikiUtils.SUB_FOLDER_PREFIX_SEPARATOR + PAGE_NAME_B1;
 		String globalPageNameB2 = WIKI_PREFIX_B + SubWikiUtils.SUB_FOLDER_PREFIX_SEPARATOR + PAGE_NAME_B2;
 		testEngine.saveText(globalPageNameB1, PAGE_CONTENT_B1);

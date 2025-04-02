@@ -14,6 +14,7 @@ Use the jspwiki-properties file to configure the components that activate the Mu
 ```
 jspwiki.renderingManager.markupParser = org.apache.wiki.parser.JSPWikiMarkupParserMultiWiki
 jspwiki.pageRenamer = DefaultPageRenamerMultiWiki
+jspwiki.pageNameResolver = MultiWikiPageNameResolver
 jspwiki.attachmentProvider = BasicAttachmentProviderMultiWiki
 jspwiki.pageProvider = VersioningFileProviderMultiWiki # with page versioning
 # jspwiki.pageProvider = FileSystemProviderMultiWiki # if no versioning is intended
@@ -33,7 +34,7 @@ If You want to work with sub-wikis in a more tidy way, use the Flat-Mode as desc
 
 Flat Mode:
 ---------------
-To confiure the flat-mode, You have to specify a distinct folder name for the main-wiki-content. Then, the main-wiki-content
+To configure the flat-mode, You have to specify a distinct folder name for the main-wiki-content. Then, the main-wiki-content
 (txt-files, attachments, OLD-folder,....) is stored there. You can do so by specifiying the folder by 'jspwiki.mainFolder' in
 the jspwiki-custom.properties file, as for example:
 
@@ -47,6 +48,7 @@ __Note:__ In the flat mode, You can create links from any sub-wiki into the main
 
 Pitfalls & Non-backwards-compatibilities
 ---------------
+In principle, the extension should work with any legacy wiki folder (in nested mode) when the multi wiki extension gets activated.
 There are two minor dangers regarding backwards compatibility:
 * If a wiki content has page names that contain the sequence `&&` then it will be the apocalypse. -> not allowed (@see SubWikiUtils.java)
 * Hopefully never been done because it would be weird: If you have/had inside your wiki folder arbitrary other folders folder besides the attachment folders, 

@@ -9,9 +9,7 @@ import java.util.Properties;
 import org.apache.wiki.providers.SubWikiUtils;
 import org.jetbrains.annotations.NotNull;
 
-public class MultiWikiPageNameResolver implements PageNameResolver{
-
-	static PageNameResolver instance = new MultiWikiPageNameResolver();
+public class MultiWikiPageNameResolver implements PageNameResolver {
 
 	@Override
 	public @NotNull String resolvePageName(@NotNull String pageName, Properties props) {
