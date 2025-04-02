@@ -12,15 +12,12 @@ import java.util.Date;
 import java.util.List;
 import java.util.Properties;
 
-import org.apache.commons.logging.Log;
 import org.apache.wiki.api.core.Attachment;
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.exceptions.NoRequiredPropertyException;
 import org.apache.wiki.api.exceptions.ProviderException;
 import org.apache.wiki.api.spi.Wiki;
 import org.apache.wiki.pages.PageTimeComparator;
-import org.apache.wiki.util.TextUtil;
-import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,9 +25,8 @@ public class BasicAttachmentProviderMultiWiki extends BasicAttachmentProvider {
 
 	private static final Logger LOG = LoggerFactory.getLogger(BasicAttachmentProviderMultiWiki.class);
 
-
 	// sub-wiki-folders; for jspwiki the folder is a prefix/namespace in the page name, e.g. /Subwiki/Main.txt is page Subwiki::Main
-	protected Collection<String> subfolders;
+	private Collection<String> subfolders;
 
 	@Override
 	public void initialize(final Engine engine, final Properties properties) throws NoRequiredPropertyException, IOException {
@@ -58,18 +54,7 @@ public class BasicAttachmentProviderMultiWiki extends BasicAttachmentProvider {
 		return f;
 	}
 
-	private static String mangleName(final String wikiname) {
-		return TextUtil.urlEncodeUTF8(wikiname);
-	}
 
-	private static String unmangleName(final String filename) {
-		return TextUtil.urlDecodeUTF8(filename);
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	// FIXME: Very unoptimized.
 	@Override
 	public List<Attachment> listAllChanged(final Date timestamp) throws ProviderException {
 		attachmentLock.readLock().lock();
@@ -89,8 +74,8 @@ public class BasicAttachmentProviderMultiWiki extends BasicAttachmentProvider {
 		}
 	}
 
-	String getPageDirectory(@Nullable String pageName) {
-		return SubWikiUtils.getPageDirectory(pageName, m_storageDir, this.m_engine.getWikiProperties());
+	private String getPageDirectoryMain() {
+		return SubWikiUtils.getPageDirectory(null, m_storageDir, this.m_engine.getWikiProperties());
 	}
 
 	private Collection<Attachment> collectAttachments(Date timestamp, String subfolder) throws ProviderException {
@@ -99,7 +84,7 @@ public class BasicAttachmentProviderMultiWiki extends BasicAttachmentProvider {
 			String folder;
 			if (subfolder == null || subfolder.isBlank()) {
 				// this is the case that the main wiki is directly in the storage dir
-				folder = getPageDirectory(null);
+				folder = getPageDirectoryMain();
 			}
 			else {
 				folder = m_storageDir + File.separator + subfolder;

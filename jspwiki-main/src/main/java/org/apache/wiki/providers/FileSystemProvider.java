@@ -61,7 +61,7 @@ public class FileSystemProvider extends AbstractFileProvider {
     /**
      *  Stores basic metadata to a file.
      */
-    private void putPageProperties( final Page page ) throws IOException {
+    protected void putPageProperties( final Page page ) throws IOException {
         final Properties props = new Properties();
         final String author = page.getAuthor();
         final String changenote = page.getAttribute( Page.CHANGENOTE );
@@ -82,7 +82,7 @@ public class FileSystemProvider extends AbstractFileProvider {
         // Get additional custom properties from page and add to props
         getCustomProperties( page, props );
 
-        final File file = new File( getPageDirectory(), mangleName( page.getName() ) + PROP_EXT );
+        final File file = new File( getPageDirectory(null), mangleName( page.getName() ) + PROP_EXT );
         try( final OutputStream out = Files.newOutputStream( file.toPath() ) ) {
             props.store( out, "JSPWiki page properties for page "+page.getName() );
         }
@@ -91,7 +91,7 @@ public class FileSystemProvider extends AbstractFileProvider {
     /**
      *  Gets basic metadata from file.
      */
-    private void getPageProperties( final Page page ) throws IOException {
+    protected void getPageProperties( final Page page ) throws IOException {
         final File file = new File( getPageDirectory(), mangleName( page.getName() ) + PROP_EXT );
         if( file.exists() ) {
             try( final InputStream in = Files.newInputStream( file.toPath() ) ) {

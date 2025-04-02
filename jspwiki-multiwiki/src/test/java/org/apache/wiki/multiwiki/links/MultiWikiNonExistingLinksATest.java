@@ -19,6 +19,7 @@ import static org.apache.wiki.multiwiki.links.MultiWikiLinkTestData.*;
  */
 public class MultiWikiNonExistingLinksATest extends ParameterizedNestedNonNestedMultiWikiTest {
 
+	// the test is not interesting for each of those parameterized engines, however doesn't hurt to run them all
 	@ParameterizedTest
 	@MethodSource("provideEnginesNoVersioning")
 	public void testCreatePageLinksA(TestEngine testEngine) throws Exception {

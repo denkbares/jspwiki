@@ -10,16 +10,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Link parsing operations.
+ * Link parsing operations supporting multi wiki functionality.
  *
- * @since 2.10.3
  */
-public class LinkParsingOperationsMultiWiki extends LinkParsingOperations {
+class LinkParsingOperationsMultiWiki extends LinkParsingOperations {
 
 	private static final Logger LOG = LoggerFactory.getLogger(LinkParsingOperationsMultiWiki.class);
 
-
-	public LinkParsingOperationsMultiWiki(final Context wikiContext) {
+	LinkParsingOperationsMultiWiki(final Context wikiContext) {
 		super(wikiContext);
 	}
 

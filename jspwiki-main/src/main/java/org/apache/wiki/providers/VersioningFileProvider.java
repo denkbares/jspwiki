@@ -161,7 +161,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
 	}
 
 	protected Properties getVersioningProperties() throws IOException {
-		final File versioningPropsFile = new File(getOldDir(), VERSIONING_PROPERTIES_FILE);
+		final File versioningPropsFile = new File(getOldDir(null), VERSIONING_PROPERTIES_FILE);
 		if (!versioningPropsFile.exists()) return new Properties();
 		final Properties props;
 		try (final InputStream in = new FileInputStream(versioningPropsFile)) {
@@ -172,7 +172,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
 	}
 
 	protected void writeOldProperties(Properties properties) throws IOException {
-		final File oldPropertiesFile = new File(getOldDir(), VERSIONING_PROPERTIES_FILE);
+		final File oldPropertiesFile = new File(getOldDir(null), VERSIONING_PROPERTIES_FILE);
 		try (final OutputStream out = new FileOutputStream(oldPropertiesFile)) {
 			properties.store(out, "JSPWiki versioning properties for");
 		}
@@ -664,7 +664,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
 	 * Support for migration of simple properties created by the FileSystemProvider when coming under Versioning management.
 	 * Simulate an initial version.
 	 */
-	private Properties getHeritagePageProperties(final String page) throws IOException {
+	protected Properties getHeritagePageProperties(final String page) throws IOException {
 		final File propertyFile = new File(getPageDirectory(), mangleName(page) + FileSystemProvider.PROP_EXT);
 		if (propertyFile.exists()) {
 			final long lastModified = propertyFile.lastModified();
