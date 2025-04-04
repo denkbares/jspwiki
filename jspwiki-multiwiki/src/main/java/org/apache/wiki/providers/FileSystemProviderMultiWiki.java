@@ -32,7 +32,7 @@ public class FileSystemProviderMultiWiki extends FileSystemProvider {
 	Properties initProperties;
 
 	@Override
-	public void initialize(final Engine engine, final Properties properties) throws NoRequiredPropertyException, IOException{
+	public void initialize(final Engine engine, final Properties properties) throws NoRequiredPropertyException, IOException {
 		super.initialize(engine, properties);
 		initProperties = properties;
 	}
@@ -51,86 +51,91 @@ public class FileSystemProviderMultiWiki extends FileSystemProvider {
 		}
 	}
 
-
 	@Override
-	protected void putPageProperties(final Page page ) throws IOException {
+	protected void putPageProperties(final Page page) throws IOException {
 		final Properties props = new Properties();
 		final String author = page.getAuthor();
-		final String changenote = page.getAttribute( Page.CHANGENOTE );
-		final String viewcount = page.getAttribute( Page.VIEWCOUNT );
+		final String changenote = page.getAttribute(Page.CHANGENOTE);
+		final String viewcount = page.getAttribute(Page.VIEWCOUNT);
 
-		if( author != null ) {
-			props.setProperty( Page.AUTHOR, author );
+		if (author != null) {
+			props.setProperty(Page.AUTHOR, author);
 		}
 
-		if( changenote != null ) {
-			props.setProperty( Page.CHANGENOTE, changenote );
+		if (changenote != null) {
+			props.setProperty(Page.CHANGENOTE, changenote);
 		}
 
-		if( viewcount != null ) {
-			props.setProperty( Page.VIEWCOUNT, viewcount );
+		if (viewcount != null) {
+			props.setProperty(Page.VIEWCOUNT, viewcount);
 		}
 
 		// Get additional custom properties from page and add to props
-		getCustomProperties( page, props );
+		getCustomProperties(page, props);
 
 		String name = SubWikiUtils.getLocalPageName(page.getName());
 
-		final File file = new File( getPageDirectory(null), mangleName(name) + PROP_EXT );
-		try( final OutputStream out = Files.newOutputStream( file.toPath() ) ) {
-			props.store( out, "JSPWiki page properties for page "+ name);
+		final File file = new File(getPageDirectory(null), mangleName(name) + PROP_EXT);
+		try (final OutputStream out = Files.newOutputStream(file.toPath())) {
+			props.store(out, "JSPWiki page properties for page " + name);
 		}
 	}
 
 	@Override
-	protected void getPageProperties(final Page page ) throws IOException {
+	protected void getPageProperties(final Page page) throws IOException {
 		String name = SubWikiUtils.getLocalPageName(page.getName());
-		final File file = new File( getPageDirectory(), mangleName( name) + PROP_EXT );
-		if( file.exists() ) {
-			try( final InputStream in = Files.newInputStream( file.toPath() ) ) {
-				final Properties  props = new Properties();
-				props.load( in );
-				page.setAuthor( props.getProperty( Page.AUTHOR ) );
+		final File file = new File(getPageDirectory(), mangleName(name) + PROP_EXT);
+		if (file.exists()) {
+			try (final InputStream in = Files.newInputStream(file.toPath())) {
+				final Properties props = new Properties();
+				props.load(in);
+				page.setAuthor(props.getProperty(Page.AUTHOR));
 
-				final String changenote = props.getProperty( Page.CHANGENOTE );
-				if( changenote != null ) {
-					page.setAttribute( Page.CHANGENOTE, changenote );
+				final String changenote = props.getProperty(Page.CHANGENOTE);
+				if (changenote != null) {
+					page.setAttribute(Page.CHANGENOTE, changenote);
 				}
 
-				final String viewcount = props.getProperty( Page.VIEWCOUNT );
-				if( viewcount != null ) {
-					page.setAttribute( Page.VIEWCOUNT, viewcount );
+				final String viewcount = props.getProperty(Page.VIEWCOUNT);
+				if (viewcount != null) {
+					page.setAttribute(Page.VIEWCOUNT, viewcount);
 				}
 
 				// Set the props values to the page attributes
-				setCustomProperties( page, props );
+				setCustomProperties(page, props);
 			}
 		}
 	}
 
 	/**
-	 *  {@inheritDoc}
+	 * {@inheritDoc}
+	 *
 	 * @param page
 	 */
 	@Override
-	public void deletePage( final Page page) throws ProviderException {
-		super.deletePage(page);
+	public void deletePage(final Page page) throws ProviderException {
 		String name = SubWikiUtils.getLocalPageName(page.getName());
-		final File file = new File( getPageDirectory(page.getName()), mangleName(name)+ FileSystemProvider.PROP_EXT );
-		if( file.exists() ) {
-			file.delete();
+		final File wikiFile = new File(getPageDirectory(page.getName()), mangleName(name) + FileSystemProvider.FILE_EXT);
+		if (wikiFile.exists()) {
+			// check if it still exists before deletion-> will throw NoSuchFilException otherwise
+			// might be already removed by a git rest or whatever
+			super.deletePage(page);
+		}
+		final File propertiesFile = new File(getPageDirectory(page.getName()), mangleName(name) + FileSystemProvider.PROP_EXT);
+		if (propertiesFile.exists()) {
+			propertiesFile.delete();
 		}
 	}
 
 	/**
-	 *  {@inheritDoc}
+	 * {@inheritDoc}
 	 */
 	@Override
-	public void movePage(final Page from, final String to ) throws ProviderException {
+	public void movePage(final Page from, final String to) throws ProviderException {
 		// TODO: test or fix for multi-wiki!!
-		final File fromPage = findPage( from.getName() );
-		final File toPage = findPage( to );
-		fromPage.renameTo( toPage );
+		final File fromPage = findPage(from.getName());
+		final File toPage = findPage(to);
+		fromPage.renameTo(toPage);
 	}
 
 	/**
@@ -147,10 +152,10 @@ public class FileSystemProviderMultiWiki extends FileSystemProvider {
 			this.parent = parent;
 		}
 
-
 		/**
-		 Here we need to delegate backwards to the parent instance, as {@link VersioningFileProviderMultiWikiDelegate#getAllPages()}
-		 needs to call/use {@link VersioningFileProvider#getPageInfo(String, int)}.
+		 * Here we need to delegate backwards to the parent instance, as
+		 * {@link VersioningFileProviderMultiWikiDelegate#getAllPages()}
+		 * needs to call/use {@link VersioningFileProvider#getPageInfo(String, int)}.
 		 */
 		@Override
 		public Page getPageInfo(String pageName, int version) {
@@ -183,16 +188,13 @@ public class FileSystemProviderMultiWiki extends FileSystemProvider {
 
 	@Override
 	protected File findPage(String page) {
-		initDelegateIfNecessary(m_engine,initProperties);
+		initDelegateIfNecessary(m_engine, initProperties);
 		return delegateMultiWikiProvider.findPage(page);
 	}
 
 	@Override
 	public Collection<Page> getAllPages() throws ProviderException {
-		initDelegateIfNecessary(m_engine,initProperties);
+		initDelegateIfNecessary(m_engine, initProperties);
 		return delegateMultiWikiProvider.getAllPages();
 	}
-
-
-
 }
