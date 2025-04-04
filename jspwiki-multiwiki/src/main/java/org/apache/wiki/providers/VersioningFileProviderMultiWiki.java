@@ -103,6 +103,17 @@ public class VersioningFileProviderMultiWiki extends VersioningFileProvider {
 
 	}
 
+	@Override
+	public void deletePage(final Page page) throws ProviderException {
+		String name = SubWikiUtils.getLocalPageName(page.getName());
+		final File wikiFile = new File(getPageDirectory(page.getName()), mangleName(name) + FileSystemProvider.FILE_EXT);
+		if (wikiFile.exists()) {
+			// check if it still exists before deletion-> will throw NoSuchFilException otherwise
+			// might be already removed by a git rest or whatever
+			super.deletePage(page);
+		}
+	}
+
 	/**
 	 * All the other methods are delegated to a standard (non-versioning) MultiWikiFileProvider.
 	 */
