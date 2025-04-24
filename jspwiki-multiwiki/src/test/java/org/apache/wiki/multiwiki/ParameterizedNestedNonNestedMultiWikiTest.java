@@ -110,7 +110,7 @@ public abstract class ParameterizedNestedNonNestedMultiWikiTest {
 		properties.put("jspwiki.pageProvider", "FileSystemProviderMultiWiki");
 	}
 
-	private static void standardPropertiesMultiWiki(Properties properties) {
+	public static void standardPropertiesMultiWiki(Properties properties) {
 		properties.put("jspwiki.renderingManager.markupParser", "org.apache.wiki.parser.JSPWikiMarkupParserMultiWiki");
 		properties.put("jspwiki.pageRenamer", "DefaultPageRenamerMultiWiki");
 		properties.put("jspwiki.pageNameResolver", "MultiWikiPageNameResolver");
