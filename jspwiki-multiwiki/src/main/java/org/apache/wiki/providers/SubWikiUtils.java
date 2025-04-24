@@ -47,7 +47,7 @@ public class SubWikiUtils {
 	 * @param page global page name
 	 * @return sub-wiki folder name
 	 */
-	public static String getSubFolderNameOfPage(@NotNull String page, @NotNull Properties properties) {
+	public static @NotNull String getSubFolderNameOfPage(@NotNull String page, @NotNull Properties properties) {
 		String[] split = page.split(SUB_FOLDER_PREFIX_SEPARATOR);
 		if (split.length == 1) {
 			// page of main base wiki folder
@@ -58,7 +58,7 @@ public class SubWikiUtils {
 		}
 		else {
 			LOG.error(MESSAGE_INVALID_PAGE_NAME + page);
-			return null;
+			throw new IllegalStateException(MESSAGE_INVALID_PAGE_NAME+page);
 		}
 	}
 
@@ -66,8 +66,7 @@ public class SubWikiUtils {
 		String result = pageName;
 		String subFolderName = getSubFolderNameOfPage(pageName, properties);
 		String localName = getLocalPageName(pageName);
-		if (subFolderName != null && !subFolderName.isEmpty()) {
-			assert localName != null;
+		if (!subFolderName.isEmpty()) {
 			if (!pageName.equals(concatSubWikiAndLocalPageNameNonMain(subFolderName, localName))) {
 				result = concatSubWikiAndLocalPageNameNonMain(subFolderName, pageName);
 			}
@@ -75,7 +74,7 @@ public class SubWikiUtils {
 		return result;
 	}
 
-	public static String getMainWikiFolder(@NotNull Properties properties) {
+	public static @NotNull String getMainWikiFolder(@NotNull Properties properties) {
 		return properties.getProperty(MAIN_FOLDER_NAME, "");
 	}
 
@@ -85,9 +84,9 @@ public class SubWikiUtils {
 	 * @param globalPageName global page name
 	 * @return the local page name (without sub-wiki prefix)
 	 */
-	public static String getLocalPageName(@NotNull String globalPageName) {
+	public static @NotNull String getLocalPageName(@NotNull String globalPageName) {
+		if(isLocalName(globalPageName)) return globalPageName; // is already local name
 		String[] split = globalPageName.split(SUB_FOLDER_PREFIX_SEPARATOR);
-
 		if (split.length == 1) {
 			// globalPageName of main base wiki folder
 			return globalPageName;
@@ -97,7 +96,7 @@ public class SubWikiUtils {
 		}
 		else {
 			LOG.error(MESSAGE_INVALID_PAGE_NAME + globalPageName);
-			return null;
+			throw new IllegalStateException("Invalid page name: "+globalPageName);
 		}
 	}
 
@@ -162,16 +161,12 @@ public class SubWikiUtils {
 	}
 
 	public static String getPageDirectory(@Nullable String pageName, String m_pageDirectory, Properties wikiProperties) {
-		String folder = null;
+		String folder;
 		if (pageName != null) {
 			folder = SubWikiUtils.getSubFolderNameOfPage(pageName, wikiProperties);
 		} else {
 			folder = SubWikiUtils.getMainWikiFolder(wikiProperties);
 		}
-		String suffix = "";
-		if (folder != null || !folder.isEmpty()) {
-			suffix = File.separator + folder;
-		}
-		return m_pageDirectory + suffix;
+		return m_pageDirectory + File.separator + folder;
 	}
 }

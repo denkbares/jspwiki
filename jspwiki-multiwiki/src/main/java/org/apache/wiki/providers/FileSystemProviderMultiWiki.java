@@ -20,6 +20,7 @@ import org.apache.wiki.api.exceptions.NoRequiredPropertyException;
 import org.apache.wiki.api.exceptions.ProviderException;
 import org.apache.wiki.api.providers.PageProvider;
 import org.apache.wiki.util.TextUtil;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,7 +30,7 @@ import static org.apache.wiki.providers.FileSystemProvider.PROP_EXT;
 public class FileSystemProviderMultiWiki extends FileSystemProvider {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FileSystemProviderMultiWiki.class);
-	Properties initProperties;
+	protected Properties initProperties;
 
 	@Override
 	public void initialize(final Engine engine, final Properties properties) throws NoRequiredPropertyException, IOException {
@@ -73,12 +74,16 @@ public class FileSystemProviderMultiWiki extends FileSystemProvider {
 		// Get additional custom properties from page and add to props
 		getCustomProperties(page, props);
 
-		String name = SubWikiUtils.getLocalPageName(page.getName());
 
-		final File file = new File(getPageDirectory(null), mangleName(name) + PROP_EXT);
+		final File file = getPagePropertiesFile(page);
 		try (final OutputStream out = Files.newOutputStream(file.toPath())) {
-			props.store(out, "JSPWiki page properties for page " + name);
+			props.store(out, "JSPWiki page properties for page " + page.getName());
 		}
+	}
+
+	protected @NotNull File getPagePropertiesFile(Page page) {
+		String localPageName = SubWikiUtils.getLocalPageName(page.getName());
+		return new File(getPageDirectory(page.getName()), mangleName(localPageName) + PROP_EXT);
 	}
 
 	@Override
@@ -123,6 +128,7 @@ public class FileSystemProviderMultiWiki extends FileSystemProvider {
 		}
 		final File propertiesFile = new File(getPageDirectory(page.getName()), mangleName(name) + FileSystemProvider.PROP_EXT);
 		if (propertiesFile.exists()) {
+			//noinspection ResultOfMethodCallIgnored
 			propertiesFile.delete();
 		}
 	}

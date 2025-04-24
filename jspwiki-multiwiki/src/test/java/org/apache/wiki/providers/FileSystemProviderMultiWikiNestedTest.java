@@ -14,10 +14,9 @@ import org.apache.wiki.pages.PageManager;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
 
-import static org.apache.wiki.TestEngine.getTestProperties;
 import static org.apache.wiki.multiwiki.ParameterizedNestedNonNestedMultiWikiTest.*;
 
-class FileSystemProviderMultiWikiNestedTest extends FileSystemProviderTest {
+public class FileSystemProviderMultiWikiNestedTest extends FileSystemProviderTest {
 
 
 	@Override
@@ -40,6 +39,10 @@ class FileSystemProviderMultiWikiNestedTest extends FileSystemProviderTest {
 		m_providerUTF8 = new FileSystemProviderMultiWiki();
 		m_providerUTF8.initialize( m_engine, propsUTF8 );
 
+	}
+
+	public static Properties getTestProperties() {
+		return TestEngine.getTestProperties();
 	}
 
 	protected @NotNull Properties getAdditionalProperties() {
