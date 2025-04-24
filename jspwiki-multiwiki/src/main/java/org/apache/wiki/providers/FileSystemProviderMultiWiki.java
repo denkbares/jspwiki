@@ -5,7 +5,6 @@
 package org.apache.wiki.providers;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -19,13 +18,10 @@ import org.apache.wiki.api.core.Page;
 import org.apache.wiki.api.exceptions.NoRequiredPropertyException;
 import org.apache.wiki.api.exceptions.ProviderException;
 import org.apache.wiki.api.providers.PageProvider;
-import org.apache.wiki.util.TextUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static org.apache.wiki.providers.FileSystemProvider.PROP_EXT;
 
 public class FileSystemProviderMultiWiki extends FileSystemProvider {
 
@@ -137,7 +133,7 @@ public class FileSystemProviderMultiWiki extends FileSystemProvider {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void movePage(final Page from, final String to) throws ProviderException {
+	public void movePage(final Page from, final String to) {
 		// TODO: test or fix for multi-wiki!!
 		final File fromPage = findPage(from.getName());
 		final File toPage = findPage(to);
@@ -175,7 +171,7 @@ public class FileSystemProviderMultiWiki extends FileSystemProvider {
 		}
 
 		@Override
-		public void movePage(Page from, String to) throws ProviderException {
+		public void movePage(Page from, String to) {
 			// will not be delegated and therefore does not need an implementation
 			throw new NotImplementedException("Must not be delegated!");
 		}
