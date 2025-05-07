@@ -86,7 +86,8 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
 
     private Engine m_engine;
 
-    private LocalPolicy m_localPolicy;
+    protected LocalPolicy m_localPolicy;
+    protected File policyFile;
 
     /**
      * Constructs a new DefaultAuthorizationManager instance.
@@ -248,7 +249,7 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
             final URL policyURL = engine.findConfigFile( policyFileName );
 
             if (policyURL != null) {
-                final File policyFile = new File( policyURL.toURI().getPath() );
+                policyFile = new File( policyURL.toURI().getPath() );
                 LOG.info("We found security policy URL: {} and transformed it to file {}",policyURL, policyFile.getAbsolutePath());
                 m_localPolicy = new LocalPolicy( policyFile, engine.getContentEncoding().displayName() );
                 m_localPolicy.refresh();
