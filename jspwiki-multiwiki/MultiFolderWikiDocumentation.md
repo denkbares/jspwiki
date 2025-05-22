@@ -16,8 +16,11 @@ jspwiki.renderingManager.markupParser = org.apache.wiki.parser.JSPWikiMarkupPars
 jspwiki.pageRenamer = DefaultPageRenamerMultiWiki
 jspwiki.pageNameResolver = MultiWikiPageNameResolver
 jspwiki.attachmentProvider = BasicAttachmentProviderMultiWiki
-jspwiki.pageProvider = VersioningFileProviderMultiWiki # with page versioning
-# jspwiki.pageProvider = FileSystemProviderMultiWiki # if no versioning is intended
+
+ # with page versioning
+jspwiki.pageProvider = VersioningFileProviderMultiWiki
+# if no versioning is intended
+# jspwiki.pageProvider = FileSystemProviderMultiWiki 
 ```
 
 Note: All four extensions are required for having a consistently working wiki engine!
