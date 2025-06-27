@@ -158,6 +158,11 @@ Usage:
 
             button.addEvent("click", toggle.bind(this));
             button.addEvent("keydown", keyToggle);
+            const headline = el.querySelector('h4');
+            if (headline) {
+              headline.addEvent("click", toggle.bind(this));
+              headline.addEvent("keydown", keyToggle);
+            }
 
             if (isCollapsed) { collapseBody.style.height = 0; }
             setAriaExpanded(collapseBody, !isCollapsed);
@@ -231,6 +236,7 @@ Usage:
                     collapseBody.style.transition = collapseBodyTransition;
                     animateHeight(false, true);
                 }
+                window.dispatchEvent(new CustomEvent("scroll"));
             });
         }
 
