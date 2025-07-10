@@ -47,7 +47,12 @@ import java.security.Principal;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
@@ -88,11 +93,18 @@ public class XMLUserDatabase extends AbstractUserDatabase {
     private static final String UID               = "uid";
     private static final String USER_TAG          = "user";
     private static final String WIKI_NAME         = "wikiName";
-    private static final DateFormat DATE_FORMAT = new SimpleDateFormat( "yyyy.MM.dd 'at' HH:mm:ss:SSS z");
-    private static final DateFormat DATE_FORMAT_EN = new SimpleDateFormat( "yyyy.MM.dd 'at' HH:mm:ss:SSS z", Locale.ENGLISH );
-    private static final DateFormat DATE_FORMAT_DE = new SimpleDateFormat( "yyyy.MM.dd 'at' HH:mm:ss:SSS z", Locale.GERMAN );
+    private static final DateTimeFormatter DATE_FORMAT_EN = newFormatter(Locale.ENGLISH).withZone(ZoneId.systemDefault());
+    private static final List<DateTimeFormatter> FORMATTERS = List.of(
+            newFormatter(Locale.getDefault()),
+            newFormatter(Locale.ENGLISH),
+            newFormatter(Locale.GERMAN)
+    );
     private Document            c_dom;
     private File                c_file;
+
+    private static DateTimeFormatter newFormatter(Locale locale) {
+        return DateTimeFormatter.ofPattern("yyyy.MM.dd 'at' HH:mm:ss:SSS z", locale);
+    }
 
     /** {@inheritDoc} */
     @Override
@@ -352,7 +364,7 @@ public class XMLUserDatabase extends AbstractUserDatabase {
             if( user.getAttribute( LOGIN_NAME ).equals( loginName ) ) {
                 final Date modDate = new Date( System.currentTimeMillis() );
                 setAttribute( user, LOGIN_NAME, newName );
-                setAttribute( user, LAST_MODIFIED, DATE_FORMAT_EN.format( modDate ) );
+                setAttribute( user, LAST_MODIFIED, DATE_FORMAT_EN.format( modDate.toInstant() ) );
                 profile.setLoginName( newName );
                 profile.setLastModified( modDate );
                 break;
@@ -386,7 +398,7 @@ public class XMLUserDatabase extends AbstractUserDatabase {
             LOG.info( "Creating new user " + index );
             user = c_dom.createElement( USER_TAG );
             c_dom.getDocumentElement().appendChild( user );
-            setAttribute( user, CREATED, DATE_FORMAT_EN.format( profile.getCreated() ) );
+            setAttribute( user, CREATED, DATE_FORMAT_EN.format( profile.getCreated().toInstant() ) );
             isNew = true;
         } else {
             // To update existing user node, delete old attributes first...
@@ -397,13 +409,13 @@ public class XMLUserDatabase extends AbstractUserDatabase {
         }
 
         setAttribute( user, UID, profile.getUid() );
-        setAttribute( user, LAST_MODIFIED, DATE_FORMAT_EN.format( modDate ) );
+        setAttribute( user, LAST_MODIFIED, DATE_FORMAT_EN.format( modDate.toInstant() ) );
         setAttribute( user, LOGIN_NAME, profile.getLoginName() );
         setAttribute( user, FULL_NAME, profile.getFullname() );
         setAttribute( user, WIKI_NAME, profile.getWikiName() );
         setAttribute( user, EMAIL, profile.getEmail() );
         final Date lockExpiry = profile.getLockExpiry();
-        setAttribute( user, LOCK_EXPIRY, lockExpiry == null ? "" : DATE_FORMAT_EN.format( lockExpiry ) );
+        setAttribute( user, LOCK_EXPIRY, lockExpiry == null ? "" : DATE_FORMAT_EN.format( lockExpiry.toInstant() ) );
 
         // Hash and save the new password if it's different from old one
         final String newPassword = profile.getPassword();
@@ -548,21 +560,17 @@ public class XMLUserDatabase extends AbstractUserDatabase {
         return null;
     }
 
-    private Date parseDate( String date ) throws ParseException {
-        try {
-            return DATE_FORMAT_EN.parse( date );
-        }  catch( ParseException e0 ) {
+    public Date parseDate(String dateStr) throws ParseException {
+        for (DateTimeFormatter formatter : FORMATTERS) {
             try {
-                return DATE_FORMAT.parse( date );
-            }  catch( ParseException e1 ) {
-                try {
-                    return DATE_FORMAT_DE.parse( date );
-                } catch (Exception e2) {
-                    return DateFormat.getDateTimeInstance().parse( date );
-                }
+                // Parse to ZonedDateTime and convert to legacy java.util.Date
+                ZonedDateTime zdt = ZonedDateTime.parse(dateStr, formatter);
+                return Date.from(zdt.toInstant());
+            } catch (DateTimeParseException ignored) {
+                // Try next format
             }
         }
-
+       return DateFormat.getDateTimeInstance().parse( dateStr );
     }
 
     /**
@@ -591,8 +599,8 @@ public class XMLUserDatabase extends AbstractUserDatabase {
             String modified = user.getAttribute( LAST_MODIFIED );
 
             try {
-                created = DATE_FORMAT_EN.format( parseDate( created ) );
-                modified = DATE_FORMAT_EN.format( parseDate( modified ) );;
+                created = DATE_FORMAT_EN.format( parseDate( created ).toInstant() );
+                modified = DATE_FORMAT_EN.format( parseDate( modified ).toInstant() );
                 user.setAttribute( CREATED, created );
                 user.setAttribute( LAST_MODIFIED, modified );
             } catch( final ParseException e ) {
