@@ -147,6 +147,7 @@ public class SubWikiUtils {
 						&& !file.getParentFile().getName().equals("OLD")
 						&& !file.getName().endsWith("-att")
 						&& !file.getParentFile().getName().endsWith("-att")
+						&& !file.getName().equals("_metadata")
 		).toList();
 		filteredFolders.forEach(folder -> result.add(folder.getName()));
 		return result;
