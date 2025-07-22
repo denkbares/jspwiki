@@ -450,15 +450,9 @@ public final class PropertyReader {
     static void setWorkDir( final ServletContext servletContext, final Properties properties ) {
         final String workDir = TextUtil.getStringProperty(properties, "jspwiki.workDir", null);
         if (workDir == null) {
-            final File tempDir = (File) servletContext.getAttribute("javax.servlet.context.tempdir");
-            if (tempDir != null) {
-                properties.setProperty("jspwiki.workDir", tempDir.getAbsolutePath());
-                LOG.info("Setting jspwiki.workDir to ServletContext's temporary directory: {}", tempDir.getAbsolutePath());
-            } else {
-                final String defaultTmpDir = System.getProperty("java.io.tmpdir");
-                properties.setProperty("jspwiki.workDir", defaultTmpDir);
-                LOG.info("ServletContext's temporary directory not found. Setting jspwiki.workDir to system's temporary directory: {}", defaultTmpDir);
-            }
+            final String defaultTmpDir = System.getProperty("java.io.tmpdir");
+            properties.setProperty("jspwiki.workDir", defaultTmpDir);
+            LOG.info(" Setting jspwiki.workDir to system's temporary directory: {}", defaultTmpDir);
         } else {
             LOG.info("jspwiki.workDir is already set to: {}", workDir);
         }
