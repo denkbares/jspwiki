@@ -14,7 +14,7 @@
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
-    under the License.  
+    under the License.
 --%>
 
 <%@ page import="java.security.Principal" %>
@@ -33,6 +33,8 @@
 <%@ page import="org.apache.wiki.pages.PageManager" %>
 <%@ page import="org.apache.wiki.preferences.Preferences" %>
 <%@ page import="org.apache.wiki.workflow.DecisionRequiredException" %>
+<%@ page import="org.apache.wiki.auth.permissions.PagePermission" %>
+<%@ page import="org.apache.wiki.auth.permissions.PermissionFactory" %>
 <%@ page errorPage="/Error.jsp" %>
 <%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
 <%!
@@ -62,7 +64,7 @@
 
         UserManager userMgr = wiki.getManager( UserManager.class );
         UserProfile profile = userMgr.parseProfile( wikiContext );
-         
+
         // Validate the profile
         userMgr.validateProfile( wikiContext, profile );
 
@@ -75,7 +77,7 @@
                 // User collision! (full name or wiki name already taken)
                 wikiSession.addMessage( "profile", wiki.getManager( InternationalizationManager.class )
                 		                               .get( InternationalizationManager.CORE_BUNDLE,
-                		                            		 Preferences.getLocale( wikiContext ), 
+                		                            		 Preferences.getLocale( wikiContext ),
                 		                            		 due.getMessage(), due.getArgs() ) );
             } catch( DecisionRequiredException e ) {
                 String redirect = wiki.getURL( ContextEnum.PAGE_VIEW.getRequestContext(), "ApprovalRequiredForUserProfiles", null );
@@ -98,13 +100,14 @@
     if( !mgr.isContainerAuthenticated() ) {
         // If user got here and is already authenticated, it means they just aren't allowed access to what they asked for.
         // Weepy tears and hankies all 'round.
-        if( wikiSession.isAuthenticated() ) {
-            response.sendError( HttpServletResponse.SC_FORBIDDEN, rb.getString("login.error.noaccess") );
-            return;
-        }
+        // Albrecht Striffler: Yes, that can happen, e.g. with multiple open tabs on login page
+        // -> commenting out this check, add some handling further down
+//        if( wikiSession.isAuthenticated() ) {
+//            response.sendError( HttpServletResponse.SC_FORBIDDEN, rb.getString("login.error.noaccess") );
+//            return;
+//        }
 
         // If using custom auth, we need to do the login now
-        String action = request.getParameter("action");
         if( request.getParameter("submitlogin") != null ) {
             String uid    = request.getParameter( "j_username" );
             String passwd = request.getParameter( "j_password" );
@@ -154,14 +157,20 @@
         // If wiki page was "Login", redirect to main, otherwise use the page supplied
         String redirectPage = request.getParameter( "redirect" );
         if( !wiki.getManager( PageManager.class ).wikiPageExists( redirectPage ) ) {
-           redirectPage = wiki.getFrontPage();
+            redirectPage = wiki.getFrontPage();
         }
-        String viewUrl = ( "Login".equals( redirectPage ) ) ? "Wiki.jsp" : wikiContext.getViewURL( redirectPage );
 
-        // Redirect!
-        log.info( "Redirecting user to {}", viewUrl );
-        response.sendRedirect( viewUrl );
-        return;
+		// If not allowed on the redirect page, also redirect to main
+		PagePermission pp = PermissionFactory.getPagePermission(redirectPage, "view");
+		if (!wiki.getManager( AuthorizationManager.class ).checkPermission(wikiSession, pp)) {
+			redirectPage = wiki.getFrontPage();
+		}
+
+		// Redirect!
+		String viewUrl = ("Login".equals(redirectPage)) ? "Wiki.jsp" : wikiContext.getViewURL(redirectPage);
+		log.info("Redirecting user to {}", viewUrl);
+		response.sendRedirect(viewUrl);
+		return;
     }
 
     // If we've gotten here, the user hasn't authenticated yet.
