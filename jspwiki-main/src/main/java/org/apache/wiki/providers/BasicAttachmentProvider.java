@@ -18,6 +18,7 @@
  */
 package org.apache.wiki.providers;
 
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 import org.apache.wiki.api.core.Attachment;
@@ -40,6 +41,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
+import java.time.DateTimeException;
+import java.time.Instant;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
@@ -197,8 +203,8 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 					if (files == null) files = new File[0];
 					for (File file : files) {
 						if (file.getName().equalsIgnoreCase(mangleName(att.getFileName() + ATTDIR_EXTENSION))
-								|| file.getName().equalsIgnoreCase(mangleName(att.getFileName()))
-								|| file.getName().equalsIgnoreCase(att.getFileName())) {
+							|| file.getName().equalsIgnoreCase(mangleName(att.getFileName()))
+							|| file.getName().equalsIgnoreCase(att.getFileName())) {
 							f = file;
 							break;
 						}
@@ -277,16 +283,21 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 	 */
 	private Properties getPageProperties(final Attachment att) throws IOException, ProviderException {
 		final Properties props = new Properties();
-		final File propertyFile = new File(findAttachmentDir(att), PROPERTY_FILE);
+		final File propertyFile = getPropertiesFile(att);
 		if (propertyFile.exists()) {
 			try (final InputStream in = Files.newInputStream(propertyFile.toPath())) {
 				props.load(in);
-			} catch( final IOException ioe ) {
-				LOG.error( ioe.getMessage() );
+			}
+			catch (final IOException ioe) {
+				LOG.error(ioe.getMessage());
 			}
 		}
 
 		return props;
+	}
+
+	private @NotNull File getPropertiesFile(Attachment att) throws ProviderException {
+		return new File(findAttachmentDir(att), PROPERTY_FILE);
 	}
 
 	/**
@@ -308,8 +319,8 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 			String extension = pages == null || pages.length == 0 ? getFileExtension(att.getFileName()) : getFileExtension(pages[pages.length - 1]);
 			final File newfile = new File(attDir, versionNumber + "." + extension);
 			try (final OutputStream out = Files.newOutputStream(newfile.toPath())) {
-				LOG.info( "Uploading attachment " + att.getFileName() + " to page " + att.getParentName() );
-				LOG.info( "Saving attachment contents to " + newfile.getAbsolutePath() );
+				LOG.info("Uploading attachment " + att.getFileName() + " to page " + att.getParentName());
+				LOG.info("Saving attachment contents to " + newfile.getAbsolutePath());
 				FileUtil.copyContents(data, out);
 
 				final Properties props = getPageProperties(att);
@@ -319,6 +330,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 					author = "unknown"; // FIXME: Should be localized, but cannot due to missing WikiContext
 				}
 				props.setProperty(authorKey(versionNumber), author);
+				addVersionDate(ZonedDateTime.now(), versionNumber, props);
 
 				final String changeNote = att.getAttribute(Page.CHANGENOTE);
 				if (changeNote != null) {
@@ -335,6 +347,14 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 		finally {
 			attachmentLock.writeLock().unlock();
 		}
+	}
+
+	private void addVersionDate(ZonedDateTime date, int versionNumber, Properties props) {
+		props.put(dateKey(versionNumber), date.format(DateTimeFormatter.ISO_DATE_TIME));
+	}
+
+	private String dateKey(int versionPropertyPrefix) {
+		return versionPropertyPrefix + ".date";
 	}
 
 	private String authorKey(int versionNumber) {
@@ -436,8 +456,8 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 						//  Sanity check - shouldn't really be happening, unless you mess with the repository directly.
 						if (att == null) {
 							throw new ProviderException("Attachment disappeared while reading information:"
-									+ " if you did not touch the repository, there is a serious bug somewhere. " + "Attachment = " + attachment
-									+ ", decoded = " + attachmentName);
+														+ " if you did not touch the repository, there is a serious bug somewhere. " + "Attachment = " + attachment
+														+ ", decoded = " + attachmentName);
 						}
 
 						result.add(att);
@@ -535,9 +555,10 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 					att.setAttribute(Page.CHANGENOTE, changeNote);
 				}
 
-				final File f = findFile(dir, att);
-				att.setSize(f.length());
-				att.setLastModified(new Date(f.lastModified()));
+				final File attachmentFile = findFile(dir, att);
+				att.setSize(attachmentFile.length());
+				Date lastModified = getLastModified(props, att, attachmentFile);
+				att.setLastModified(lastModified);
 			}
 			catch (final FileNotFoundException e) {
 				LOG.error("Can't get attachment properties for " + att, e);
@@ -554,6 +575,25 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 		finally {
 			attachmentLock.readLock().unlock();
 		}
+	}
+
+	public Date getLastModified(Properties props, Attachment att, File attachmentFile) throws ProviderException {
+		String dateString = props.getProperty(dateKey(att.getVersion()));
+		if (dateString != null) {
+			try {
+				TemporalAccessor parse = DateTimeFormatter.ISO_DATE_TIME.parse(dateString);
+				return Date.from(Instant.from(parse));
+			}
+			catch (DateTimeException e) {
+				LOG.error("Cannot parse last modified date of page {}", att.getName(), e);
+			}
+		}
+		File propertiesFile = getPropertiesFile(att);
+		ZonedDateTime dateFromPropertiesComment = FileSystemProviderUtils.extractDateFromPropertiesFileComment(propertiesFile);
+		if (dateFromPropertiesComment != null) {
+			return Date.from(dateFromPropertiesComment.toInstant());
+		}
+		return new Date(attachmentFile.lastModified());
 	}
 
 	private String changeNoteKey(int version) {
@@ -684,7 +724,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 			final File srcDir = findPageDir(oldParent.getName());
 			final File destDir = findPageDir(newParent);
 
-			LOG.debug( "Trying to move all attachments from " + srcDir + " to " + destDir );
+			LOG.debug("Trying to move all attachments from " + srcDir + " to " + destDir);
 
 			// If it exists, we're overwriting an old page (this has already been confirmed at a higher level), so delete any existing attachments.
 			if (destDir.exists()) {

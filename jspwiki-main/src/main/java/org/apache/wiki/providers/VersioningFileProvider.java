@@ -18,6 +18,7 @@
  */
 package org.apache.wiki.providers;
 
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 import org.apache.wiki.InternalWikiException;
@@ -96,8 +97,6 @@ public class VersioningFileProvider extends AbstractFileProvider {
 
 	public static final String VERSIONING_PROPERTIES_FILE = "versioning.properties";
 	private static final String DATE_PROPERTY_WRITTEN = "date.property.written";
-	private static final DateTimeFormatter PROPERTIES_COMMENT_DATE_FORMAT = DateTimeFormatter.ofPattern("EEE MMM dd HH:mm:ss zzz yyyy", Locale.ENGLISH);
-	private static final DateTimeFormatter PROPERTIES_COMMENT_DATE_FORMAT_DE = PROPERTIES_COMMENT_DATE_FORMAT.withLocale(Locale.GERMAN);
 	private CachedProperties m_cachedProperties;
 
 	/**
@@ -600,25 +599,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
 	}
 
 	private ZonedDateTime extractDateFromPropertiesFileComment(String page) {
-		File propertiesFile = getPropertiesFile(page);
-		if (!propertiesFile.exists()) return null;
-		try (BufferedReader reader = new BufferedReader(new FileReader(propertiesFile, StandardCharsets.UTF_8))) {
-			reader.readLine();  // erste Zeile überspringen
-			String dateLine = reader.readLine();  // zweite Zeile lesen
-			if (dateLine != null) {
-				String cleaned = dateLine.replace("#", "").trim();
-				try {
-					return ZonedDateTime.parse(cleaned, PROPERTIES_COMMENT_DATE_FORMAT);
-				}
-				catch (Exception e) {
-					return ZonedDateTime.parse(cleaned, PROPERTIES_COMMENT_DATE_FORMAT_DE);
-				}
-			}
-		}
-		catch (Exception e) {
-			LOG.error("Cannot read last modified from properties file");
-		}
-		return null;
+		return FileSystemProviderUtils.extractDateFromPropertiesFileComment(getPropertiesFile(page));
 	}
 
 	private String getChangeNotePropertyKey(int realVersion) {
