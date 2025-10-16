@@ -127,7 +127,8 @@ public class DefaultSearchManager extends BasePageFilter implements SearchManage
                 } else if( actionName.equals( AJAX_ACTION_PAGES ) ) {
                     LOG.debug("Calling findPages() START");
                     final Context wikiContext = Wiki.context().create( m_engine, req, ContextEnum.PAGE_VIEW.getRequestContext() );
-                    final List< Map< String, Object > > callResults = findPages( itemId, maxResults, wikiContext );
+                    String query = params.size() > 2 ? String.join(",", params.subList(0, params.size() - 1)) : itemId;
+					final List< Map< String, Object > > callResults = findPages( query, maxResults, wikiContext );
                     LOG.debug( "Calling findPages() DONE. " + callResults.size() );
                     result = AjaxUtil.toJson( callResults );
                 }
