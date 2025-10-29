@@ -68,8 +68,9 @@ public final class PropertyReader {
 
     private static final String PARAM_VAR_DECLARATION = "var.";
     private static final String PARAM_VAR_IDENTIFIER  = "$";
+	private static Properties webAppProps;
 
-    /**
+	/**
      *  Private constructor to prevent instantiation.
      */
     private PropertyReader()
@@ -119,7 +120,14 @@ public final class PropertyReader {
      *  @return A filled Properties object with all the cascaded properties in place
      */
     public static Properties loadWebAppProps( final ServletContext context ) {
-        final String propertyFile = getInitParameter( context, PARAM_CUSTOMCONFIG );
+        if (webAppProps == null) {
+        	webAppProps = initWebAppProps(context);
+        }
+        return webAppProps;
+    }
+
+    private static Properties initWebAppProps(ServletContext context) {
+        final String propertyFile = getInitParameter(context, PARAM_CUSTOMCONFIG );
         try( final InputStream propertyStream = loadCustomPropertiesFile(context, propertyFile) ) {
             final Properties props = getDefaultProperties();
 
@@ -137,13 +145,13 @@ public final class PropertyReader {
             LOG.debug( "Loading cascading properties..." );
 
             // now load the cascade (new in 2.5)
-            loadWebAppPropsCascade( context, props );
+            loadWebAppPropsCascade(context, props );
 
             // property expansion so we can resolve things like ${TOMCAT_HOME}
             propertyExpansion( props );
 
             // sets the JSPWiki working directory (jspwiki.workDir)
-            setWorkDir( context, props );
+            setWorkDir(context, props );
 
             // add system properties beginning with jspwiki...
             final Map< String, String > sysprops = collectPropertiesFrom( System.getProperties().entrySet().stream()
@@ -157,7 +165,6 @@ public final class PropertyReader {
         } catch( final Exception e ) {
             LOG.error( "JSPWiki: Unable to load and setup properties from jspwiki.properties. " + e.getMessage(), e );
         }
-
         return null;
     }
 
