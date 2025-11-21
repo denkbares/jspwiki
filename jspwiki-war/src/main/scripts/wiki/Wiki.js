@@ -123,8 +123,9 @@ var Wiki = {
                       parent.removeClass('open open-click-parent');
                   } else {
                       parent.addClass('open open-click-parent');
-                      if (parent.find('input').length > 0) {
-                          parent.find("input:first").focus();
+                      var focusTarget = parent.find('#query');
+                      if (focusTarget.length > 0) {
+                          try { focusTarget.focus().select(); } catch (e) { /* no-op */ }
                       }
                   }
                   event.preventDefault();
