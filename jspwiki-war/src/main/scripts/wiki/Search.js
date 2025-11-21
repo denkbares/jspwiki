@@ -54,12 +54,13 @@ Wiki.Search = new Class({
 
         self.result = form.getNext().addEvent("click:relay(.pagination a)", self.setStart);
 
+        // Verwende das 'input'-Event, damit auch Paste (Einfügen) die Suche triggert
         self.query = form.query.observe( function(){
 
             form.start.value = "0";   // reset the start page before running new ajax searches
             self.action();
 
-        });
+        }, 'input');
 
         // hash may contain a query pagination parameter: (-1 =all, 0, 1, 2 ...)
         if( hash ){
