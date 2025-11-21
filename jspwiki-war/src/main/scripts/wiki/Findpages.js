@@ -58,7 +58,9 @@ Wiki.Findpages = new Class({
         self.rpc = options.rpc;
         self.toUrl = options.toUrl;
         self.allowClone = options.allowClone;
-        self.query = element.getParent("form").query.observe( self.search );
+        // Beobachte Änderungen am Eingabefeld mit dem 'input'-Event,
+        // damit auch Einfügen per Zwischenablage (Paste) sofort eine Suche auslöst
+        self.query = element.getParent("form").query.observe(self.search, 'input');
         self.element = element; //ul.dropdown menu
         self.element.Findpages = self; // add reference this class instantiation to allow overrides
         self.element.addEvent("click:relay(#cloney)", function(e){
