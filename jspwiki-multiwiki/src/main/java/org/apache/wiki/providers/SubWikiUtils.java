@@ -38,7 +38,7 @@ public class SubWikiUtils {
 
 	private static final Logger LOG = LoggerFactory.getLogger(SubWikiUtils.class);
 	private static final String MESSAGE_INVALID_PAGE_NAME = "Page name with multiple wiki-subfolder separators found! ";
-	private static final String MAIN_FOLDER_NAME = "jspwiki.mainFolder";
+	public static final String MAIN_FOLDER_NAME = "jspwiki.mainFolder";
 
 	/**
 	 * For a global page name (with sub-wiki prefix e.g. MyWiki&&Main)
@@ -58,7 +58,7 @@ public class SubWikiUtils {
 		}
 		else {
 			LOG.error(MESSAGE_INVALID_PAGE_NAME + page);
-			throw new IllegalStateException(MESSAGE_INVALID_PAGE_NAME+page);
+			throw new IllegalStateException(MESSAGE_INVALID_PAGE_NAME + page);
 		}
 	}
 
@@ -85,7 +85,7 @@ public class SubWikiUtils {
 	 * @return the local page name (without sub-wiki prefix)
 	 */
 	public static @NotNull String getLocalPageName(@NotNull String globalPageName) {
-		if(isLocalName(globalPageName)) return globalPageName; // is already local name
+		if (isLocalName(globalPageName)) return globalPageName; // is already local name
 		String[] split = globalPageName.split(SUB_FOLDER_PREFIX_SEPARATOR);
 		if (split.length == 1) {
 			// globalPageName of main base wiki folder
@@ -96,25 +96,37 @@ public class SubWikiUtils {
 		}
 		else {
 			LOG.error(MESSAGE_INVALID_PAGE_NAME + globalPageName);
-			throw new IllegalStateException("Invalid page name: "+globalPageName);
+			throw new IllegalStateException("Invalid page name: " + globalPageName);
 		}
 	}
 
 	/**
 	 * Concatenates a local page name and a sub-wiki name to a global page name.
 	 * Warning: This method does not check for the main wiki, whether it is nested
-	 * or not. If the call might contain pages of the main wiki plz use: {@link SubWikiUtils#concatSubWikiAndLocalPageName(String, String, Properties)}
+	 * or not. If the call might contain pages of the main wiki plz use:
+	 * {@link SubWikiUtils#concatSubWikiAndLocalPageName(String, String, Properties)}
 	 *
 	 * @param subWiki       sub-wiki folder name
 	 * @param localPageName local page name
 	 * @return global page name
 	 */
 	public static @NotNull String concatSubWikiAndLocalPageNameNonMain(@NotNull String subWiki, @NotNull String localPageName) {
+		if (isGlobalName(localPageName)) {
+			// is already global name
+			if (!localPageName.startsWith(subWiki)) {
+				LOG.error("Inconsistent sub-wiki prefix" + subWiki + "for page: " + localPageName);
+				// TODO: this case is not nice, this input combination should not arrive here in this method
+				return localPageName;
+			}
+			else {
+				return localPageName; // is in fact a valid global name already
+			}
+		}
 		return subWiki + SUB_FOLDER_PREFIX_SEPARATOR + localPageName;
 	}
 
-	public static @NotNull String concatSubWikiAndLocalPageName(@Nullable String subWiki, @NotNull String localPageName,  @NotNull Properties wikiProperties) {
-		if(subWiki == null || subWiki.isBlank()) {
+	public static @NotNull String concatSubWikiAndLocalPageName(@Nullable String subWiki, @NotNull String localPageName, @NotNull Properties wikiProperties) {
+		if (subWiki == null || subWiki.isBlank()) {
 			// we have the main wiki here
 			return expandPageNameWithMainPrefix(localPageName, wikiProperties);
 		}
@@ -124,12 +136,11 @@ public class SubWikiUtils {
 	/**
 	 * Scans the given folder for wiki sub-folders. Returns the set of detected subfolders.
 	 *
-	 * @param m_pageDirectory folder path to be scanned
 	 * @return list of folders
 	 */
-	public static @NotNull List<String> getAllSubWikiFoldersWithoutMain(@NotNull String m_pageDirectory, @NotNull Properties wikiProperties) {
+	public static @NotNull List<String> getAllSubWikiFoldersWithoutMain(@NotNull Properties wikiProperties) {
 		String mainWikiFolder = SubWikiUtils.getMainWikiFolder(wikiProperties);
-		List<String> allSubWikiFoldersInclMain = getAllSubWikiFoldersInclMain(m_pageDirectory);
+		List<String> allSubWikiFoldersInclMain = getAllSubWikiFoldersInclMain(wikiProperties);
 		allSubWikiFoldersInclMain.remove(mainWikiFolder);
 		return allSubWikiFoldersInclMain;
 	}
@@ -153,6 +164,12 @@ public class SubWikiUtils {
 		return result;
 	}
 
+	public static @NotNull List<String> getAllSubWikiFoldersInclMain(@NotNull Properties wikiProperties) {
+		String m_pageDirectory = AbstractFileProvider.get_m_pageDirectory(wikiProperties);
+		assert m_pageDirectory != null;
+		return getAllSubWikiFoldersInclMain(m_pageDirectory);
+	}
+
 	public static boolean isGlobalName(String pageName) {
 		return pageName.contains(SUB_FOLDER_PREFIX_SEPARATOR);
 	}
@@ -165,7 +182,8 @@ public class SubWikiUtils {
 		String folder;
 		if (pageName != null) {
 			folder = SubWikiUtils.getSubFolderNameOfPage(pageName, wikiProperties);
-		} else {
+		}
+		else {
 			folder = SubWikiUtils.getMainWikiFolder(wikiProperties);
 		}
 		return m_pageDirectory + File.separator + folder;
