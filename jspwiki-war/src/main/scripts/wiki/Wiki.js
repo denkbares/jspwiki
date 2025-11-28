@@ -516,9 +516,9 @@ var Wiki = {
         Use the correct url template: view(default), edit-url or clone-url
     */
     toUrl: function(pagename, isEdit, isClone){
-
         var urlTemplate = isClone ? this.CloneUrl : isEdit ? this.EditUrl : this.PageUrl;
-        return urlTemplate.replace(/%23%24%25/, this.cleanPageName(pagename) );
+        var safePageName = encodeURIComponent(this.cleanPageName(pagename));
+        return urlTemplate.replace(/%23%24%25/, safePageName);
 
     },
 
