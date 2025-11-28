@@ -15,11 +15,12 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 
 import static org.apache.wiki.TestEngine.getTestProperties;
+import static org.apache.wiki.providers.SubWikiUtils.MAIN_FOLDER_NAME;
 
 public abstract class ParameterizedNestedNonNestedMultiWikiTest {
 
 
-	public static final String JSPWIKI_MAIN_FOLDER_PROPERTY = "jspwiki.mainFolder";
+	public static final String JSPWIKI_MAIN_FOLDER_PROPERTY = MAIN_FOLDER_NAME;
 	public static final String LOCAL_PAGE_NAME = "MyPage";
 	public static final String WIKI_PREFIX_MAIN = "Main";
 	protected static final String WIKI_PREFIX_WIKI2 = "Wiki2";

@@ -25,13 +25,13 @@ public class BasicAttachmentProviderMultiWiki extends BasicAttachmentProvider {
 
 	private static final Logger LOG = LoggerFactory.getLogger(BasicAttachmentProviderMultiWiki.class);
 
-	// sub-wiki-folders; for jspwiki the folder is a prefix/namespace in the page name, e.g. /Subwiki/Main.txt is page Subwiki::Main
+	// sub-wiki-folders; for jspwiki the folder is a prefix/namespace in the page name, e.g. /Subwiki1/Main.txt is page Subwiki1&&Main
 	private Collection<String> subfolders;
 
 	@Override
 	public void initialize(final Engine engine, final Properties properties) throws NoRequiredPropertyException, IOException {
 		super.initialize(engine, properties);
-		this.subfolders = SubWikiUtils.getAllSubWikiFoldersWithoutMain(m_storageDir, properties);
+		this.subfolders = SubWikiUtils.getAllSubWikiFoldersWithoutMain(properties);
 	}
 
 

@@ -36,7 +36,7 @@ public abstract class AbstractMultiWikiFileProvider extends AbstractFileProvider
 	@Override
 	public void initialize(final Engine engine, final Properties properties) throws NoRequiredPropertyException, IOException, FileNotFoundException {
 		super.initialize(engine, properties);
-		this.subfolders = SubWikiUtils.getAllSubWikiFoldersWithoutMain(m_pageDirectory, properties);
+		this.subfolders = SubWikiUtils.getAllSubWikiFoldersWithoutMain(properties);
 	}
 
 	@Override

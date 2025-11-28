@@ -125,8 +125,7 @@ public abstract class AbstractFileProvider implements PageProvider {
 	@Override
 	public void initialize(final Engine engine, final Properties properties) throws NoRequiredPropertyException, IOException, FileNotFoundException {
 		LOG.debug("Initing FileSystemProvider");
-		m_pageDirectory = TextUtil.getCanonicalFilePathProperty(properties, PROP_PAGEDIR,
-				System.getProperty("user.home") + File.separator + "jspwiki-files");
+		m_pageDirectory = get_m_pageDirectory(properties);
 
 		final File f = new File(m_pageDirectory);
 
@@ -157,6 +156,12 @@ public abstract class AbstractFileProvider implements PageProvider {
 
 		LOG.info("Wikipages are read from '" + m_pageDirectory + "'");
 	}
+
+	public static String get_m_pageDirectory(Properties properties) {
+		return TextUtil.getCanonicalFilePathProperty(properties, PROP_PAGEDIR,
+				System.getProperty("user.home") + File.separator + "jspwiki-files");
+	}
+
 
 	String getPageDirectory() {
 		return m_pageDirectory;

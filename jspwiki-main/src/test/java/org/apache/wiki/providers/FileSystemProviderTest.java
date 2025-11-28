@@ -71,6 +71,21 @@ public class FileSystemProviderTest {
     }
 
     @Test
+    public void testStandard() throws Exception {
+        final WikiPage page = new WikiPage(m_engine, "Test");
+
+        m_provider.putPageText( page, "test" );
+
+        final File resultfile = getPageFile(props.getProperty(FileSystemProvider.PROP_PAGEDIR), "Test.txt");
+
+        Assertions.assertTrue( resultfile.exists(), "No such file" );
+
+        final String contents = FileUtil.readContents( new FileInputStream(resultfile), StandardCharsets.ISO_8859_1.name() );
+
+        Assertions.assertEquals( contents, "test", "Wrong contents" );
+    }
+
+    @Test
     public void testScandinavianLetters() throws Exception {
         final WikiPage page = new WikiPage(m_engine, "\u00c5\u00e4Test");
 
