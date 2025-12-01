@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.util.Collection;
+import java.util.List;
 import java.util.Properties;
 
 import org.apache.commons.lang3.NotImplementedException;
@@ -23,7 +24,7 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class FileSystemProviderMultiWiki extends FileSystemProvider {
+public class FileSystemProviderMultiWiki extends FileSystemProvider implements MultiWikiPageProvider {
 
 	private static final Logger LOG = LoggerFactory.getLogger(FileSystemProviderMultiWiki.class);
 	protected Properties initProperties;
@@ -69,7 +70,6 @@ public class FileSystemProviderMultiWiki extends FileSystemProvider {
 
 		// Get additional custom properties from page and add to props
 		getCustomProperties(page, props);
-
 
 		final File file = getPagePropertiesFile(page);
 		try (final OutputStream out = Files.newOutputStream(file.toPath())) {
@@ -145,6 +145,16 @@ public class FileSystemProviderMultiWiki extends FileSystemProvider {
 	 */
 	private AbstractFileProvider delegateMultiWikiProvider;
 	private boolean delegateInitialized = false;
+
+	@Override
+	public Collection<String> getAllSubWikiFolders() {
+		if (this.delegateMultiWikiProvider instanceof MultiWikiPageProvider multiWikiPageProvider) {
+			return multiWikiPageProvider.getAllSubWikiFolders();
+		}
+		else {
+			throw new IllegalStateException("Invalid configuration of a multi-wiki system. Wrong delegate PageProvider: " + delegateMultiWikiProvider);
+		}
+	}
 
 	private static class VersioningFileProviderMultiWikiDelegate extends AbstractMultiWikiFileProvider {
 
