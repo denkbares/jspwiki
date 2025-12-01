@@ -42,7 +42,8 @@ class LinkParsingOperationsMultiWiki extends LinkParsingOperations {
 				&& subFolderNameOfSourcePage != null && !subFolderNameOfSourcePage.isEmpty()
 		) {
 			// we need to expand the sub-wiki prefix to obtain a global name
-			globalTargetPageName = subFolderNameOfTargetPage + SubWikiUtils.SUB_FOLDER_PREFIX_SEPARATOR + globalOrLocalTargetPageName;
+			globalTargetPageName = SubWikiUtils.expandPageNameWithMainPrefix(globalOrLocalTargetPageName, wikiContext.getEngine()
+					.getWikiProperties());
 		}
 		else {
 			// there is already a prefix
