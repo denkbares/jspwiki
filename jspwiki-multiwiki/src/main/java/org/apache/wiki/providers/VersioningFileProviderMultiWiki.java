@@ -13,6 +13,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.util.Collection;
+import java.util.List;
 import java.util.Properties;
 
 import org.apache.commons.lang3.NotImplementedException;
@@ -32,7 +33,7 @@ import org.slf4j.LoggerFactory;
  * methods of the real instance and the delegate instance call each other, it gets cumbersome. Therefore,
  * this delegate requires a reference to the parent instance to override and delegate back...
  */
-public class VersioningFileProviderMultiWiki extends VersioningFileProvider {
+public class VersioningFileProviderMultiWiki extends VersioningFileProvider implements MultiWikiPageProvider {
 
 	private static final Logger LOG = LoggerFactory.getLogger(VersioningFileProviderMultiWiki.class);
 
@@ -42,6 +43,7 @@ public class VersioningFileProviderMultiWiki extends VersioningFileProvider {
 		super.initialize(engine, properties);
 		initDelegateIfNecessary(engine, properties);
 	}
+
 
 	private void initDelegateIfNecessary(Engine engine, Properties properties) {
 		if (!delegateInitialized) {
@@ -119,6 +121,16 @@ public class VersioningFileProviderMultiWiki extends VersioningFileProvider {
 	 */
 	private AbstractFileProvider delegateMultiWikiProvider;
 	private boolean delegateInitialized = false;
+
+	@Override
+	public Collection<String> getAllSubWikiFolders() {
+		if(delegateMultiWikiProvider instanceof MultiWikiPageProvider multiWikiPageProvider) {
+			return multiWikiPageProvider.getAllSubWikiFolders();
+		} else {
+			throw new IllegalStateException("Invalid multi-wiki configuration. Not a valid delegate PageProvider: "+delegateMultiWikiProvider);
+		}
+
+	}
 
 	private static class VersioningFileProviderMultiWikiDelegate extends AbstractMultiWikiFileProvider {
 

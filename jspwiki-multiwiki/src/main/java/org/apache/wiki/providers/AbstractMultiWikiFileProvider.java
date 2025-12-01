@@ -13,6 +13,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 
+import org.apache.wiki.SubWikiInit;
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.core.Page;
 import org.apache.wiki.api.exceptions.NoRequiredPropertyException;
@@ -26,22 +27,28 @@ import org.slf4j.LoggerFactory;
 /**
  * AbstractFileProvider supporting MultiWiki mechanism.
  */
-public abstract class AbstractMultiWikiFileProvider extends AbstractFileProvider {
+public abstract class AbstractMultiWikiFileProvider extends AbstractFileProvider implements MultiWikiPageProvider {
 
 	private static final Logger LOG = LoggerFactory.getLogger(AbstractMultiWikiFileProvider.class);
 
 	// sub-wiki-folders; for jspwiki the folder is a prefix/namespace in the page name, e.g. /Subwiki/Main.txt is page Subwiki::Main
+
 	private Collection<String> subfolders;
 
 	@Override
 	public void initialize(final Engine engine, final Properties properties) throws NoRequiredPropertyException, IOException, FileNotFoundException {
 		super.initialize(engine, properties);
-		this.subfolders = SubWikiUtils.getAllSubWikiFoldersWithoutMain(properties);
+		this.subfolders = SubWikiInit.getAllSubWikiFoldersWithoutMain(properties);
 	}
 
 	@Override
 	String getPageDirectory() {
 		return getPageDirectory(null);
+	}
+
+	@Override
+	public Collection<String> getAllSubWikiFolders() {
+		return subfolders;
 	}
 
 	@Override

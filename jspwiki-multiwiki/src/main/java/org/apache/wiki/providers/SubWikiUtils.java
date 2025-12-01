@@ -11,6 +11,9 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
 
+import org.apache.wiki.api.core.Engine;
+import org.apache.wiki.api.providers.PageProvider;
+import org.apache.wiki.pages.PageManager;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -133,41 +136,31 @@ public class SubWikiUtils {
 		return concatSubWikiAndLocalPageNameNonMain(subWiki, localPageName);
 	}
 
-	/**
-	 * Scans the given folder for wiki sub-folders. Returns the set of detected subfolders.
-	 *
-	 * @return list of folders
-	 */
-	public static @NotNull List<String> getAllSubWikiFoldersWithoutMain(@NotNull Properties wikiProperties) {
-		String mainWikiFolder = SubWikiUtils.getMainWikiFolder(wikiProperties);
-		List<String> allSubWikiFoldersInclMain = getAllSubWikiFoldersInclMain(wikiProperties);
+	public static @NotNull Collection<String> getAllSubWikiFoldersWithoutMain(@NotNull Engine engine) {
+		String mainWikiFolder = SubWikiUtils.getMainWikiFolder(engine.getWikiProperties());
+		Collection<String> allSubWikiFoldersInclMain = getAllSubWikiFoldersInclMain(engine);
 		allSubWikiFoldersInclMain.remove(mainWikiFolder);
 		return allSubWikiFoldersInclMain;
 	}
 
-	public static @NotNull List<String> getAllSubWikiFoldersInclMain(@NotNull String m_pageDirectory) {
-		List<String> result = new ArrayList<>();
-		File baseDir = new File(m_pageDirectory);
-		File[] folders = baseDir.listFiles();
-		assert folders != null;
-		Collection<File> filteredFolders = Arrays.stream(folders).filter(file ->
-				file.isDirectory()
-						&& !file.getAbsolutePath().equals(".git")
-						&& !file.getAbsolutePath().equals(m_pageDirectory)
-						&& !file.getName().equals("OLD")
-						&& !file.getParentFile().getName().equals("OLD")
-						&& !file.getName().endsWith("-att")
-						&& !file.getParentFile().getName().endsWith("-att")
-						&& !file.getName().equals("_metadata")
-		).toList();
-		filteredFolders.forEach(folder -> result.add(folder.getName()));
-		return result;
-	}
-
-	public static @NotNull List<String> getAllSubWikiFoldersInclMain(@NotNull Properties wikiProperties) {
-		String m_pageDirectory = AbstractFileProvider.get_m_pageDirectory(wikiProperties);
-		assert m_pageDirectory != null;
-		return getAllSubWikiFoldersInclMain(m_pageDirectory);
+	public static @NotNull Collection<String> getAllSubWikiFoldersInclMain(@NotNull Engine engine) {
+		List<PageManager> managers = engine.getManagers(PageManager.class);
+		if (!managers.isEmpty()) {
+			PageManager pageManager = managers.get(0);
+			PageProvider provider = pageManager.getProvider();
+			if (provider instanceof CachingProvider cachingProvider) {
+				provider = cachingProvider.getRealProvider();
+			}
+			if (provider instanceof MultiWikiPageProvider multiWikiFileProvider) {
+				return multiWikiFileProvider.getAllSubWikiFolders();
+			}
+			else {
+				throw new IllegalStateException("This is not a properly configured multi-wiki! Wroing PageProvider: " + provider);
+			}
+		}
+		else {
+			throw new IllegalStateException("No PageManager found!");
+		}
 	}
 
 	public static boolean isGlobalName(String pageName) {
