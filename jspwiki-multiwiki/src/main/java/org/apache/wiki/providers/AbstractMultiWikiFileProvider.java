@@ -38,7 +38,7 @@ public abstract class AbstractMultiWikiFileProvider extends AbstractFileProvider
 	@Override
 	public void initialize(final Engine engine, final Properties properties) throws NoRequiredPropertyException, IOException, FileNotFoundException {
 		super.initialize(engine, properties);
-		this.subfolders = SubWikiInit.getAllSubWikiFoldersWithoutMain(properties);
+		this.subfolders = SubWikiInit.getAllSubWikiFoldersInclMain(AbstractMultiWikiFileProvider.get_m_pageDirectory(properties));
 	}
 
 	@Override
@@ -47,7 +47,7 @@ public abstract class AbstractMultiWikiFileProvider extends AbstractFileProvider
 	}
 
 	@Override
-	public Collection<String> getAllSubWikiFolders() {
+	public Collection<String> getAllSubWikiFolders(boolean includingMain) {
 		return subfolders;
 	}
 
@@ -72,11 +72,6 @@ public abstract class AbstractMultiWikiFileProvider extends AbstractFileProvider
 		}
 		String mangledName = mangleName(localPageName);
 		String folder = m_pageDirectory + subfolderPathExtension;
-		File folderFile = new File(folder);
-		if (!folderFile.exists()) {
-			// might be that the first page of a new sub-wiki is created -> then create new folder
-			folderFile.mkdirs();
-		}
 		return new File(folder, mangledName + AbstractFileProvider.FILE_EXT);
 	}
 

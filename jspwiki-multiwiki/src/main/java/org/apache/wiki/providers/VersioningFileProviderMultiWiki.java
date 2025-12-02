@@ -123,9 +123,9 @@ public class VersioningFileProviderMultiWiki extends VersioningFileProvider impl
 	private boolean delegateInitialized = false;
 
 	@Override
-	public Collection<String> getAllSubWikiFolders() {
+	public Collection<String> getAllSubWikiFolders(boolean includingMain) {
 		if(delegateMultiWikiProvider instanceof MultiWikiPageProvider multiWikiPageProvider) {
-			return multiWikiPageProvider.getAllSubWikiFolders();
+			return multiWikiPageProvider.getAllSubWikiFolders(includingMain);
 		} else {
 			throw new IllegalStateException("Invalid multi-wiki configuration. Not a valid delegate PageProvider: "+delegateMultiWikiProvider);
 		}
