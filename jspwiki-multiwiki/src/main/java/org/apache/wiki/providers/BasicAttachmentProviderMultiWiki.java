@@ -120,7 +120,7 @@ public class BasicAttachmentProviderMultiWiki extends BasicAttachmentProvider im
 	}
 
 	@Override
-	public Collection<String> getAllSubWikiFolders() {
+	public Collection<String> getAllSubWikiFolders(boolean includingMain) {
 		return this.subfolders;
 	}
 }

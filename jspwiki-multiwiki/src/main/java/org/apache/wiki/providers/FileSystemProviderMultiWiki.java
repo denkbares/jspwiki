@@ -50,6 +50,23 @@ public class FileSystemProviderMultiWiki extends FileSystemProvider implements M
 	}
 
 	@Override
+	public void putPageText( final Page page, final String text ) throws ProviderException {
+		String name = page.getName();
+		String subFolder = SubWikiUtils.getSubFolderNameOfPage(name, this.initProperties);
+		Collection<String> allSubWikiFoldersInclMain = SubWikiUtils.getAllSubWikiFoldersInclMain(this.m_engine);
+		if(!allSubWikiFoldersInclMain.contains(subFolder)) {
+			// we need to create the folder!
+			String folder = m_pageDirectory + subFolder;
+			File folderFile = new File(folder);
+			if (!folderFile.exists()) {
+				// might be that the first page of a new sub-wiki is created -> then create new folder
+				folderFile.mkdirs();
+			}
+		}
+		super.putPageText( page, text );
+	}
+
+	@Override
 	protected void putPageProperties(final Page page) throws IOException {
 		final Properties props = new Properties();
 		final String author = page.getAuthor();
@@ -147,9 +164,9 @@ public class FileSystemProviderMultiWiki extends FileSystemProvider implements M
 	private boolean delegateInitialized = false;
 
 	@Override
-	public Collection<String> getAllSubWikiFolders() {
+	public Collection<String> getAllSubWikiFolders(boolean includingMain) {
 		if (this.delegateMultiWikiProvider instanceof MultiWikiPageProvider multiWikiPageProvider) {
-			return multiWikiPageProvider.getAllSubWikiFolders();
+			return multiWikiPageProvider.getAllSubWikiFolders(includingMain);
 		}
 		else {
 			throw new IllegalStateException("Invalid configuration of a multi-wiki system. Wrong delegate PageProvider: " + delegateMultiWikiProvider);

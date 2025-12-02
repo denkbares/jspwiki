@@ -152,7 +152,7 @@ public class SubWikiUtils {
 				provider = cachingProvider.getRealProvider();
 			}
 			if (provider instanceof MultiWikiPageProvider multiWikiFileProvider) {
-				return multiWikiFileProvider.getAllSubWikiFolders();
+				return multiWikiFileProvider.getAllSubWikiFolders(true);
 			}
 			else {
 				throw new IllegalStateException("This is not a properly configured multi-wiki! Wroing PageProvider: " + provider);

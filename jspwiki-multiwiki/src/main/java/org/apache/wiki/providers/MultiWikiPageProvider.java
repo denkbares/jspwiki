@@ -9,5 +9,5 @@ public interface MultiWikiPageProvider {
 	 *
 	 * @return all folders
 	 */
-	Collection<String> getAllSubWikiFolders();
+	Collection<String> getAllSubWikiFolders(boolean includingMain);
 }

@@ -162,7 +162,6 @@ public abstract class AbstractFileProvider implements PageProvider {
 				System.getProperty("user.home") + File.separator + "jspwiki-files");
 	}
 
-
 	String getPageDirectory() {
 		return m_pageDirectory;
 	}
@@ -291,6 +290,10 @@ public abstract class AbstractFileProvider implements PageProvider {
 	@Override
 	public void putPageText(final Page page, final String text) throws ProviderException {
 		final File file = findPage(page.getName());
+		File parentFile = file.getParentFile();
+		if (!parentFile.exists()) {
+			parentFile.mkdirs();
+		}
 		try (final PrintWriter out = new PrintWriter(new OutputStreamWriter(Files.newOutputStream(file.toPath()), m_encoding))) {
 			out.print(text);
 		}
@@ -395,7 +398,7 @@ public abstract class AbstractFileProvider implements PageProvider {
 	@Override
 	public Page getPageInfo(final String page, final int version) throws ProviderException {
 		final File file = findPage(page);
-		if (!file.exists()) {
+		if (file == null || !file.exists()) {
 			return null;
 		}
 
