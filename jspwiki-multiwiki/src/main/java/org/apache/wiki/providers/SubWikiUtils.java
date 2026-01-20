@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.providers.PageProvider;
@@ -144,6 +145,7 @@ public class SubWikiUtils {
 	}
 
 	public static @NotNull Collection<String> getAllSubWikiFoldersInclMain(@NotNull Engine engine) {
+
 		List<PageManager> managers = engine.getManagers(PageManager.class);
 		if (!managers.isEmpty()) {
 			PageManager pageManager = managers.get(0);
@@ -155,7 +157,8 @@ public class SubWikiUtils {
 				return multiWikiFileProvider.getAllSubWikiFolders(true);
 			}
 			else {
-				throw new IllegalStateException("This is not a properly configured multi-wiki! Wroing PageProvider: " + provider);
+				//  we are not in a multi-wiki setup at all -> just return main wiki folder
+				return Set.of(SubWikiUtils.getMainWikiFolder(engine.getWikiProperties()));
 			}
 		}
 		else {
