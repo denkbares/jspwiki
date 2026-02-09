@@ -113,17 +113,17 @@ public class BreadcrumbsTag extends WikiTagBase
     @Override
     public int doWikiStartTag() throws IOException {
         final HttpSession session = pageContext.getSession();
-        FixedQueue trail = (FixedQueue) session.getAttribute(BREADCRUMBTRAIL_KEY);
+        FixedQueue trail = new FixedQueue(m_maxQueueSize);
+        FixedQueue existing = (FixedQueue) session.getAttribute(BREADCRUMBTRAIL_KEY);
+        if (existing != null) {
+            trail.addAll(existing);
+        }
         final String page = m_wikiContext.getPage().getName();
 
-        if( trail == null ) {
-            trail = new FixedQueue(m_maxQueueSize);
-        } else {
-            //  check if page still exists (could be deleted/renamed by another user)
-            for (int i = 0;i<trail.size();i++) {
-                if( !m_wikiContext.getEngine().getManager( PageManager.class ).wikiPageExists( trail.get( i ) ) ) {
-                    trail.remove(i);
-                }
+        //  check if page still exists (could be deleted/renamed by another user)
+        for (int i = 0;i<trail.size();i++) {
+            if( !m_wikiContext.getEngine().getManager( PageManager.class ).wikiPageExists( trail.get( i ) ) ) {
+                trail.remove(i);
             }
         }
 
