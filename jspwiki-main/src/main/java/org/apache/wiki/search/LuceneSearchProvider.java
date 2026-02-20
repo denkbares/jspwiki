@@ -77,6 +77,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -140,7 +141,7 @@ public class LuceneSearchProvider implements SearchProvider {
         m_engine = engine;
         searchExecutor = Executors.newCachedThreadPool();
 
-        m_luceneDirectory = engine.getWorkDir() + File.separator + LUCENE_DIR;
+        m_luceneDirectory = engine.getWorkDir() + File.separator + LUCENE_DIR + File.separator + Paths.get(props.getProperty("var.basedir", "unknown-wiki")).getFileName();
 
         final int initialDelay = TextUtil.getIntegerProperty( props, PROP_LUCENE_INITIALDELAY, LuceneUpdater.INITIAL_DELAY );
         final int indexDelay   = TextUtil.getIntegerProperty( props, PROP_LUCENE_INDEXDELAY, LuceneUpdater.INDEX_DELAY );
