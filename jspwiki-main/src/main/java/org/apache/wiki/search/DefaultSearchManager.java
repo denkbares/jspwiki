@@ -202,6 +202,7 @@ public class DefaultSearchManager extends BasePageFilter implements SearchManage
                     int count = 0;
                     for( final Iterator< SearchResult > i = c.iterator(); i.hasNext() && count < maxLength; count++ ) {
                         final SearchResult sr = i.next();
+                        if ( sr == null) continue;
                         list.add( sr.toMap() );
                     }
                 } catch( final Exception e ) {
