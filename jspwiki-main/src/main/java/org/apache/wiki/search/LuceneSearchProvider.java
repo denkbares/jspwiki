@@ -84,21 +84,7 @@ import org.apache.wiki.util.ClassUtil;
 import org.apache.wiki.util.FileUtil;
 import org.apache.wiki.util.TextUtil;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.StringReader;
-import java.io.StringWriter;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.Properties;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 
@@ -154,7 +140,7 @@ public class LuceneSearchProvider implements SearchProvider {
         m_engine = engine;
 //        searchExecutor = Executors.newCachedThreadPool();
 
-        m_luceneDirectory = engine.getWorkDir() + File.separator + LUCENE_DIR + File.separator + Paths.get(props.getProperty("var.basedir", "unknown-wiki")).getFileName();
+        m_luceneDirectory = engine.getWorkDir() + File.separator + LUCENE_DIR + File.separator + getIndexId() + File.separator + Paths.get(props.getProperty("var.basedir", "unknown-wiki")).getFileName();
 
         final int initialDelay = TextUtil.getIntegerProperty( props, PROP_LUCENE_INITIALDELAY, LuceneUpdater.INITIAL_DELAY );
         final int indexDelay   = TextUtil.getIntegerProperty( props, PROP_LUCENE_INDEXDELAY, LuceneUpdater.INDEX_DELAY );
@@ -187,6 +173,13 @@ public class LuceneSearchProvider implements SearchProvider {
         final LuceneUpdater updater = new LuceneUpdater( m_engine, this, initialDelay, indexDelay );
         updater.start();
     }
+
+	/**
+	 * Override/change the return value of this method if the index changes, to make sure a new index is generated
+	 */
+	protected String getIndexId() {
+		return "v1";
+	}
 
     /**
      * Returns the handling engine.
