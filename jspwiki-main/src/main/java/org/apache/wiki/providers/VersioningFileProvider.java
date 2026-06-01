@@ -97,6 +97,11 @@ public class VersioningFileProvider extends AbstractFileProvider {
 	public static final String PROPERTYFILE = "page.properties";
 
 	public static final String VERSIONING_PROPERTIES_FILE = "versioning.properties";
+	/**
+	 * Legacy flag from the earlier migration that only backfilled dates for pages with two or more versions.
+	 * It is still written (for documentation / backwards compatibility), but no longer <em>read</em>:
+	 * {@link #CREATION_DATE_BATCH_DONE} now gates the superseding, all-pages batch. See {@link #lazyWriteDateProperties()}.
+	 */
 	private static final String DATE_PROPERTY_WRITTEN = "date.property.written";
 	/**
 	 * Flag in {@link #VERSIONING_PROPERTIES_FILE} documenting that the creation-date batch has checked
@@ -157,6 +162,14 @@ public class VersioningFileProvider extends AbstractFileProvider {
 		LOG.info("Using directory " + oldpages.getAbsolutePath() + " for storing old versions of pages");
 	}
 
+	/**
+	 * Runs the one-time creation-date batch on startup, unless it has already completed. The gate is
+	 * {@link #CREATION_DATE_BATCH_DONE} - deliberately <em>not</em> the legacy {@link #DATE_PROPERTY_WRITTEN}:
+	 * existing wikis already have the legacy flag set from the earlier multi-version-only migration, so checking
+	 * it would prevent the extended run (which also covers single-version pages) from ever triggering there. With
+	 * its own flag the batch runs exactly once per installation; afterwards this method only reads the flag and
+	 * returns. The flag is persisted only after a complete run, so an aborted run simply retries on next startup.
+	 */
 	private void lazyWriteDateProperties() throws IOException, ProviderException {
 		final Properties oldProps = getVersioningProperties();
 		final boolean batchDone = Boolean.parseBoolean((String) oldProps.getOrDefault(CREATION_DATE_BATCH_DONE, "false"));
@@ -164,7 +177,8 @@ public class VersioningFileProvider extends AbstractFileProvider {
 			LOG.info("Creation-date batch starting (one-time): persisting creation dates for all pages...");
 			final long start = System.currentTimeMillis();
 			final int updated = writeDateProperties();
-			// keep the legacy flag set for documentation; CREATION_DATE_BATCH_DONE now drives the run.
+			// Mark the batch as done. CREATION_DATE_BATCH_DONE is the flag we actually check above; the legacy
+			// DATE_PROPERTY_WRITTEN is still set for documentation / backwards compatibility, but no longer read.
 			oldProps.put(DATE_PROPERTY_WRITTEN, "true");
 			oldProps.put(CREATION_DATE_BATCH_DONE, "true");
 			writeOldProperties(oldProps);
