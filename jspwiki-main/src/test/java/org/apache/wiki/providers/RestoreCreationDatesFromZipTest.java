@@ -74,19 +74,20 @@ public class RestoreCreationDatesFromZipTest {
 	}
 
 	@Test
-	public void testBuildRestoreEntriesExcludesOldVersions() {
+	public void testBuildPageEntriesIncludesAllVersions() {
 		final Map<String, Long> times = new LinkedHashMap<>();
-		times.put("backup/Main.txt", millis("2018-04-12T09:31:00"));
-		times.put("backup/SecondPage.txt", millis("2019-01-02T03:04:05"));
-		times.put("backup/OLD/Main/1.txt", millis("2010-01-01T00:00:00"));
+		times.put("backup/Main.txt", millis("2018-04-12T09:31:00"));        // latest version of Main
+		times.put("backup/SecondPage.txt", millis("2019-01-02T03:04:05"));  // latest version of SecondPage
+		times.put("backup/OLD/Main/1.txt", millis("2010-01-01T00:00:00"));  // older version of Main
 
 		final String dir = RestoreCreationDatesFromZip.choosePageDirectory(new ArrayList<>(times.keySet()));
-		final SortedMap<String, String> entries = RestoreCreationDatesFromZip.buildRestoreEntries(times, dir);
+		final SortedMap<String, String> entries = RestoreCreationDatesFromZip.buildPageEntries(times, dir);
 
-		Assertions.assertEquals(Set.of("Main", "SecondPage"), entries.keySet(),
-				"only top-level pages, no OLD versions");
-		assertSameSecond(millis("2018-04-12T09:31:00"), entries.get("Main"));
-		assertSameSecond(millis("2019-01-02T03:04:05"), entries.get("SecondPage"));
+		Assertions.assertEquals(Set.of("Main#latest", "SecondPage#latest", "Main#1"), entries.keySet(),
+				"current page files plus every OLD version");
+		assertSameSecond(millis("2018-04-12T09:31:00"), entries.get("Main#latest"));
+		assertSameSecond(millis("2019-01-02T03:04:05"), entries.get("SecondPage#latest"));
+		assertSameSecond(millis("2010-01-01T00:00:00"), entries.get("Main#1"));
 	}
 
 	@Test
@@ -95,7 +96,7 @@ public class RestoreCreationDatesFromZipTest {
 		zipEntries.put("mybackup/Main.txt", millis("2018-04-12T09:31:00"));
 		zipEntries.put("mybackup/My%20Page.txt", millis("2017-07-07T07:07:07"));
 		zipEntries.put("mybackup/Main.properties", millis("2021-12-12T12:12:12")); // must be ignored
-		zipEntries.put("mybackup/OLD/Main/1.txt", millis("2010-01-01T00:00:00")); // version, must be ignored
+		zipEntries.put("mybackup/OLD/Main/1.txt", millis("2010-01-01T00:00:00")); // older version of Main
 		final File zip = createZip(zipEntries);
 
 		final Map<String, Long> txtTimes = RestoreCreationDatesFromZip.readTxtEntryTimes(zip);
@@ -105,10 +106,11 @@ public class RestoreCreationDatesFromZipTest {
 		final String dir = RestoreCreationDatesFromZip.choosePageDirectory(new ArrayList<>(txtTimes.keySet()));
 		Assertions.assertEquals("mybackup/", dir);
 
-		final SortedMap<String, String> entries = RestoreCreationDatesFromZip.buildRestoreEntries(txtTimes, dir);
-		Assertions.assertEquals(Set.of("Main", "My%20Page"), entries.keySet());
-		assertSameSecond(millis("2018-04-12T09:31:00"), entries.get("Main"));
-		assertSameSecond(millis("2017-07-07T07:07:07"), entries.get("My%20Page"));
+		final SortedMap<String, String> entries = RestoreCreationDatesFromZip.buildPageEntries(txtTimes, dir);
+		Assertions.assertEquals(Set.of("Main#latest", "My%20Page#latest", "Main#1"), entries.keySet());
+		assertSameSecond(millis("2018-04-12T09:31:00"), entries.get("Main#latest"));
+		assertSameSecond(millis("2017-07-07T07:07:07"), entries.get("My%20Page#latest"));
+		assertSameSecond(millis("2010-01-01T00:00:00"), entries.get("Main#1"));
 	}
 
 	@Test
@@ -120,6 +122,27 @@ public class RestoreCreationDatesFromZipTest {
 		provider.m_encoding = AbstractFileProvider.DEFAULT_ENCODING;
 		Assertions.assertEquals("CC1182808+Memo+1", provider.mangleName("CC1182808 Memo 1"),
 				"mangleName must reproduce the URL-encoded file-name stem used as the restore key");
+	}
+
+	@Test
+	public void testAttachmentCreationDatesFromZip() throws IOException {
+		final Map<String, Long> zipEntries = new LinkedHashMap<>();
+		zipEntries.put("mybackup/Main.txt", millis("2018-04-12T09:31:00"));
+		zipEntries.put("mybackup/Main-att/diagram.png-dir/1.png", millis("2016-01-02T03:04:05")); // creation
+		zipEntries.put("mybackup/Main-att/diagram.png-dir/2.png", millis("2020-01-02T03:04:05")); // later version
+		zipEntries.put("mybackup/Main-att/diagram.png-dir/attachment.properties", millis("2021-01-01T00:00:00")); // ignored
+		final File zip = createZip(zipEntries);
+
+		final Map<String, Long> all = RestoreCreationDatesFromZip.readAllEntryTimes(zip);
+		final String pageDir = RestoreCreationDatesFromZip.choosePageDirectory(
+				new ArrayList<>(RestoreCreationDatesFromZip.readTxtEntryTimes(zip).keySet()));
+		Assertions.assertEquals("mybackup/", pageDir);
+
+		final SortedMap<String, String> attachments = RestoreCreationDatesFromZip.buildAttachmentEntries(all, pageDir);
+		Assertions.assertEquals(Set.of("Main-att/diagram.png-dir#1", "Main-att/diagram.png-dir#2"), attachments.keySet(),
+				"every attachment version, but not the property file");
+		assertSameSecond(millis("2016-01-02T03:04:05"), attachments.get("Main-att/diagram.png-dir#1"));
+		assertSameSecond(millis("2020-01-02T03:04:05"), attachments.get("Main-att/diagram.png-dir#2"));
 	}
 
 	// ----------------------------------------------------------------------------------------------------

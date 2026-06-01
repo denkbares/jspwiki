@@ -44,8 +44,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.DateTimeException;
 import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -183,7 +181,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
 			oldProps.put(CREATION_DATE_BATCH_DONE, "true");
 			writeOldProperties(oldProps);
 			final long durationMs = System.currentTimeMillis() - start;
-			LOG.info("Creation-date batch finished in " + formatDuration(durationMs) + " (" + durationMs + " ms), updated " + updated + " page(s)");
+			LOG.info("Creation-date batch finished in " + CreationDateSupport.formatDuration(durationMs) + " (" + durationMs + " ms), updated " + updated + " page(s)");
 		}
 	}
 
@@ -214,86 +212,20 @@ public class VersioningFileProvider extends AbstractFileProvider {
 	}
 
 	/**
-	 * Formats a duration in milliseconds as a human-readable string (e.g. {@code "8m 3s"} or {@code "1h 2m 5s"}).
-	 */
-	private static String formatDuration(final long millis) {
-		final long totalSeconds = millis / 1000;
-		final long hours = totalSeconds / 3600;
-		final long minutes = (totalSeconds % 3600) / 60;
-		final long seconds = totalSeconds % 60;
-		if (hours > 0) {
-			return hours + "h " + minutes + "m " + seconds + "s";
-		}
-		if (minutes > 0) {
-			return minutes + "m " + seconds + "s";
-		}
-		return seconds + "s";
-	}
-
-	/**
 	 * Loads the optional {@link #RESTORE_CREATION_DATES_FILE} from the OLD directory. Returns an empty
 	 * Properties object if the file is missing or unreadable (the batch then simply uses file system dates).
 	 */
 	private Properties loadRestoreCreationDates() {
-		final Properties restore = new Properties();
-		final File restoreFile = new File(getOldDir(null), RESTORE_CREATION_DATES_FILE);
-		if (restoreFile.exists()) {
-			try (final InputStream in = new BufferedInputStream(Files.newInputStream(restoreFile.toPath()))) {
-				restore.load(in);
-				LOG.info("Loaded " + restore.size() + " creation date(s) to restore from " + restoreFile.getAbsolutePath());
-			}
-			catch (final IOException e) {
-				LOG.error("Unable to read " + restoreFile.getAbsolutePath() + ", ignoring restore dates", e);
-			}
-		}
-		return restore;
+		return CreationDateSupport.loadRestoreDates(new File(getOldDir(null), RESTORE_CREATION_DATES_FILE));
 	}
 
 	/**
-	 * Looks up a restore date for the given page, trying the mangled file name first and the plain page name
-	 * as a fallback. Returns {@code null} if no (parseable) restore date is configured for the page.
+	 * The restore-file keys for a page version: the mangled file name first, the plain page name as a fallback.
+	 * {@code versionTag} is the version number, or "latest" for the current page file (whose version number is
+	 * not encoded in the file name, so the ZIP tool keys it as {@code <page>#latest}).
 	 */
-	private ZonedDateTime getRestoreDate(final Properties restoreDates, final String pageName) {
-		if (restoreDates.isEmpty()) {
-			return null;
-		}
-		String raw = restoreDates.getProperty(mangleName(pageName));
-		if (raw == null) {
-			raw = restoreDates.getProperty(pageName);
-		}
-		return raw != null ? parseRestoreDate(raw.trim()) : null;
-	}
-
-	/**
-	 * Parses a restore date value. Accepts epoch milliseconds (all digits), ISO date-time with offset/zone,
-	 * ISO local date-time (assumed to be in the system time zone, "T" or space separated) and ISO date only.
-	 * Returns {@code null} (and logs) if the value cannot be parsed.
-	 */
-	// package-private for unit testing
-	ZonedDateTime parseRestoreDate(final String value) {
-		try {
-			if (!value.isEmpty() && value.chars().allMatch(Character::isDigit)) {
-				return ZonedDateTime.ofInstant(Instant.ofEpochMilli(Long.parseLong(value)), ZoneId.systemDefault());
-			}
-			final String iso = value.replace(' ', 'T');
-			try {
-				return ZonedDateTime.parse(iso);
-			}
-			catch (final DateTimeException ignored) {
-				// not an offset/zoned date-time, try the next format
-			}
-			try {
-				return LocalDateTime.parse(iso).atZone(ZoneId.systemDefault());
-			}
-			catch (final DateTimeException ignored) {
-				// not a local date-time, try date only
-			}
-			return LocalDate.parse(iso).atStartOfDay(ZoneId.systemDefault());
-		}
-		catch (final Exception e) {
-			LOG.warn("Cannot parse restore creation date '" + value + "', ignoring it");
-			return null;
-		}
+	private String[] pageRestoreKeys(final String pageName, final String versionTag) {
+		return new String[]{ mangleName(pageName) + "#" + versionTag, pageName + "#" + versionTag };
 	}
 
 	/**
@@ -318,18 +250,13 @@ public class VersioningFileProvider extends AbstractFileProvider {
 
 			if (latest <= 0) {
 				// Single-version / legacy page that has never been versioned: there is no page.properties
-				// with version keys yet. Persist version 1's creation date and author. Persisting 1.author
-				// (instead of only 1.date) keeps the file self-contained and takes over the heritage-author
-				// handling that putPageText() would otherwise do on the first edit.
+				// with version keys yet. Version 1 is the current (top) page file. Persist its date and author.
+				// Persisting 1.author (instead of only 1.date) keeps the file self-contained and takes over the
+				// heritage-author handling that putPageText() would otherwise do on the first edit.
 				if (props.getProperty(getDatePropertyKey(1)) == null) {
-					ZonedDateTime date = ZonedDateTime.ofInstant(page.getLastModified().toInstant(), ZoneId.systemDefault());
-					// If a creation date was recovered from backup and the file system timestamp is newer than
-					// it, the timestamp was reset by a copy/zip - trust the (older) restored date instead.
-					final ZonedDateTime restoreDate = getRestoreDate(restoreDates, pageName);
-					if (restoreDate != null && date.isAfter(restoreDate)) {
-						LOG.info("Restoring creation date of page '" + pageName + "' from " + date + " to " + restoreDate);
-						date = restoreDate;
-					}
+					final ZonedDateTime fsDate = ZonedDateTime.ofInstant(page.getLastModified().toInstant(), ZoneId.systemDefault());
+					final ZonedDateTime date = CreationDateSupport.preferRestoreDate(restoreDates, fsDate,
+							"page '" + pageName + "' version 1", pageRestoreKeys(pageName, "latest"));
 					addVersionDate(date, 1, props);
 					changed = true;
 				}
@@ -339,11 +266,15 @@ public class VersioningFileProvider extends AbstractFileProvider {
 				}
 			}
 			else {
-				// Versioned page: make sure every version has a date.
+				// Versioned page: make sure every version has a date, restoring each from backup if available.
 				for (final Page version : getVersionHistory(pageName)) {
-					if (props.getProperty(getDatePropertyKey(version.getVersion())) == null) {
-						final ZonedDateTime date = ZonedDateTime.ofInstant(version.getLastModified().toInstant(), ZoneId.systemDefault());
-						addVersionDate(date, version.getVersion(), props);
+					final int v = version.getVersion();
+					if (props.getProperty(getDatePropertyKey(v)) == null) {
+						final ZonedDateTime fsDate = ZonedDateTime.ofInstant(version.getLastModified().toInstant(), ZoneId.systemDefault());
+						final String versionTag = (v == latest) ? "latest" : String.valueOf(v);
+						final ZonedDateTime date = CreationDateSupport.preferRestoreDate(restoreDates, fsDate,
+								"page '" + pageName + "' version " + v, pageRestoreKeys(pageName, versionTag));
+						addVersionDate(date, v, props);
 						changed = true;
 					}
 				}

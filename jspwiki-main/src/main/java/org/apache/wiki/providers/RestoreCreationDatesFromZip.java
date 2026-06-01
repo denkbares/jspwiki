@@ -45,20 +45,23 @@ import java.util.zip.ZipFile;
  * Stand-alone command line tool that generates a {@link VersioningFileProvider#RESTORE_CREATION_DATES_FILE
  * restore-creation-dates.properties} from a backup ZIP of the wiki content.
  * <p>
- * It is meant to recover creation dates that were lost when the wiki content was copied/zipped (which resets
- * the file system timestamps), but which are still preserved as entry timestamps inside an older backup ZIP.
- * The resulting properties file can be placed into the {@code OLD} directory so the
- * {@link VersioningFileProvider} batch can restore those dates (see {@code ensureCreationDateProperties}).
+ * It is meant to recover version dates (the creation date and all later versions) that were lost when the wiki
+ * content was copied/zipped (which resets the file system timestamps), but which are still preserved as entry
+ * timestamps inside an older backup ZIP. The resulting properties file can be placed into the {@code OLD}
+ * directory so the page and attachment batches can restore those dates.
  * <p>
  * <b>Locating the wiki pages in the ZIP:</b> the tool descends through wrapper folders and uses the
  * <em>shallowest</em> directory that actually contains {@code .txt} files as the wiki page directory (on ties,
  * the directory with the most {@code .txt} files). So both {@code Main.txt} at the ZIP root and the common
- * {@code mybackup/Main.txt} (one wrapping folder) - or even deeper nesting - work. Only the {@code .txt} files
- * <em>directly</em> in that directory are used; version files below {@code OLD/} are ignored.
+ * {@code mybackup/Main.txt} (one wrapping folder) - or even deeper nesting - work.
  * <p>
- * The property key is the file name without the {@code .txt} extension (i.e. the mangled page name, exactly as
- * stored on disk), which is what {@link VersioningFileProvider} looks up. The value is the ISO date-time of the
- * ZIP entry.
+ * One entry is written per version, with the version encoded in the key (exactly as the providers look it up):
+ * <ul>
+ * <li>current page file {@code <stem>.txt} &rarr; key {@code <stem>#latest}</li>
+ * <li>old page version {@code OLD/<stem>/<n>.txt} &rarr; key {@code <stem>#<n>}</li>
+ * <li>attachment version {@code <page>-att/<dir>/<n>.<ext>} &rarr; key {@code <page>-att/<dir>#<n>}</li>
+ * </ul>
+ * The value is the ISO date-time of the ZIP entry.
  * <p>
  * Usage: {@code java -cp <jspwiki.jar> org.apache.wiki.providers.RestoreCreationDatesFromZip <backup.zip> [output.properties]}
  */
@@ -87,25 +90,31 @@ public final class RestoreCreationDatesFromZip {
 				? new File(args[1])
 				: new File(zipFile.getAbsoluteFile().getParentFile(), VersioningFileProvider.RESTORE_CREATION_DATES_FILE);
 
-		final Map<String, Long> txtTimes = readTxtEntryTimes(zipFile);
-		if (txtTimes.isEmpty()) {
-			System.out.println("No .txt entries found in " + zipFile.getName() + " - nothing to do.");
+		final Map<String, Long> allTimes = readAllEntryTimes(zipFile);
+		if (allTimes.isEmpty()) {
+			System.out.println("No entries with usable timestamps found in " + zipFile.getName() + " - nothing to do.");
 			return;
 		}
+		final Map<String, Long> txtTimes = filterByExtension(allTimes, AbstractFileProvider.FILE_EXT);
 
 		final String pageDir = choosePageDirectory(new ArrayList<>(txtTimes.keySet()));
-		final SortedMap<String, String> entries = buildRestoreEntries(txtTimes, pageDir);
+		final SortedMap<String, String> pageEntries = buildPageEntries(allTimes, pageDir);
+		final SortedMap<String, String> attachmentEntries = buildAttachmentEntries(allTimes, pageDir);
+
+		final SortedMap<String, String> entries = new TreeMap<>(pageEntries);
+		entries.putAll(attachmentEntries);
 		writeProperties(outputFile, entries, zipFile, pageDir);
 
 		System.out.println("Detected wiki page directory in ZIP: '" + displayDir(pageDir) + "'");
-		System.out.println("Wrote " + entries.size() + " creation date(s) to " + outputFile.getAbsolutePath());
+		System.out.println("Wrote " + pageEntries.size() + " page + " + attachmentEntries.size()
+				+ " attachment creation date(s) to " + outputFile.getAbsolutePath());
 	}
 
 	/**
-	 * Reads all {@code .txt} entries (recursively) from the ZIP and returns a map of normalized entry path to
-	 * its last-modified time in epoch milliseconds. Entries without a usable timestamp are skipped.
+	 * Reads all (non-directory) entries from the ZIP and returns a map of normalized entry path to its
+	 * last-modified time in epoch milliseconds. Entries without a usable timestamp are skipped.
 	 */
-	static Map<String, Long> readTxtEntryTimes(final File zipFile) throws IOException {
+	static Map<String, Long> readAllEntryTimes(final File zipFile) throws IOException {
 		final Map<String, Long> result = new LinkedHashMap<>();
 		try (final ZipFile zip = new ZipFile(zipFile)) {
 			final Enumeration<? extends ZipEntry> entries = zip.entries();
@@ -114,17 +123,30 @@ public final class RestoreCreationDatesFromZip {
 				if (entry.isDirectory()) {
 					continue;
 				}
-				final String name = normalize(entry.getName());
-				if (!name.toLowerCase(Locale.ROOT).endsWith(AbstractFileProvider.FILE_EXT)) {
-					continue;
-				}
 				final long millis = entryMillis(entry);
 				if (millis >= 0) {
-					result.put(name, millis);
+					result.put(normalize(entry.getName()), millis);
 				}
 			}
 		}
 		return result;
+	}
+
+	/**
+	 * Reads the {@code .txt} entries (the wiki pages) from the ZIP.
+	 */
+	static Map<String, Long> readTxtEntryTimes(final File zipFile) throws IOException {
+		return filterByExtension(readAllEntryTimes(zipFile), AbstractFileProvider.FILE_EXT);
+	}
+
+	private static Map<String, Long> filterByExtension(final Map<String, Long> entries, final String extension) {
+		final Map<String, Long> filtered = new LinkedHashMap<>();
+		for (final Map.Entry<String, Long> e : entries.entrySet()) {
+			if (e.getKey().toLowerCase(Locale.ROOT).endsWith(extension)) {
+				filtered.put(e.getKey(), e.getValue());
+			}
+		}
+		return filtered;
 	}
 
 	private static long entryMillis(final ZipEntry entry) {
@@ -158,18 +180,70 @@ public final class RestoreCreationDatesFromZip {
 	 * Builds the sorted {@code key -> ISO date-time} entries for all {@code .txt} files located directly in the
 	 * given page directory (version files in sub-directories such as {@code OLD/} are excluded).
 	 */
-	static SortedMap<String, String> buildRestoreEntries(final Map<String, Long> txtTimes, final String pageDir) {
+	static SortedMap<String, String> buildPageEntries(final Map<String, Long> allTimes, final String pageDir) {
 		final SortedMap<String, String> entries = new TreeMap<>();
-		for (final Map.Entry<String, Long> e : txtTimes.entrySet()) {
+		for (final Map.Entry<String, Long> e : allTimes.entrySet()) {
 			final String path = e.getKey();
-			if (!isDirectChild(path, pageDir)) {
+			if (!path.startsWith(pageDir)) {
 				continue;
 			}
-			final String fileName = path.substring(pageDir.length());
-			final String key = fileName.substring(0, fileName.length() - AbstractFileProvider.FILE_EXT.length());
-			entries.put(key, formatDate(e.getValue()));
+			final String[] segments = path.substring(pageDir.length()).split("/");
+			if (segments.length == 1 && segments[0].toLowerCase(Locale.ROOT).endsWith(AbstractFileProvider.FILE_EXT)) {
+				// current page file = latest version (its version number is not encoded in the file name)
+				final String stem = segments[0].substring(0, segments[0].length() - AbstractFileProvider.FILE_EXT.length());
+				entries.put(stem + "#latest", formatDate(e.getValue()));
+			}
+			else if (segments.length == 3 && segments[0].equals(VersioningFileProvider.PAGEDIR)
+					&& segments[2].toLowerCase(Locale.ROOT).endsWith(AbstractFileProvider.FILE_EXT)) {
+				// OLD/<stem>/<n>.txt = older version
+				final int version = versionNumber(segments[2]);
+				if (version > 0) {
+					entries.put(segments[1] + "#" + version, formatDate(e.getValue()));
+				}
+			}
 		}
 		return entries;
+	}
+
+	/**
+	 * Builds the {@code key -> ISO date-time} entries for all attachment versions. An attachment version file
+	 * sits at {@code <pageDir>/<page>-att/<attachment-dir>/<n>.<ext>}; the key is
+	 * {@code <page>-att/<attachment-dir>#<n>}, which is exactly what {@link BasicAttachmentProvider} reconstructs
+	 * when looking the date up. The {@code attachment.properties} file is ignored.
+	 */
+	static SortedMap<String, String> buildAttachmentEntries(final Map<String, Long> allTimes, final String pageDir) {
+		final SortedMap<String, String> entries = new TreeMap<>();
+		for (final Map.Entry<String, Long> e : allTimes.entrySet()) {
+			final String path = e.getKey();
+			if (!path.startsWith(pageDir)) {
+				continue;
+			}
+			final String[] segments = path.substring(pageDir.length()).split("/");
+			// <page>-att / <attachment-dir> / <versionFile>
+			if (segments.length != 3 || !segments[0].endsWith(BasicAttachmentProvider.DIR_EXTENSION)) {
+				continue;
+			}
+			final int version = versionNumber(segments[2]);
+			if (version > 0) {
+				entries.put(segments[0] + "/" + segments[1] + "#" + version, formatDate(e.getValue()));
+			}
+		}
+		return entries;
+	}
+
+	/**
+	 * Returns the version number encoded in a version file name (the part before the first dot), or -1 if it is
+	 * not a numbered version file (e.g. {@code attachment.properties} or {@code page.properties}).
+	 */
+	private static int versionNumber(final String fileName) {
+		final int dot = fileName.indexOf('.');
+		final String number = (dot > 0) ? fileName.substring(0, dot) : fileName;
+		try {
+			return Integer.parseInt(number);
+		}
+		catch (final NumberFormatException e) {
+			return -1;
+		}
 	}
 
 	static String formatDate(final long epochMillis) {
@@ -182,7 +256,9 @@ public final class RestoreCreationDatesFromZip {
 			w.newLine();
 			w.write("# generated from " + zipFile.getName() + " (wiki page directory: '" + displayDir(pageDir) + "')");
 			w.newLine();
-			w.write("# key = mangled wiki page file name (without " + AbstractFileProvider.FILE_EXT + "), value = creation date from the ZIP entry");
+			w.write("# page key = <mangled-page>#<version|latest>; "
+					+ "attachment key = <page" + BasicAttachmentProvider.DIR_EXTENSION + ">/<attachment-dir>#<version>; "
+					+ "value = date from the ZIP entry");
 			w.newLine();
 			for (final Map.Entry<String, String> e : entries.entrySet()) {
 				w.write(e.getKey() + "=" + e.getValue());
@@ -212,14 +288,6 @@ public final class RestoreCreationDatesFromZip {
 			}
 		}
 		return depth;
-	}
-
-	private static boolean isDirectChild(final String path, final String pageDir) {
-		if (!path.startsWith(pageDir)) {
-			return false;
-		}
-		final String rest = path.substring(pageDir.length());
-		return !rest.isEmpty() && rest.indexOf('/') < 0;
 	}
 
 	private static String displayDir(final String pageDir) {

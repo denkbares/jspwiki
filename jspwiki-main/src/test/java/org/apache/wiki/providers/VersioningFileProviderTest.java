@@ -563,34 +563,32 @@ public class VersioningFileProviderTest {
 
     @Test
     public void testParseRestoreDateFormats() {
-        final VersioningFileProvider provider = new VersioningFileProvider();
-
         // epoch milliseconds
         Assertions.assertEquals( Instant.ofEpochMilli( 1523518260000L ),
-                provider.parseRestoreDate( "1523518260000" ).toInstant(), "epoch millis" );
+                CreationDateSupport.parseRestoreDate( "1523518260000" ).toInstant(), "epoch millis" );
 
         // ISO date-time with offset
         Assertions.assertEquals( Instant.parse( "2018-04-12T07:31:00Z" ),
-                provider.parseRestoreDate( "2018-04-12T09:31:00+02:00" ).toInstant(), "ISO offset" );
+                CreationDateSupport.parseRestoreDate( "2018-04-12T09:31:00+02:00" ).toInstant(), "ISO offset" );
 
         // ISO local date-time (system zone), "T" separated
         Assertions.assertEquals( asDate( "2018-04-12T09:31:00" ).toInstant(),
-                provider.parseRestoreDate( "2018-04-12T09:31:00" ).toInstant(), "ISO local with T" );
+                CreationDateSupport.parseRestoreDate( "2018-04-12T09:31:00" ).toInstant(), "ISO local with T" );
 
         // ISO local date-time (system zone), space separated
         Assertions.assertEquals( asDate( "2018-04-12T09:31:00" ).toInstant(),
-                provider.parseRestoreDate( "2018-04-12 09:31:00" ).toInstant(), "ISO local with space" );
+                CreationDateSupport.parseRestoreDate( "2018-04-12 09:31:00" ).toInstant(), "ISO local with space" );
 
         // date only (start of day, system zone)
         Assertions.assertEquals( LocalDate.parse( "2018-04-12" ).atStartOfDay( ZoneId.systemDefault() ).toInstant(),
-                provider.parseRestoreDate( "2018-04-12" ).toInstant(), "date only" );
+                CreationDateSupport.parseRestoreDate( "2018-04-12" ).toInstant(), "date only" );
     }
 
     @Test
     public void testParseRestoreDateInvalidReturnsNull() {
-        final VersioningFileProvider provider = new VersioningFileProvider();
-        Assertions.assertNull( provider.parseRestoreDate( "not-a-date" ) );
-        Assertions.assertNull( provider.parseRestoreDate( "" ) );
+        Assertions.assertNull( CreationDateSupport.parseRestoreDate( "not-a-date" ) );
+        Assertions.assertNull( CreationDateSupport.parseRestoreDate( "" ) );
+        Assertions.assertNull( CreationDateSupport.parseRestoreDate( null ) );
     }
 
     @Test
@@ -603,7 +601,7 @@ public class VersioningFileProviderTest {
         wikiPage.setLastModified( asDate( "2020-01-01T00:00:00" ) );
 
         final Properties restore = new Properties();
-        restore.setProperty( provider.mangleName( page ), "2018-04-12T09:31:00" );
+        restore.setProperty( provider.mangleName( page ) + "#latest", "2018-04-12T09:31:00" );
 
         Assertions.assertTrue( provider.ensureCreationDateProperties( wikiPage, restore ), "properties should be written" );
 
@@ -622,7 +620,7 @@ public class VersioningFileProviderTest {
 
         // key stored under the plain page name (not the mangled file name)
         final Properties restore = new Properties();
-        restore.setProperty( page, "2017-05-06T07:08:09" );
+        restore.setProperty( page + "#latest", "2017-05-06T07:08:09" );
 
         provider.ensureCreationDateProperties( wikiPage, restore );
 
@@ -642,7 +640,7 @@ public class VersioningFileProviderTest {
         wikiPage.setLastModified( fsDate );
 
         final Properties restore = new Properties();
-        restore.setProperty( provider.mangleName( page ), "2020-06-15T10:00:00" );
+        restore.setProperty( provider.mangleName( page ) + "#latest", "2020-06-15T10:00:00" );
 
         provider.ensureCreationDateProperties( wikiPage, restore );
 
