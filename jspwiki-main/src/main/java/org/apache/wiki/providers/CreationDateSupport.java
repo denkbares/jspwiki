@@ -36,6 +36,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Enumeration;
 import java.util.Locale;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
@@ -49,7 +50,22 @@ final class CreationDateSupport {
 
 	private static final Logger LOG = LoggerFactory.getLogger(CreationDateSupport.class);
 
+	/**
+	 * Cumulative wall-clock time of the creation-date batch phases (pages, attachments) that have run in this JVM.
+	 * The phases live in separate providers and run once each on startup; the last phase to finish logs the grand
+	 * total. The batches are flag-gated, so this is written at most once per phase per installation.
+	 */
+	private static final AtomicLong CUMULATIVE_BATCH_MILLIS = new AtomicLong(0L);
+
 	private CreationDateSupport() {
+	}
+
+	/**
+	 * Records a finished creation-date batch phase and returns the cumulative time across all phases run so far in
+	 * this JVM (so the phase that finishes last reports the total duration).
+	 */
+	static long recordBatchDuration(final long millis) {
+		return CUMULATIVE_BATCH_MILLIS.addAndGet(millis);
 	}
 
 	/**

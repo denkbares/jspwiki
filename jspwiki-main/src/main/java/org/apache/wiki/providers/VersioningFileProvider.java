@@ -172,16 +172,20 @@ public class VersioningFileProvider extends AbstractFileProvider {
 		final Properties oldProps = getVersioningProperties();
 		final boolean batchDone = Boolean.parseBoolean((String) oldProps.getOrDefault(CREATION_DATE_BATCH_DONE, "false"));
 		if (!batchDone) {
-			LOG.info("Creation-date batch starting (one-time): persisting creation dates for all pages...");
+			LOG.info("Creation-date restoration phase 'pages' starting (one-time): persisting creation dates for all pages...");
 			final long start = System.currentTimeMillis();
-			final int updated = writeDateProperties();
+			final int[] restored = { 0 };
+			final int updated = writeDateProperties(restored);
 			// Mark the batch as done. CREATION_DATE_BATCH_DONE is the flag we actually check above; the legacy
 			// DATE_PROPERTY_WRITTEN is still set for documentation / backwards compatibility, but no longer read.
 			oldProps.put(DATE_PROPERTY_WRITTEN, "true");
 			oldProps.put(CREATION_DATE_BATCH_DONE, "true");
 			writeOldProperties(oldProps);
 			final long durationMs = System.currentTimeMillis() - start;
-			LOG.info("Creation-date batch finished in " + CreationDateSupport.formatDuration(durationMs) + " (" + durationMs + " ms), updated " + updated + " page(s)");
+			final long totalMs = CreationDateSupport.recordBatchDuration(durationMs);
+			LOG.info("Creation-date restoration phase 'pages' finished in " + CreationDateSupport.formatDuration(durationMs)
+					+ " (" + durationMs + " ms), updated " + updated + " page(s), " + restored[0] + " version(s) restored from backup"
+					+ ". Total creation-date restoration time this startup: " + CreationDateSupport.formatDuration(totalMs) + ".");
 		}
 	}
 
@@ -195,12 +199,12 @@ public class VersioningFileProvider extends AbstractFileProvider {
 	 *
 	 * @return the number of pages whose properties were updated.
 	 */
-	private int writeDateProperties() throws ProviderException {
+	private int writeDateProperties(final int[] restoredCounter) throws ProviderException {
 		final Properties restoreDates = loadRestoreCreationDates();
 		int updated = 0;
 		for (final Page page : getAllPages()) {
 			try {
-				if (ensureCreationDateProperties(page, restoreDates)) {
+				if (ensureCreationDateProperties(page, restoreDates, restoredCounter)) {
 					updated++;
 				}
 			}
@@ -238,6 +242,13 @@ public class VersioningFileProvider extends AbstractFileProvider {
 	 */
 	// package-private for unit testing
 	boolean ensureCreationDateProperties(final Page page, final Properties restoreDates) throws IOException, ProviderException {
+		return ensureCreationDateProperties(page, restoreDates, new int[1]);
+	}
+
+	/**
+	 * @param restoredCounter index 0 is incremented for every version whose date was taken from the restore file.
+	 */
+	private boolean ensureCreationDateProperties(final Page page, final Properties restoreDates, final int[] restoredCounter) throws IOException, ProviderException {
 		// Synchronize on the same monitor as putPageText() so this read-modify-write of the page properties
 		// never interleaves with a concurrent edit of the same page. The batch runs during initialize() before
 		// the wiki serves requests, so this is defensive - but it is cheap (uncontended) and keeps the method
@@ -257,6 +268,9 @@ public class VersioningFileProvider extends AbstractFileProvider {
 					final ZonedDateTime fsDate = ZonedDateTime.ofInstant(page.getLastModified().toInstant(), ZoneId.systemDefault());
 					final ZonedDateTime date = CreationDateSupport.preferRestoreDate(restoreDates, fsDate,
 							"page '" + pageName + "' version 1", pageRestoreKeys(pageName, "latest"));
+					if (!date.equals(fsDate)) {
+						restoredCounter[0]++;
+					}
 					addVersionDate(date, 1, props);
 					changed = true;
 				}
@@ -274,6 +288,9 @@ public class VersioningFileProvider extends AbstractFileProvider {
 						final String versionTag = (v == latest) ? "latest" : String.valueOf(v);
 						final ZonedDateTime date = CreationDateSupport.preferRestoreDate(restoreDates, fsDate,
 								"page '" + pageName + "' version " + v, pageRestoreKeys(pageName, versionTag));
+						if (!date.equals(fsDate)) {
+							restoredCounter[0]++;
+						}
 						addVersionDate(date, v, props);
 						changed = true;
 					}
