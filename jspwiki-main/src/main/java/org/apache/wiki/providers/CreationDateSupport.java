@@ -181,8 +181,9 @@ final class CreationDateSupport {
 	 * Decides which date to persist for a version: the restored date if one is configured under any of the given
 	 * keys (tried in order) <em>and</em> the file-system timestamp is newer than it - which means the timestamp
 	 * was reset by a copy/zip, so the (older) backup date is the correct one. Otherwise the file-system date is
-	 * kept. Logs whenever a date is restored. This is the single place that holds the restore <em>policy</em>;
-	 * the providers only build their (layout-specific) keys and call this.
+	 * kept. Logs each restored date at debug level (the batch phases log the aggregate count at info). This is the
+	 * single place that holds the restore <em>policy</em>; the providers only build their (layout-specific) keys
+	 * and call this.
 	 *
 	 * @param restoreDates the loaded restore file (may be empty)
 	 * @param fsDate       the date derived from the file-system timestamp
@@ -196,7 +197,9 @@ final class CreationDateSupport {
 				final ZonedDateTime restoreDate = parseRestoreDate(restoreDates.getProperty(key));
 				if (restoreDate != null) {
 					if (fsDate.isAfter(restoreDate)) {
-						LOG.info("Restoring date of " + label + " from " + fsDate + " to " + restoreDate);
+						// Per-item detail at debug level only; the per-phase batch logs the restored-version count
+						// as a summary, so INFO stays uniform (and un-spammy) across the page and attachment phases.
+						LOG.debug("Restoring date of " + label + " from " + fsDate + " to " + restoreDate);
 						return restoreDate;
 					}
 					return fsDate; // restore date present but not newer - keep the (already older) file-system date
