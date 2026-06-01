@@ -33,7 +33,11 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Enumeration;
+import java.util.Locale;
 import java.util.Properties;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 /**
  * Shared helpers for persisting creation/version dates in the page and attachment property files, and for the
@@ -92,7 +96,9 @@ final class CreationDateSupport {
 	}
 
 	/**
-	 * Loads the optional restore file. Returns an empty Properties object if the file is missing or unreadable
+	 * Loads the optional restore file. If the plain {@code .properties} file is not present, falls back to a
+	 * zipped variant ({@code <name>.properties.zip} or {@code <name>.zip}) - the restore file can get large, so
+	 * shipping it zipped is convenient. Returns an empty Properties object if nothing is present or readable
 	 * (callers then simply fall back to the file-system timestamps).
 	 */
 	static Properties loadRestoreDates(final File restoreFile) {
@@ -105,8 +111,54 @@ final class CreationDateSupport {
 			catch (final IOException e) {
 				LOG.error("Unable to read " + restoreFile.getAbsolutePath() + ", ignoring restore dates", e);
 			}
+			return restore;
+		}
+
+		final File parent = restoreFile.getParentFile();
+		final String plainName = restoreFile.getName();
+		for (final File zipFile : new File[]{ new File(parent, plainName + ".zip"), new File(parent, stripExtension(plainName) + ".zip") }) {
+			if (zipFile.exists()) {
+				loadRestoreDatesFromZip(zipFile, plainName, restore);
+				break;
+			}
 		}
 		return restore;
+	}
+
+	/**
+	 * Loads the restore properties from a ZIP file: prefers the entry named like the plain restore file,
+	 * otherwise uses the first {@code *.properties} entry found.
+	 */
+	private static void loadRestoreDatesFromZip(final File zipFile, final String preferredEntryName, final Properties restore) {
+		try (final ZipFile zip = new ZipFile(zipFile)) {
+			ZipEntry entry = zip.getEntry(preferredEntryName);
+			if (entry == null) {
+				final Enumeration<? extends ZipEntry> entries = zip.entries();
+				while (entries.hasMoreElements()) {
+					final ZipEntry candidate = entries.nextElement();
+					if (!candidate.isDirectory() && candidate.getName().toLowerCase(Locale.ROOT).endsWith(".properties")) {
+						entry = candidate;
+						break;
+					}
+				}
+			}
+			if (entry == null) {
+				LOG.error("No .properties entry found in " + zipFile.getAbsolutePath() + ", ignoring restore dates");
+				return;
+			}
+			try (final InputStream in = new BufferedInputStream(zip.getInputStream(entry))) {
+				restore.load(in);
+				LOG.info("Loaded " + restore.size() + " creation date(s) to restore from " + zipFile.getAbsolutePath() + " (entry '" + entry.getName() + "')");
+			}
+		}
+		catch (final IOException e) {
+			LOG.error("Unable to read " + zipFile.getAbsolutePath() + ", ignoring restore dates", e);
+		}
+	}
+
+	private static String stripExtension(final String name) {
+		final int dot = name.lastIndexOf('.');
+		return dot > 0 ? name.substring(0, dot) : name;
 	}
 
 	/**
