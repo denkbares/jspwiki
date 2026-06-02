@@ -52,7 +52,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.Properties;
 
@@ -96,7 +95,28 @@ public class VersioningFileProvider extends AbstractFileProvider {
 	public static final String PROPERTYFILE = "page.properties";
 
 	public static final String VERSIONING_PROPERTIES_FILE = "versioning.properties";
+	/**
+	 * Legacy flag from the earlier migration that only backfilled dates for pages with two or more versions.
+	 * It is still written (for documentation / backwards compatibility), but no longer <em>read</em>:
+	 * {@link #CREATION_DATE_BATCH_DONE} now gates the superseding, all-pages batch. See {@link #lazyWriteDateProperties()}.
+	 */
 	private static final String DATE_PROPERTY_WRITTEN = "date.property.written";
+	/**
+	 * Flag in {@link #VERSIONING_PROPERTIES_FILE} documenting that the creation-date batch has checked
+	 * <em>all</em> pages (including single-version / never-versioned pages). This is a separate flag from
+	 * {@link #DATE_PROPERTY_WRITTEN} on purpose: existing wikis already have {@code DATE_PROPERTY_WRITTEN=true}
+	 * from the earlier (multi-version only) migration, so a new flag is required to re-trigger the extended run.
+	 */
+	private static final String CREATION_DATE_BATCH_DONE = "creation.date.batch.all.pages.checked";
+	/**
+	 * Optional file in the {@link #PAGEDIR OLD} directory mapping a page (key) to a known creation date
+	 * (value). Used to recover creation dates that were lost when the file system timestamps were reset by a
+	 * copy/zip, but are still preserved in a backup. Keys may be the mangled file name (e.g. {@code Main}, as
+	 * used for {@code Main.txt}) or the plain page name. Accepted value formats: ISO date-time (with or without
+	 * offset, "T" or space separated), ISO date only, or epoch milliseconds. See
+	 * {@link #ensureCreationDateProperties(Page, Properties)} for how it is applied.
+	 */
+	public static final String RESTORE_CREATION_DATES_FILE = "restore-creation-dates.properties";
 	private CachedProperties m_cachedProperties;
 
 	/**
@@ -120,43 +140,191 @@ public class VersioningFileProvider extends AbstractFileProvider {
 				throw new IOException("Page version directory is not writable: " + oldpages.getAbsolutePath());
 			}
 		}
+		// Run the creation-date batch synchronously, on purpose. It writes page.properties directly on disk,
+		// bypassing the CachingProvider that sits on top of this provider. Running it here - before
+		// initialize() returns, and thus before the CachingProvider serves (and lazily caches) any page -
+		// guarantees the cache only ever sees the post-batch creation dates. A background thread would let
+		// the cache (e.g. warmed by the search indexer calling getAllPages() at startup) capture stale
+		// file-system-timestamp dates that the batch's direct disk writes cannot invalidate.
+		// The batch is one-time (gated by CREATION_DATE_BATCH_DONE), so this only delays the first startup
+		// after the upgrade; subsequent startups just read the flag and return immediately.
 		try {
 			lazyWriteDateProperties();
 		}
-		catch (Throwable e) {
+		catch (final Throwable e) {
 			// don't prevent wiki from starting for this optional process
 			LOG.error("Unable to write date properties, skipping...", e);
 		}
 		LOG.info("Using directory " + oldpages.getAbsolutePath() + " for storing old versions of pages");
 	}
 
+	/**
+	 * Runs the one-time creation-date batch on startup, unless it has already completed. The gate is
+	 * {@link #CREATION_DATE_BATCH_DONE} - deliberately <em>not</em> the legacy {@link #DATE_PROPERTY_WRITTEN}:
+	 * existing wikis already have the legacy flag set from the earlier multi-version-only migration, so checking
+	 * it would prevent the extended run (which also covers single-version pages) from ever triggering there. With
+	 * its own flag the batch runs exactly once per installation; afterwards this method only reads the flag and
+	 * returns. The flag is persisted only after a complete run, so an aborted run simply retries on next startup.
+	 */
 	private void lazyWriteDateProperties() throws IOException, ProviderException {
 		final Properties oldProps = getVersioningProperties();
-		boolean datesWritten = Boolean.parseBoolean((String) oldProps.getOrDefault(DATE_PROPERTY_WRITTEN, "false"));
-		if (!datesWritten) {
-			writeDateProperties();
+		final boolean batchDone = Boolean.parseBoolean((String) oldProps.getOrDefault(CREATION_DATE_BATCH_DONE, "false"));
+		if (!batchDone) {
+			LOG.info("Creation-date restoration phase 'pages' starting (one-time): persisting creation dates for all pages...");
+			final long start = System.currentTimeMillis();
+			final int[] restored = { 0 };
+			final int updated = writeDateProperties(restored);
+			// Mark the batch as done. CREATION_DATE_BATCH_DONE is the flag we actually check above; the legacy
+			// DATE_PROPERTY_WRITTEN is still set for documentation / backwards compatibility, but no longer read.
 			oldProps.put(DATE_PROPERTY_WRITTEN, "true");
+			oldProps.put(CREATION_DATE_BATCH_DONE, "true");
 			writeOldProperties(oldProps);
+			final long durationMs = System.currentTimeMillis() - start;
+			final long totalMs = CreationDateSupport.recordBatchDuration(durationMs);
+			LOG.info("Creation-date restoration phase 'pages' finished in " + CreationDateSupport.formatDuration(durationMs)
+					+ " (" + durationMs + " ms), updated " + updated + " page(s), " + restored[0] + " version(s) restored from backup"
+					+ ". Total creation-date restoration time this startup: " + CreationDateSupport.formatDuration(totalMs) + ".");
 		}
 	}
 
-	private void writeDateProperties() throws IOException, ProviderException {
-		long start = System.currentTimeMillis();
-		for (Page page : getAllPages()) {
-			List<Page> versionHistory = getVersionHistory(page.getName());
-			if (versionHistory.size() < 2) continue;
-			final Properties pageProps = getPageProperties(page.getName());
-			for (Page pageVersion : versionHistory) {
-				String datePropertyKey = getDatePropertyKey(pageVersion.getVersion());
-				if (pageProps.get(datePropertyKey) == null) {
-					ZonedDateTime date = ZonedDateTime
-							.ofInstant(pageVersion.getLastModified().toInstant(), ZoneId.systemDefault());
-					addVersionDate(date, pageVersion.getVersion(), pageProps);
+	/**
+	 * One-time batch (gated by {@link #CREATION_DATE_BATCH_DONE}) that makes sure every page persists its
+	 * creation date in {@code page.properties}, so the date no longer depends on the file system's
+	 * lastModified timestamp (which is not preserved when files are copied around). The run is idempotent:
+	 * only missing values are written. A failure on a single page is logged and skipped so that one broken
+	 * page cannot block the whole batch (which would otherwise re-scan all pages on every restart, because
+	 * the flag is only set after a complete run).
+	 *
+	 * @return the number of pages whose properties were updated.
+	 */
+	private int writeDateProperties(final int[] restoredCounter) throws ProviderException {
+		final Properties restoreDates = loadRestoreCreationDates();
+		int updated = 0;
+		for (final Page page : getAllPages()) {
+			try {
+				if (ensureCreationDateProperties(page, restoreDates, restoredCounter)) {
+					updated++;
 				}
 			}
-			putPageProperties(page.getName(), pageProps);
+			catch (final Exception e) {
+				LOG.error("Unable to write date properties for page '" + page.getName() + "', skipping...", e);
+			}
 		}
-		LOG.info("Written date properties in " + (System.currentTimeMillis() - start) + "ms");
+		return updated;
+	}
+
+	/**
+	 * Loads the optional {@link #RESTORE_CREATION_DATES_FILE} from the OLD directory. Returns an empty
+	 * Properties object if the file is missing or unreadable (the batch then simply uses file system dates).
+	 */
+	private Properties loadRestoreCreationDates() {
+		return CreationDateSupport.loadRestoreDates(new File(getOldDir(null), RESTORE_CREATION_DATES_FILE));
+	}
+
+	/**
+	 * The restore-file keys for a page version: the mangled file name first, the plain page name as a fallback.
+	 * {@code versionTag} is the version number, or "latest" for the current page file (whose version number is
+	 * not encoded in the file name, so the ZIP tool keys it as {@code <page>#latest}).
+	 */
+	private String[] pageRestoreKeys(final String pageName, final String versionTag) {
+		return new String[]{ mangleName(pageName) + "#" + versionTag, pageName + "#" + versionTag };
+	}
+
+	/**
+	 * Makes sure the {@code page.properties} of the given page persists a creation date for every version.
+	 * For pages that were never versioned (no version keys yet) version 1's date and author are persisted,
+	 * taking the date from the file's current lastModified timestamp and the author from the heritage
+	 * properties written by the {@link FileSystemProvider}.
+	 *
+	 * @return {@code true} if the properties were changed and written, {@code false} otherwise.
+	 */
+	// package-private for unit testing
+	boolean ensureCreationDateProperties(final Page page, final Properties restoreDates) throws IOException, ProviderException {
+		return ensureCreationDateProperties(page, restoreDates, new int[1]);
+	}
+
+	/**
+	 * @param restoredCounter index 0 is incremented for every version whose date was taken from the restore file.
+	 */
+	private boolean ensureCreationDateProperties(final Page page, final Properties restoreDates, final int[] restoredCounter) throws IOException, ProviderException {
+		// Synchronize on the same monitor as putPageText() so this read-modify-write of the page properties
+		// never interleaves with a concurrent edit of the same page. The batch runs during initialize() before
+		// the wiki serves requests, so this is defensive - but it is cheap (uncontended) and keeps the method
+		// correct even if it is ever called concurrently.
+		synchronized (this) {
+			final String pageName = page.getName();
+			final int latest = findLatestVersion(pageName);
+			final Properties props = getPageProperties(pageName);
+			boolean changed = false;
+
+			if (latest <= 0) {
+				// Single-version / legacy page that has never been versioned: there is no page.properties
+				// with version keys yet. Version 1 is the current (top) page file. Persist its date and author.
+				// Persisting 1.author (instead of only 1.date) keeps the file self-contained and takes over the
+				// heritage-author handling that putPageText() would otherwise do on the first edit.
+				if (props.getProperty(getDatePropertyKey(1)) == null) {
+					final ZonedDateTime fsDate = ZonedDateTime.ofInstant(page.getLastModified().toInstant(), ZoneId.systemDefault());
+					final ZonedDateTime date = CreationDateSupport.preferRestoreDate(restoreDates, fsDate,
+							"page '" + pageName + "' version 1", pageRestoreKeys(pageName, "latest"));
+					if (!date.equals(fsDate)) {
+						restoredCounter[0]++;
+					}
+					addVersionDate(date, 1, props);
+					changed = true;
+				}
+				if (props.getProperty(getAuthorPropertyKey(1)) == null) {
+					props.setProperty(getAuthorPropertyKey(1), readHeritageAuthor(pageName));
+					changed = true;
+				}
+			}
+			else {
+				// Versioned page: make sure every version has a date, restoring each from backup if available.
+				for (final Page version : getVersionHistory(pageName)) {
+					final int v = version.getVersion();
+					if (props.getProperty(getDatePropertyKey(v)) == null) {
+						final ZonedDateTime fsDate = ZonedDateTime.ofInstant(version.getLastModified().toInstant(), ZoneId.systemDefault());
+						final String versionTag = (v == latest) ? "latest" : String.valueOf(v);
+						final ZonedDateTime date = CreationDateSupport.preferRestoreDate(restoreDates, fsDate,
+								"page '" + pageName + "' version " + v, pageRestoreKeys(pageName, versionTag));
+						if (!date.equals(fsDate)) {
+							restoredCounter[0]++;
+						}
+						addVersionDate(date, v, props);
+						changed = true;
+					}
+				}
+			}
+
+			if (changed) {
+				// putPageProperties() does not create the OLD/<page> directory, which does not yet exist for
+				// never-versioned pages - so create it here to avoid an IOException.
+				final File oldPageDir = findOldPageDir(pageName);
+				if (!oldPageDir.exists()) {
+					oldPageDir.mkdirs();
+				}
+				putPageProperties(pageName, props);
+			}
+			return changed;
+		}
+	}
+
+	/**
+	 * Reads the author from the top-level heritage properties file written by the {@link FileSystemProvider},
+	 * without touching the CachedProperties cache. Returns "unknown" if no author can be determined.
+	 */
+	private String readHeritageAuthor(final String page) throws IOException {
+		final File heritageFile = new File(getPageDirectory(), mangleName(page) + FileSystemProvider.PROP_EXT);
+		if (heritageFile.exists()) {
+			try (final InputStream in = new BufferedInputStream(Files.newInputStream(heritageFile.toPath()))) {
+				final Properties heritage = new Properties();
+				heritage.load(in);
+				final String author = heritage.getProperty(Page.AUTHOR);
+				if (author != null && !author.isEmpty()) {
+					return author;
+				}
+			}
+		}
+		return "unknown";
 	}
 
 	protected Properties getVersioningProperties() throws IOException {
@@ -577,13 +745,13 @@ public class VersioningFileProvider extends AbstractFileProvider {
 						}
 					}
 				}
-				// fallback
+				// fallback: derive the date read-only, do NOT persist it on read. Persisting properties
+				// while reading is a concurrency hazard, and the creation-date batch (lazyWriteDateProperties)
+				// now persists 1.date for all pages anyway.
 				else if (realVersion == 1) {
 					ZonedDateTime dateFromPropertiesComment = extractDateFromPropertiesFileComment(page);
 					if (dateFromPropertiesComment != null) {
 						p.setLastModified(Date.from(dateFromPropertiesComment.toInstant()));
-						addVersionDate(dateFromPropertiesComment, realVersion, props);
-						putPageProperties(page, props);
 					}
 				}
 
