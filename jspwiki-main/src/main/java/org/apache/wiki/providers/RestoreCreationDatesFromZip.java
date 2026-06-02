@@ -24,10 +24,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.attribute.FileTime;
-import java.time.Instant;
-import java.time.OffsetDateTime;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Enumeration;
@@ -66,8 +62,6 @@ import java.util.zip.ZipFile;
  * Usage: {@code java -cp <jspwiki.jar> org.apache.wiki.providers.RestoreCreationDatesFromZip <backup.zip> [output.properties]}
  */
 public final class RestoreCreationDatesFromZip {
-
-	private static final DateTimeFormatter VALUE_FORMAT = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
 
 	private RestoreCreationDatesFromZip() {
 	}
@@ -247,7 +241,7 @@ public final class RestoreCreationDatesFromZip {
 	}
 
 	static String formatDate(final long epochMillis) {
-		return OffsetDateTime.ofInstant(Instant.ofEpochMilli(epochMillis), ZoneId.systemDefault()).format(VALUE_FORMAT);
+		return DateSupport.formatRestoreValue(epochMillis);
 	}
 
 	private static void writeProperties(final File outputFile, final SortedMap<String, String> entries, final File zipFile, final String pageDir) throws IOException {

@@ -44,10 +44,8 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.DateTimeException;
-import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
@@ -180,10 +178,10 @@ public class VersioningFileProvider extends AbstractFileProvider {
 			oldProps.put(CREATION_DATE_BATCH_DONE, "true");
 			writeOldProperties(oldProps);
 			final long durationMs = System.currentTimeMillis() - start;
-			final long totalMs = CreationDateSupport.recordBatchDuration(durationMs);
-			LOG.info("Creation-date restoration phase 'pages' finished in " + CreationDateSupport.formatDuration(durationMs)
+			final long totalMs = DateSupport.recordBatchDuration(durationMs);
+			LOG.info("Creation-date restoration phase 'pages' finished in " + DateSupport.formatDuration(durationMs)
 					+ " (" + durationMs + " ms), updated " + updated + " page(s), " + restored[0] + " version(s) restored from backup"
-					+ ". Total creation-date restoration time this startup: " + CreationDateSupport.formatDuration(totalMs) + ".");
+					+ ". Total creation-date restoration time this startup: " + DateSupport.formatDuration(totalMs) + ".");
 		}
 	}
 
@@ -218,7 +216,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
 	 * Properties object if the file is missing or unreadable (the batch then simply uses file system dates).
 	 */
 	private Properties loadRestoreCreationDates() {
-		return CreationDateSupport.loadRestoreDates(new File(getOldDir(null), RESTORE_CREATION_DATES_FILE));
+		return DateSupport.loadRestoreDates(new File(getOldDir(null), RESTORE_CREATION_DATES_FILE));
 	}
 
 	/**
@@ -264,7 +262,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
 				// heritage-author handling that putPageText() would otherwise do on the first edit.
 				if (props.getProperty(getDatePropertyKey(1)) == null) {
 					final ZonedDateTime fsDate = ZonedDateTime.ofInstant(page.getLastModified().toInstant(), ZoneId.systemDefault());
-					final ZonedDateTime date = CreationDateSupport.preferRestoreDate(restoreDates, fsDate,
+					final ZonedDateTime date = DateSupport.preferRestoreDate(restoreDates, fsDate,
 							"page '" + pageName + "' version 1", pageRestoreKeys(pageName, "latest"));
 					if (!date.equals(fsDate)) {
 						restoredCounter[0]++;
@@ -284,7 +282,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
 					if (props.getProperty(getDatePropertyKey(v)) == null) {
 						final ZonedDateTime fsDate = ZonedDateTime.ofInstant(version.getLastModified().toInstant(), ZoneId.systemDefault());
 						final String versionTag = (v == latest) ? "latest" : String.valueOf(v);
-						final ZonedDateTime date = CreationDateSupport.preferRestoreDate(restoreDates, fsDate,
+						final ZonedDateTime date = DateSupport.preferRestoreDate(restoreDates, fsDate,
 								"page '" + pageName + "' version " + v, pageRestoreKeys(pageName, versionTag));
 						if (!date.equals(fsDate)) {
 							restoredCounter[0]++;
@@ -660,7 +658,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
 	}
 
 	private void addVersionDate(ZonedDateTime date, int versionNumber, Properties props) {
-		props.put(getDatePropertyKey(versionNumber), date.format(DateTimeFormatter.ISO_DATE_TIME));
+		props.put(getDatePropertyKey(versionNumber), DateSupport.formatVersionDate(date));
 	}
 
 	private String getAuthorPropertyKey(int versionNumber) {
@@ -731,7 +729,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
 				String dateString = props.getProperty(getDatePropertyKey(realVersion));
 				if (dateString != null) {
 					try {
-						Date date = Date.from(Instant.from(DateTimeFormatter.ISO_DATE_TIME.parse(dateString)));
+						Date date = Date.from(DateSupport.parseVersionDate(dateString).toInstant());
 						p.setLastModified(date);
 					}
 					catch (DateTimeException e) {
@@ -767,7 +765,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
 	}
 
 	private ZonedDateTime extractDateFromPropertiesFileComment(String page) {
-		return FileSystemProviderUtils.extractDateFromPropertiesFileComment(getPropertiesFile(page));
+		return DateSupport.extractDateFromPropertiesFileComment(getPropertiesFile(page));
 	}
 
 	private String getChangeNotePropertyKey(int realVersion) {

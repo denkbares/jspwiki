@@ -46,8 +46,6 @@ import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
@@ -371,7 +369,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 	}
 
 	private void addVersionDate(ZonedDateTime date, int versionNumber, Properties props) {
-		props.put(dateKey(versionNumber), date.format(DateTimeFormatter.ISO_DATE_TIME));
+		props.put(dateKey(versionNumber), DateSupport.formatVersionDate(date));
 	}
 
 	private String dateKey(int versionPropertyPrefix) {
@@ -421,7 +419,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 
 		LOG.info("Creation-date restoration phase 'attachments' starting (one-time): persisting creation dates for all attachments...");
 		final long start = System.currentTimeMillis();
-		final Properties restoreDates = CreationDateSupport.loadRestoreDates(new File(metaDir, VersioningFileProvider.RESTORE_CREATION_DATES_FILE));
+		final Properties restoreDates = DateSupport.loadRestoreDates(new File(metaDir, VersioningFileProvider.RESTORE_CREATION_DATES_FILE));
 		final int[] restored = { 0 };
 		final int updated = writeAttachmentDateProperties(restoreDates, restored);
 
@@ -434,10 +432,10 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 		}
 
 		final long durationMs = System.currentTimeMillis() - start;
-		final long totalMs = CreationDateSupport.recordBatchDuration(durationMs);
-		LOG.info("Creation-date restoration phase 'attachments' finished in " + CreationDateSupport.formatDuration(durationMs)
+		final long totalMs = DateSupport.recordBatchDuration(durationMs);
+		LOG.info("Creation-date restoration phase 'attachments' finished in " + DateSupport.formatDuration(durationMs)
 				+ " (" + durationMs + " ms), updated " + updated + " attachment(s), " + restored[0] + " version(s) restored from backup"
-				+ ". Total creation-date restoration time this startup: " + CreationDateSupport.formatDuration(totalMs) + ".");
+				+ ". Total creation-date restoration time this startup: " + DateSupport.formatDuration(totalMs) + ".");
 	}
 
 	/**
@@ -505,12 +503,12 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 					continue;
 				}
 				final ZonedDateTime fsDate = ZonedDateTime.ofInstant(Instant.ofEpochMilli(versionFile.lastModified()), ZoneId.systemDefault());
-				final ZonedDateTime date = CreationDateSupport.preferRestoreDate(restoreDates, fsDate,
+				final ZonedDateTime date = DateSupport.preferRestoreDate(restoreDates, fsDate,
 						"attachment '" + restoreKey + "' version " + version, restoreKey + "#" + version);
 				if (!date.equals(fsDate)) {
 					restoredCounter[0]++;
 				}
-				props.setProperty(dateKey(version), CreationDateSupport.formatVersionDate(date));
+				props.setProperty(dateKey(version), DateSupport.formatVersionDate(date));
 				changed = true;
 			}
 
@@ -757,15 +755,14 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 		String dateString = props.getProperty(dateKey(att.getVersion()));
 		if (dateString != null) {
 			try {
-				TemporalAccessor parse = DateTimeFormatter.ISO_DATE_TIME.parse(dateString);
-				return Date.from(Instant.from(parse));
+				return Date.from(DateSupport.parseVersionDate(dateString).toInstant());
 			}
 			catch (DateTimeException e) {
 				LOG.error("Cannot parse last modified date of page {}", att.getName(), e);
 			}
 		}
 		File propertiesFile = getPropertiesFile(att);
-		ZonedDateTime dateFromPropertiesComment = FileSystemProviderUtils.extractDateFromPropertiesFileComment(propertiesFile);
+		ZonedDateTime dateFromPropertiesComment = DateSupport.extractDateFromPropertiesFileComment(propertiesFile);
 		if (dateFromPropertiesComment != null) {
 			return Date.from(dateFromPropertiesComment.toInstant());
 		}

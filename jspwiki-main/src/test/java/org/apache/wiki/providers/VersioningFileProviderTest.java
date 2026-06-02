@@ -565,30 +565,30 @@ public class VersioningFileProviderTest {
     public void testParseRestoreDateFormats() {
         // epoch milliseconds
         Assertions.assertEquals( Instant.ofEpochMilli( 1523518260000L ),
-                CreationDateSupport.parseRestoreDate( "1523518260000" ).toInstant(), "epoch millis" );
+                DateSupport.parseRestoreDate( "1523518260000" ).toInstant(), "epoch millis" );
 
         // ISO date-time with offset
         Assertions.assertEquals( Instant.parse( "2018-04-12T07:31:00Z" ),
-                CreationDateSupport.parseRestoreDate( "2018-04-12T09:31:00+02:00" ).toInstant(), "ISO offset" );
+                DateSupport.parseRestoreDate( "2018-04-12T09:31:00+02:00" ).toInstant(), "ISO offset" );
 
         // ISO local date-time (system zone), "T" separated
         Assertions.assertEquals( asDate( "2018-04-12T09:31:00" ).toInstant(),
-                CreationDateSupport.parseRestoreDate( "2018-04-12T09:31:00" ).toInstant(), "ISO local with T" );
+                DateSupport.parseRestoreDate( "2018-04-12T09:31:00" ).toInstant(), "ISO local with T" );
 
         // ISO local date-time (system zone), space separated
         Assertions.assertEquals( asDate( "2018-04-12T09:31:00" ).toInstant(),
-                CreationDateSupport.parseRestoreDate( "2018-04-12 09:31:00" ).toInstant(), "ISO local with space" );
+                DateSupport.parseRestoreDate( "2018-04-12 09:31:00" ).toInstant(), "ISO local with space" );
 
         // date only (start of day, system zone)
         Assertions.assertEquals( LocalDate.parse( "2018-04-12" ).atStartOfDay( ZoneId.systemDefault() ).toInstant(),
-                CreationDateSupport.parseRestoreDate( "2018-04-12" ).toInstant(), "date only" );
+                DateSupport.parseRestoreDate( "2018-04-12" ).toInstant(), "date only" );
     }
 
     @Test
     public void testParseRestoreDateInvalidReturnsNull() {
-        Assertions.assertNull( CreationDateSupport.parseRestoreDate( "not-a-date" ) );
-        Assertions.assertNull( CreationDateSupport.parseRestoreDate( "" ) );
-        Assertions.assertNull( CreationDateSupport.parseRestoreDate( null ) );
+        Assertions.assertNull( DateSupport.parseRestoreDate( "not-a-date" ) );
+        Assertions.assertNull( DateSupport.parseRestoreDate( "" ) );
+        Assertions.assertNull( DateSupport.parseRestoreDate( null ) );
     }
 
     @Test

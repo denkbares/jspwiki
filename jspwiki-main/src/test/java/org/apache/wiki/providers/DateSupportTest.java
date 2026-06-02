@@ -27,11 +27,15 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.time.DateTimeException;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.Properties;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-public class CreationDateSupportTest {
+public class DateSupportTest {
 
 	@TempDir
 	File tempDir;
@@ -44,7 +48,7 @@ public class CreationDateSupportTest {
 		final File plain = new File(tempDir, RESTORE_FILE);
 		Files.write(plain.toPath(), CONTENT.getBytes(StandardCharsets.ISO_8859_1));
 
-		final Properties props = CreationDateSupport.loadRestoreDates(plain);
+		final Properties props = DateSupport.loadRestoreDates(plain);
 		Assertions.assertEquals("2018-04-12T09:31:00+02:00", props.getProperty("Main#latest"));
 	}
 
@@ -53,7 +57,7 @@ public class CreationDateSupportTest {
 		// only "restore-creation-dates.properties.zip" present, no plain file
 		writeZip(new File(tempDir, RESTORE_FILE + ".zip"), RESTORE_FILE);
 
-		final Properties props = CreationDateSupport.loadRestoreDates(new File(tempDir, RESTORE_FILE));
+		final Properties props = DateSupport.loadRestoreDates(new File(tempDir, RESTORE_FILE));
 		Assertions.assertEquals("2018-04-12T09:31:00+02:00", props.getProperty("Main#latest"));
 	}
 
@@ -62,7 +66,7 @@ public class CreationDateSupportTest {
 		// "restore-creation-dates.zip" with a differently named inner entry -> first *.properties entry is used
 		writeZip(new File(tempDir, "restore-creation-dates.zip"), "whatever-the-admin-called-it.properties");
 
-		final Properties props = CreationDateSupport.loadRestoreDates(new File(tempDir, RESTORE_FILE));
+		final Properties props = DateSupport.loadRestoreDates(new File(tempDir, RESTORE_FILE));
 		Assertions.assertEquals("2018-04-12T09:31:00+02:00", props.getProperty("Main#latest"));
 	}
 
@@ -72,13 +76,43 @@ public class CreationDateSupportTest {
 		Files.write(plain.toPath(), "Main#latest=2000-01-01T00:00:00+00:00\n".getBytes(StandardCharsets.ISO_8859_1));
 		writeZip(new File(tempDir, RESTORE_FILE + ".zip"), RESTORE_FILE);
 
-		final Properties props = CreationDateSupport.loadRestoreDates(plain);
+		final Properties props = DateSupport.loadRestoreDates(plain);
 		Assertions.assertEquals("2000-01-01T00:00:00+00:00", props.getProperty("Main#latest"), "plain file must win over zip");
 	}
 
 	@Test
 	public void testMissingReturnsEmpty() {
-		Assertions.assertTrue(CreationDateSupport.loadRestoreDates(new File(tempDir, RESTORE_FILE)).isEmpty());
+		Assertions.assertTrue(DateSupport.loadRestoreDates(new File(tempDir, RESTORE_FILE)).isEmpty());
+	}
+
+	@Test
+	public void testFormatParseVersionDateRoundTrip() {
+		final ZonedDateTime date = ZonedDateTime.of(2018, 4, 12, 9, 31, 0, 0, ZoneOffset.ofHours(2));
+		final String formatted = DateSupport.formatVersionDate(date);
+		Assertions.assertEquals(date.toInstant(), DateSupport.parseVersionDate(formatted).toInstant(),
+				"parseVersionDate must be the inverse of formatVersionDate");
+	}
+
+	@Test
+	public void testParseVersionDateThrowsOnGarbage() {
+		Assertions.assertThrows(DateTimeException.class, () -> DateSupport.parseVersionDate("not-a-date"));
+	}
+
+	@Test
+	public void testExtractDateFromPropertiesFileComment() throws IOException {
+		// Mimics what java.util.Properties.store() writes: a header comment on line 1 and the timestamp on line 2.
+		final File props = new File(tempDir, "page.properties");
+		Files.write(props.toPath(),
+				"#JSPWiki page properties\n#Thu Apr 12 09:31:00 GMT 2018\n1.author=foo\n".getBytes(StandardCharsets.ISO_8859_1));
+
+		final ZonedDateTime date = DateSupport.extractDateFromPropertiesFileComment(props);
+		Assertions.assertNotNull(date, "should parse the 2nd-line comment timestamp");
+		Assertions.assertEquals(Instant.parse("2018-04-12T09:31:00Z"), date.toInstant());
+	}
+
+	@Test
+	public void testExtractDateFromMissingFileReturnsNull() {
+		Assertions.assertNull(DateSupport.extractDateFromPropertiesFileComment(new File(tempDir, "absent.properties")));
 	}
 
 	private void writeZip(final File zipFile, final String entryName) throws IOException {
