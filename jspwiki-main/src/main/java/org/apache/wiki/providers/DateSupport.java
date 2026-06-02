@@ -18,38 +18,75 @@
  */
 package org.apache.wiki.providers;
 
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedInputStream;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Enumeration;
 import java.util.Locale;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * Shared helpers for persisting creation/version dates in the page and attachment property files, and for the
- * optional {@code restore-creation-dates.properties} recovery mechanism. Used by both
- * {@link VersioningFileProvider} (pages) and {@link BasicAttachmentProvider} (attachments) so the stored date
- * format, the restore-date parsing and the logging stay consistent across both.
+ * The single home for date formatting/parsing used by the file-system providers: the stored version/creation
+ * date format (ISO date-time), the optional {@code restore-creation-dates.properties} value format and lenient
+ * parsing, the legacy {@code .properties}-comment timestamp recovery, plus the restore policy and one-time
+ * batch-duration bookkeeping. Used by {@link VersioningFileProvider} (pages), {@link BasicAttachmentProvider}
+ * (attachments) and the {@link RestoreCreationDatesFromZip} tool so all of them keep one consistent set of date
+ * formats and parsing rules.
  */
-final class CreationDateSupport {
+final class DateSupport {
 
-	private static final Logger LOG = LoggerFactory.getLogger(CreationDateSupport.class);
+	private static final Logger LOG = LoggerFactory.getLogger(DateSupport.class);
 
-	private CreationDateSupport() {
+	/**
+	 * Cumulative wall-clock time of the creation-date batch phases (pages, attachments) that have run in this JVM.
+	 * The phases live in separate providers and run once each on startup; the last phase to finish logs the grand
+	 * total. The batches are flag-gated, so this is written at most once per phase per installation.
+	 */
+	private static final AtomicLong CUMULATIVE_BATCH_MILLIS = new AtomicLong(0L);
+
+	/**
+	 * Format of the values in {@code restore-creation-dates.properties} as written by the
+	 * {@link RestoreCreationDatesFromZip} tool. {@link #parseRestoreDate} reads this (among other accepted formats).
+	 */
+	private static final DateTimeFormatter RESTORE_VALUE_FORMAT = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
+
+	/**
+	 * Format of the auto-generated comment timestamp that {@link java.util.Properties#store} writes on the second
+	 * line of a {@code .properties} file (i.e. {@link java.util.Date#toString()}); English locale first, German as
+	 * a fallback for files written under a German default locale.
+	 */
+	private static final DateTimeFormatter PROPERTIES_COMMENT_DATE_FORMAT = DateTimeFormatter.ofPattern("EEE MMM dd HH:mm:ss zzz yyyy", Locale.ENGLISH);
+	private static final DateTimeFormatter PROPERTIES_COMMENT_DATE_FORMAT_DE = PROPERTIES_COMMENT_DATE_FORMAT.withLocale(Locale.GERMAN);
+
+	private DateSupport() {
+	}
+
+	/**
+	 * Records a finished creation-date batch phase and returns the cumulative time across all phases run so far in
+	 * this JVM (so the phase that finishes last reports the total duration).
+	 */
+	static long recordBatchDuration(final long millis) {
+		return CUMULATIVE_BATCH_MILLIS.addAndGet(millis);
 	}
 
 	/**
@@ -57,6 +94,25 @@ final class CreationDateSupport {
 	 */
 	static String formatVersionDate(final ZonedDateTime date) {
 		return date.format(DateTimeFormatter.ISO_DATE_TIME);
+	}
+
+	/**
+	 * Parses a stored version/creation date previously written by {@link #formatVersionDate} (ISO date-time) -
+	 * the inverse of that method, so the canonical stored format lives in exactly one place. Throws
+	 * {@link java.time.DateTimeException} on an unparseable value (callers rely on this to fall back to other
+	 * date sources), so it deliberately does <em>not</em> return {@code null}.
+	 */
+	static ZonedDateTime parseVersionDate(final String value) {
+		return ZonedDateTime.from(DateTimeFormatter.ISO_DATE_TIME.parse(value));
+	}
+
+	/**
+	 * Formats an epoch-millisecond timestamp as a {@code restore-creation-dates.properties} value (ISO date-time
+	 * with offset). This is the producer counterpart of {@link #parseRestoreDate}; used by
+	 * {@link RestoreCreationDatesFromZip} so the file's producer and consumer share one format definition.
+	 */
+	static String formatRestoreValue(final long epochMillis) {
+		return OffsetDateTime.ofInstant(Instant.ofEpochMilli(epochMillis), ZoneId.systemDefault()).format(RESTORE_VALUE_FORMAT);
 	}
 
 	/**
@@ -208,5 +264,31 @@ final class CreationDateSupport {
 			return minutes + "m " + seconds + "s";
 		}
 		return seconds + "s";
+	}
+
+	/**
+	 * Read-only legacy fallback: recovers a date from the auto-generated comment timestamp on the second line of
+	 * a {@code .properties} file (written by {@link java.util.Properties#store}), used when a page/attachment has
+	 * no parseable stored date property. Returns {@code null} if the file is absent, unreadable or unparseable.
+	 */
+	static @Nullable ZonedDateTime extractDateFromPropertiesFileComment(final File propertiesFile) {
+		if (!propertiesFile.exists()) return null;
+		try (BufferedReader reader = new BufferedReader(new FileReader(propertiesFile, StandardCharsets.UTF_8))) {
+			reader.readLine();  // skip the first line
+			String dateLine = reader.readLine();  // read the second line
+			if (dateLine != null) {
+				String cleaned = dateLine.replace("#", "").trim();
+				try {
+					return ZonedDateTime.parse(cleaned, PROPERTIES_COMMENT_DATE_FORMAT);
+				}
+				catch (Exception e) {
+					return ZonedDateTime.parse(cleaned, PROPERTIES_COMMENT_DATE_FORMAT_DE);
+				}
+			}
+		}
+		catch (Exception e) {
+			LOG.error("Cannot read last modified from properties file");
+		}
+		return null;
 	}
 }
