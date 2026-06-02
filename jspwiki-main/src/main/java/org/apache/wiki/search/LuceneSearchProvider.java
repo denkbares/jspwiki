@@ -48,6 +48,7 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.IndexWriterConfig.OpenMode;
+import org.apache.lucene.index.StoredFields;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
 import org.apache.lucene.queryparser.classic.ParseException;
@@ -495,9 +496,11 @@ public class LuceneSearchProvider implements SearchProvider {
             final AuthorizationManager mgr = m_engine.getManager( AuthorizationManager.class );
 
             list = new ArrayList<>( hits.length );
+            // lucene-10: IndexSearcher.doc(int) removed -> obtain a StoredFields accessor once and reuse
+            final StoredFields storedFields = searcher.storedFields();
             for( final ScoreDoc hit : hits ) {
                 final int docID = hit.doc;
-                final Document doc = searcher.doc( docID );
+                final Document doc = storedFields.document( docID );
                 final String pageName = doc.get( LUCENE_ID );
                 final Page page = m_engine.getManager( PageManager.class ).getPage( pageName, PageProvider.LATEST_VERSION );
 
