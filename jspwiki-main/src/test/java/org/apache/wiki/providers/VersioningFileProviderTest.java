@@ -601,11 +601,11 @@ public class VersioningFileProviderTest {
         wikiPage.setLastModified( asDate( "2020-01-01T00:00:00" ) );
 
         final Properties restore = new Properties();
-        restore.setProperty( provider.mangleName( page ) + "#latest", "2018-04-12T09:31:00" );
+        restore.setProperty( provider.mangleName( wikiPage.getName() ) + "#latest", "2018-04-12T09:31:00" );
 
         Assertions.assertTrue( provider.ensureCreationDateProperties( wikiPage, restore ), "properties should be written" );
 
-        final Instant persisted = toInstant( readPageProperties( provider, page ).getProperty( "1.date" ) );
+        final Instant persisted = toInstant( readPageProperties( provider, wikiPage.getName() ).getProperty( "1.date" ) );
         Assertions.assertEquals( asDate( "2018-04-12T09:31:00" ).toInstant(), persisted,
                 "older restored date should win over the newer file system timestamp" );
     }
@@ -618,13 +618,13 @@ public class VersioningFileProviderTest {
         final WikiPage wikiPage = new WikiPage( (Engine) engine, page );
         wikiPage.setLastModified( asDate( "2020-01-01T00:00:00" ) );
 
-        // key stored under the plain page name (not the mangled file name)
+        // key stored under the plain (un-mangled) page name, not the mangled file name
         final Properties restore = new Properties();
-        restore.setProperty( page + "#latest", "2017-05-06T07:08:09" );
+        restore.setProperty( wikiPage.getName() + "#latest", "2017-05-06T07:08:09" );
 
         provider.ensureCreationDateProperties( wikiPage, restore );
 
-        final Instant persisted = toInstant( readPageProperties( provider, page ).getProperty( "1.date" ) );
+        final Instant persisted = toInstant( readPageProperties( provider, wikiPage.getName() ).getProperty( "1.date" ) );
         Assertions.assertEquals( asDate( "2017-05-06T07:08:09" ).toInstant(), persisted,
                 "restore date should also be found under the plain page name key" );
     }
@@ -640,11 +640,11 @@ public class VersioningFileProviderTest {
         wikiPage.setLastModified( fsDate );
 
         final Properties restore = new Properties();
-        restore.setProperty( provider.mangleName( page ) + "#latest", "2020-06-15T10:00:00" );
+        restore.setProperty( provider.mangleName( wikiPage.getName() ) + "#latest", "2020-06-15T10:00:00" );
 
         provider.ensureCreationDateProperties( wikiPage, restore );
 
-        final Instant persisted = toInstant( readPageProperties( provider, page ).getProperty( "1.date" ) );
+        final Instant persisted = toInstant( readPageProperties( provider, wikiPage.getName() ).getProperty( "1.date" ) );
         Assertions.assertEquals( fsDate.toInstant(), persisted,
                 "file system date must be kept when it is older than the restore date" );
     }
@@ -661,7 +661,7 @@ public class VersioningFileProviderTest {
         Assertions.assertTrue( provider.ensureCreationDateProperties( wikiPage, new Properties() ),
                 "creation date must be persisted even without a restore file" );
 
-        final Properties persisted = readPageProperties( provider, page );
+        final Properties persisted = readPageProperties( provider, wikiPage.getName() );
         Assertions.assertEquals( fsDate.toInstant(), toInstant( persisted.getProperty( "1.date" ) ),
                 "file system date should be used when no restore entry exists" );
         Assertions.assertEquals( "unknown", persisted.getProperty( "1.author" ),
@@ -673,18 +673,18 @@ public class VersioningFileProviderTest {
         final VersioningFileProvider provider = standaloneProvider();
         final String page = "HeritageAuthor";
 
-        // simulate a heritage properties file written by the FileSystemProvider
-        final File heritage = new File( creationDateTempDir, provider.mangleName( page ) + FileSystemProvider.PROP_EXT );
+        final WikiPage wikiPage = new WikiPage( (Engine) engine, page );
+        wikiPage.setLastModified( asDate( "2016-03-03T03:03:03" ) );
+
+        // simulate a heritage properties file written by the FileSystemProvider (keyed by the resolved page name)
+        final File heritage = new File( creationDateTempDir, provider.mangleName( wikiPage.getName() ) + FileSystemProvider.PROP_EXT );
         try( final Writer out = new FileWriter( heritage ) ) {
             out.write( "author=brian\n" );
         }
 
-        final WikiPage wikiPage = new WikiPage( (Engine) engine, page );
-        wikiPage.setLastModified( asDate( "2016-03-03T03:03:03" ) );
-
         provider.ensureCreationDateProperties( wikiPage, new Properties() );
 
-        Assertions.assertEquals( "brian", readPageProperties( provider, page ).getProperty( "1.author" ),
+        Assertions.assertEquals( "brian", readPageProperties( provider, wikiPage.getName() ).getProperty( "1.author" ),
                 "version 1 author should be taken from the heritage properties" );
     }
 
