@@ -311,7 +311,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
 	 * without touching the CachedProperties cache. Returns "unknown" if no author can be determined.
 	 */
 	private String readHeritageAuthor(final String page) throws IOException {
-		final File heritageFile = new File(getPageDirectory(), mangleName(page) + FileSystemProvider.PROP_EXT);
+		final File heritageFile = heritagePropertiesFile(page);
 		if (heritageFile.exists()) {
 			try (final InputStream in = new BufferedInputStream(Files.newInputStream(heritageFile.toPath()))) {
 				final Properties heritage = new Properties();
@@ -323,6 +323,15 @@ public class VersioningFileProvider extends AbstractFileProvider {
 			}
 		}
 		return "unknown";
+	}
+
+	/**
+	 * The top-level heritage {@code .properties} file (written by the {@link FileSystemProvider}) for the given
+	 * page. Base layout: {@code <pageDir>/<mangledPage>.properties}. Overridden for multi-wiki, where the file
+	 * lives in the page's sub-wiki folder under the <em>local</em> page name (mirroring the multi-wiki write path).
+	 */
+	protected File heritagePropertiesFile(final String page) {
+		return new File(getPageDirectory(), mangleName(page) + FileSystemProvider.PROP_EXT);
 	}
 
 	protected Properties getVersioningProperties() throws IOException {
