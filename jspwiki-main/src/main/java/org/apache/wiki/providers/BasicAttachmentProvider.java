@@ -164,14 +164,28 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 		// Persist creation dates for all attachments, synchronously and before the CachingAttachmentProvider on
 		// top of us serves (and caches) anything - same reasoning as for pages in VersioningFileProvider: the
 		// batch writes attachment.properties directly on disk, which the cache could not pick up afterwards.
-		// One-time and gated by a flag, so this only delays the first startup after the upgrade.
-		try {
-			lazyWriteAttachmentDateProperties();
+		// One-time and gated by a flag, so this only delays the first startup after the upgrade. Subclasses that
+		// manage their own versioning (e.g. a git-backed provider) disable it via isCreationDateBatchEnabled().
+		if (isCreationDateBatchEnabled()) {
+			try {
+				lazyWriteAttachmentDateProperties();
+			}
+			catch (final Throwable e) {
+				// don't prevent wiki from starting for this optional process
+				LOG.error("Unable to write attachment date properties, skipping...", e);
+			}
 		}
-		catch (final Throwable e) {
-			// don't prevent wiki from starting for this optional process
-			LOG.error("Unable to write attachment date properties, skipping...", e);
-		}
+	}
+
+	/**
+	 * Whether the one-time creation-date batch ({@link #lazyWriteAttachmentDateProperties()}) should run on
+	 * startup. The batch writes into the {@code OLD} metadata directory, which only makes sense for the plain
+	 * file-system layout. Subclasses backed by their own versioning (e.g. a git-versioning attachment provider)
+	 * override this to return {@code false} so they neither run the batch nor create the
+	 * {@code OLD/versioning.properties} marker (which would otherwise show up as an untracked change).
+	 */
+	protected boolean isCreationDateBatchEnabled() {
+		return true;
 	}
 
 	/**
