@@ -18,6 +18,7 @@
  */
 package org.apache.wiki.providers;
 
+import org.apache.commons.io.FileUtils;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
@@ -621,8 +622,12 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 						final File[] files = f.listFiles();
 						if (files == null || files.length == 0 || (files.length == 1 && PROPERTY_FILE.equals(files[0].getName()))) {
 							// can happen with git synced wiki contents, just clean up
-							LOG.warn("Cleaning up empty attachment folder: " + f.getPath());
-							f.delete();
+							LOG.warn("Cleaning up empty attachment folder: {}", f.getPath());
+							try {
+								FileUtils.deleteDirectory(f);
+							} catch (IOException e) {
+								LOG.error("Failed to delete attachment directory: {}", f.getPath(), e);
+							}
 							continue;
 						}
 						String attachmentName = unmangleName(attachment);
