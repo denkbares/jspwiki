@@ -18,6 +18,7 @@
  */
 package org.apache.wiki.providers;
 
+import org.apache.commons.io.FileUtils;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
@@ -34,6 +35,7 @@ import org.apache.wiki.pages.PageTimeComparator;
 import org.apache.wiki.util.FileUtil;
 import org.apache.wiki.util.TextUtil;
 
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FilenameFilter;
@@ -43,9 +45,8 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.time.DateTimeException;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
@@ -117,6 +118,13 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 	 */
 	public static final String ATTDIR_EXTENSION = "-dir";
 
+	/**
+	 * Flag, stored in the shared {@link VersioningFileProvider#VERSIONING_PROPERTIES_FILE versioning.properties}
+	 * file, that documents that the one-time attachment creation-date batch has run for all attachments. It uses a
+	 * key distinct from the page batch flag so both can live side by side in that single file.
+	 */
+	private static final String ATTACHMENT_CREATION_DATE_BATCH_DONE = "creation.date.batch.all.attachments.checked";
+
 	private static final Logger LOG = LoggerFactory.getLogger(BasicAttachmentProvider.class);
 
 	protected final ReentrantReadWriteLock attachmentLock = new ReentrantReadWriteLock();
@@ -153,6 +161,32 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 		if (!f.isDirectory()) {
 			throw new IOException("Your attachment storage points to a file, not a directory: '" + m_storageDir + "'");
 		}
+
+		// Persist creation dates for all attachments, synchronously and before the CachingAttachmentProvider on
+		// top of us serves (and caches) anything - same reasoning as for pages in VersioningFileProvider: the
+		// batch writes attachment.properties directly on disk, which the cache could not pick up afterwards.
+		// One-time and gated by a flag, so this only delays the first startup after the upgrade. Subclasses that
+		// manage their own versioning (e.g. a git-backed provider) disable it via isCreationDateBatchEnabled().
+		if (isCreationDateBatchEnabled()) {
+			try {
+				lazyWriteAttachmentDateProperties();
+			}
+			catch (final Throwable e) {
+				// don't prevent wiki from starting for this optional process
+				LOG.error("Unable to write attachment date properties, skipping...", e);
+			}
+		}
+	}
+
+	/**
+	 * Whether the one-time creation-date batch ({@link #lazyWriteAttachmentDateProperties()}) should run on
+	 * startup. The batch writes into the {@code OLD} metadata directory, which only makes sense for the plain
+	 * file-system layout. Subclasses backed by their own versioning (e.g. a git-versioning attachment provider)
+	 * override this to return {@code false} so they neither run the batch nor create the
+	 * {@code OLD/versioning.properties} marker (which would otherwise show up as an untracked change).
+	 */
+	protected boolean isCreationDateBatchEnabled() {
+		return true;
 	}
 
 	/**
@@ -319,8 +353,8 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 			String extension = pages == null || pages.length == 0 ? getFileExtension(att.getFileName()) : getFileExtension(pages[pages.length - 1]);
 			final File newfile = new File(attDir, versionNumber + "." + extension);
 			try (final OutputStream out = Files.newOutputStream(newfile.toPath())) {
-				LOG.info("Uploading attachment " + att.getFileName() + " to page " + att.getParentName());
-				LOG.info("Saving attachment contents to " + newfile.getAbsolutePath());
+				LOG.debug("Uploading attachment " + att.getFileName() + " to page " + att.getParentName());
+				LOG.debug("Saving attachment contents to " + newfile.getAbsolutePath());
 				FileUtil.copyContents(data, out);
 
 				final Properties props = getPageProperties(att);
@@ -350,7 +384,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 	}
 
 	private void addVersionDate(ZonedDateTime date, int versionNumber, Properties props) {
-		props.put(dateKey(versionNumber), date.format(DateTimeFormatter.ISO_DATE_TIME));
+		props.put(dateKey(versionNumber), DateSupport.formatVersionDate(date));
 	}
 
 	private String dateKey(int versionPropertyPrefix) {
@@ -359,6 +393,161 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 
 	private String authorKey(int versionNumber) {
 		return versionNumber + ".author";
+	}
+
+	/**
+	 * The metadata directory shared with the {@link VersioningFileProvider}: the {@code OLD} directory under the
+	 * storage root. The shared {@code versioning.properties} (holding both the page and attachment batch flags)
+	 * and the (optional) restore file live here, so a single {@code restore-creation-dates.properties} can carry
+	 * both page and attachment dates.
+	 */
+	private File metadataDir() {
+		return new File(m_storageDir, VersioningFileProvider.PAGEDIR);
+	}
+
+	private static Properties loadProperties(final File file) throws IOException {
+		final Properties props = new Properties();
+		if (file.exists()) {
+			try (final InputStream in = new BufferedInputStream(Files.newInputStream(file.toPath()))) {
+				props.load(in);
+			}
+		}
+		return props;
+	}
+
+	/**
+	 * One-time batch (gated by {@link #ATTACHMENT_CREATION_DATE_BATCH_DONE}) that persists a date for every
+	 * attachment version in its {@code attachment.properties}, so the creation date no longer depends on the
+	 * file system timestamp. Version 1's date can be recovered from an optional restore file (see
+	 * {@link #ensureAttachmentCreationDates}). Mirrors the page batch in {@link VersioningFileProvider}.
+	 */
+	private void lazyWriteAttachmentDateProperties() throws IOException {
+		final File metaDir = metadataDir();
+		// Shared with the page batch: both flags live in the same versioning.properties (distinct keys). We do a
+		// read-modify-write that preserves the other provider's flag; providers initialize sequentially at startup,
+		// so the two batches never write this file concurrently.
+		final File flagFile = new File(metaDir, VersioningFileProvider.VERSIONING_PROPERTIES_FILE);
+		final Properties flags = loadProperties(flagFile);
+		if (Boolean.parseBoolean(flags.getProperty(ATTACHMENT_CREATION_DATE_BATCH_DONE, "false"))) {
+			return;
+		}
+
+		LOG.info("Creation-date restoration phase 'attachments' starting (one-time): persisting creation dates for all attachments...");
+		final long start = System.currentTimeMillis();
+		final Properties restoreDates = DateSupport.loadRestoreDates(new File(metaDir, VersioningFileProvider.RESTORE_CREATION_DATES_FILE));
+		final int[] restored = { 0 };
+		final int updated = writeAttachmentDateProperties(restoreDates, restored);
+
+		if (!metaDir.exists()) {
+			metaDir.mkdirs();
+		}
+		flags.setProperty(ATTACHMENT_CREATION_DATE_BATCH_DONE, "true");
+		try (final OutputStream out = Files.newOutputStream(flagFile.toPath())) {
+			flags.store(out, "JSPWiki versioning properties");
+		}
+
+		final long durationMs = System.currentTimeMillis() - start;
+		final long totalMs = DateSupport.recordBatchDuration(durationMs);
+		LOG.info("Creation-date restoration phase 'attachments' finished in " + DateSupport.formatDuration(durationMs)
+				+ " (" + durationMs + " ms), updated " + updated + " attachment(s), " + restored[0] + " version(s) restored from backup"
+				+ ". Total creation-date restoration time this startup: " + DateSupport.formatDuration(totalMs) + ".");
+	}
+
+	/**
+	 * Walks the storage root for all {@code <page>-att/<attachment>/} directories and ensures every version has a
+	 * persisted date. A failure on a single attachment is logged and skipped so it cannot block the whole batch.
+	 *
+	 * @return the number of attachments whose properties were updated.
+	 */
+	private int writeAttachmentDateProperties(final Properties restoreDates, final int[] restoredCounter) {
+		final File[] pageAttDirs = new File(m_storageDir).listFiles((dir, name) -> name.endsWith(DIR_EXTENSION) && new File(dir, name).isDirectory());
+		if (pageAttDirs == null) {
+			return 0;
+		}
+		int updated = 0;
+		for (final File pageAttDir : pageAttDirs) {
+			final File[] attachmentDirs = pageAttDir.listFiles(File::isDirectory);
+			if (attachmentDirs == null) {
+				continue;
+			}
+			for (final File attachmentDir : attachmentDirs) {
+				try {
+					if (ensureAttachmentCreationDates(pageAttDir.getName(), attachmentDir, restoreDates, restoredCounter)) {
+						updated++;
+					}
+				}
+				catch (final Exception e) {
+					LOG.error("Unable to write attachment date properties for '" + pageAttDir.getName() + "/" + attachmentDir.getName() + "', skipping...", e);
+				}
+			}
+		}
+		return updated;
+	}
+
+	/**
+	 * Persists a date for every version of a single attachment that does not have one yet. Each version's date is
+	 * taken from the restore file (key {@code <page>-att/<attachment-dir>#<version>}) if present and the file
+	 * system timestamp is newer than it (i.e. the timestamp was reset by a copy/zip); otherwise the file system
+	 * timestamp is used.
+	 *
+	 * @return {@code true} if the properties were changed and written.
+	 */
+	// package-private for unit testing
+	boolean ensureAttachmentCreationDates(final String pageAttDirName, final File attachmentDir, final Properties restoreDates) throws IOException {
+		return ensureAttachmentCreationDates(pageAttDirName, attachmentDir, restoreDates, new int[1]);
+	}
+
+	/**
+	 * @param restoredCounter index 0 is incremented for every version whose date was taken from the restore file.
+	 */
+	private boolean ensureAttachmentCreationDates(final String pageAttDirName, final File attachmentDir, final Properties restoreDates, final int[] restoredCounter) throws IOException {
+		attachmentLock.writeLock().lock();
+		try {
+			final File[] versionFiles = attachmentDir.listFiles(new AttachmentVersionFilter());
+			if (versionFiles == null || versionFiles.length == 0) {
+				return false;
+			}
+			final File propertyFile = new File(attachmentDir, PROPERTY_FILE);
+			final Properties props = loadProperties(propertyFile);
+			final String restoreKey = pageAttDirName + "/" + attachmentDir.getName();
+			boolean changed = false;
+
+			for (final File versionFile : versionFiles) {
+				final int version = parseVersionNumber(versionFile.getName());
+				if (version <= 0 || props.getProperty(dateKey(version)) != null) {
+					continue;
+				}
+				final ZonedDateTime fsDate = ZonedDateTime.ofInstant(Instant.ofEpochMilli(versionFile.lastModified()), ZoneId.systemDefault());
+				final ZonedDateTime date = DateSupport.preferRestoreDate(restoreDates, fsDate,
+						"attachment '" + restoreKey + "' version " + version, restoreKey + "#" + version);
+				if (!date.equals(fsDate)) {
+					restoredCounter[0]++;
+				}
+				props.setProperty(dateKey(version), DateSupport.formatVersionDate(date));
+				changed = true;
+			}
+
+			if (changed) {
+				try (final OutputStream out = Files.newOutputStream(propertyFile.toPath())) {
+					props.store(out, " JSPWiki page properties. DO NOT MODIFY!");
+				}
+			}
+			return changed;
+		}
+		finally {
+			attachmentLock.writeLock().unlock();
+		}
+	}
+
+	private static int parseVersionNumber(final String versionFileName) {
+		final int dot = versionFileName.indexOf('.');
+		final String number = (dot > 0) ? versionFileName.substring(0, dot) : versionFileName;
+		try {
+			return Integer.parseInt(number);
+		}
+		catch (final NumberFormatException e) {
+			return -1;
+		}
 	}
 
 	/**
@@ -433,8 +622,12 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 						final File[] files = f.listFiles();
 						if (files == null || files.length == 0 || (files.length == 1 && PROPERTY_FILE.equals(files[0].getName()))) {
 							// can happen with git synced wiki contents, just clean up
-							LOG.warn("Cleaning up empty attachment folder: " + f.getPath());
-							f.delete();
+							LOG.warn("Cleaning up empty attachment folder: {}", f.getPath());
+							try {
+								FileUtils.deleteDirectory(f);
+							} catch (IOException e) {
+								LOG.error("Failed to delete attachment directory: {}", f.getPath(), e);
+							}
 							continue;
 						}
 						String attachmentName = unmangleName(attachment);
@@ -581,15 +774,14 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 		String dateString = props.getProperty(dateKey(att.getVersion()));
 		if (dateString != null) {
 			try {
-				TemporalAccessor parse = DateTimeFormatter.ISO_DATE_TIME.parse(dateString);
-				return Date.from(Instant.from(parse));
+				return Date.from(DateSupport.parseVersionDate(dateString).toInstant());
 			}
 			catch (DateTimeException e) {
 				LOG.error("Cannot parse last modified date of page {}", att.getName(), e);
 			}
 		}
 		File propertiesFile = getPropertiesFile(att);
-		ZonedDateTime dateFromPropertiesComment = FileSystemProviderUtils.extractDateFromPropertiesFileComment(propertiesFile);
+		ZonedDateTime dateFromPropertiesComment = DateSupport.extractDateFromPropertiesFileComment(propertiesFile);
 		if (dateFromPropertiesComment != null) {
 			return Date.from(dateFromPropertiesComment.toInstant());
 		}

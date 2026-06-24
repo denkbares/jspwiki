@@ -106,6 +106,13 @@ public class VersioningFileProviderMultiWiki extends VersioningFileProvider impl
 	}
 
 	@Override
+	protected File heritagePropertiesFile(final String page) {
+		// Mirror the multi-wiki heritage write path (FileSystemProviderMultiWiki.getPagePropertiesFile):
+		// the page's sub-wiki folder + the LOCAL (un-prefixed) mangled page name.
+		return new File(getPageDirectory(page), mangleName(SubWikiUtils.getLocalPageName(page)) + FileSystemProvider.PROP_EXT);
+	}
+
+	@Override
 	public void deletePage(final Page page) throws ProviderException {
 		String name = SubWikiUtils.getLocalPageName(page.getName());
 		final File wikiFile = new File(getPageDirectory(page.getName()), mangleName(name) + FileSystemProvider.FILE_EXT);
