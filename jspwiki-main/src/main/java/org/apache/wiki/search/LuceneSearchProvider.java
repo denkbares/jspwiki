@@ -172,7 +172,10 @@ public class LuceneSearchProvider implements SearchProvider {
 	 * Override/change the return value of this method if the index changes, to make sure a new index is generated
 	 */
 	protected String getIndexId() {
-		return "v1";
+		// bumped v1 -> v2 for the Lucene 6.6.6 -> 10 upgrade: Lucene 10 cannot open a v6 on-disk index
+		// (IndexFormatTooOldException). A new id routes to a fresh directory so the search index is rebuilt
+		// from the wiki pages instead of crashing; the old v6 directory is simply left unused.
+		return "v2";
 	}
 
     /**
