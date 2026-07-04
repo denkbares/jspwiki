@@ -21,12 +21,12 @@
 
   <parent>
     <groupId>org.apache.jspwiki</groupId>
-    <artifactId>jspwiki-builder</artifactId>
-    <version>3.0.0</version>
+    <artifactId>jspwiki-knowwe-builder</artifactId>
+    <version>3.0.0-SNAPSHOT</version>
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
-  <artifactId>jspwiki-portable</artifactId>
+  <artifactId>jspwiki-knowwe-portable</artifactId>
   <name>Apache JSPWiki portable</name>
 
   <properties>
@@ -179,7 +179,7 @@
               <artifactItems>
                 <artifactItem>
                   <groupId>org.apache.jspwiki</groupId>
-                  <artifactId>jspwiki-war</artifactId>
+                  <artifactId>jspwiki-knowwe-war</artifactId>
                   <version>${project.version}</version>
                   <type>war</type>
                 </artifactItem>
@@ -198,7 +198,7 @@
               <artifactItems>
                 <artifactItem>
                   <groupId>org.apache.jspwiki.wikipages</groupId>
-                  <artifactId>jspwiki-wikipages-${jspwiki.woas.language}</artifactId>
+                  <artifactId>jspwiki-knowwe-wikipages-${jspwiki.woas.language}</artifactId>
                   <version>${project.version}</version>
                 </artifactItem>
               </artifactItems>
@@ -217,7 +217,7 @@
               <artifactItems>
                 <artifactItem>
                   <groupId>org.apache.jspwiki.wikipages</groupId>
-                  <artifactId>jspwiki-wikipages-${jspwiki.woas.language}</artifactId>
+                  <artifactId>jspwiki-knowwe-wikipages-${jspwiki.woas.language}</artifactId>
                   <version>${project.version}</version>
                 </artifactItem>
               </artifactItems>
@@ -252,7 +252,7 @@
   <dependencies>
     <dependency><!-- added so we can issue safe, parallel builds -->
       <groupId>${project.groupId}</groupId>
-      <artifactId>jspwiki-war</artifactId>
+      <artifactId>jspwiki-knowwe-war</artifactId>
       <version>${project.version}</version>
       <type>war</type>
       <scope>provided</scope>
@@ -271,7 +271,7 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>jspwiki-plugins-chartist</artifactId>
+      <artifactId>jspwiki-knowwe-plugins-chartist</artifactId>
       <version>${project.version}</version>
     </dependency>
   </dependencies>

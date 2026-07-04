@@ -21,24 +21,24 @@
 
   <parent>
     <groupId>org.apache.jspwiki</groupId>
-    <artifactId>jspwiki-builder</artifactId>
-    <version>3.0.0</version>
+    <artifactId>jspwiki-knowwe-builder</artifactId>
+    <version>3.0.0-SNAPSHOT</version>
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
-  <artifactId>jspwiki-wysiwyg</artifactId>
+  <artifactId>jspwiki-knowwe-wysiwyg</artifactId>
   <name>Apache JSPWiki WYSIWYG support classes</name>
 
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>jspwiki-api</artifactId>
+      <artifactId>jspwiki-knowwe-api</artifactId>
       <version>${project.version}</version>
     </dependency>
     
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>jspwiki-util</artifactId>
+      <artifactId>jspwiki-knowwe-util</artifactId>
       <version>${project.version}</version>
     </dependency>
 

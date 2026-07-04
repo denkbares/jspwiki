@@ -21,17 +21,17 @@
 
   <parent>
     <groupId>org.apache.jspwiki</groupId>
-    <artifactId>jspwiki-builder</artifactId>
-    <version>3.0.0</version>
+    <artifactId>jspwiki-knowwe-builder</artifactId>
+    <version>3.0.0-SNAPSHOT</version>
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
-  <artifactId>jspwiki-bom</artifactId>
+  <artifactId>jspwiki-knowwe-bom</artifactId>
   <name>Apache JSPWiki bill of materials</name>
   <packaging>pom</packaging>
 
   <properties>
-    <jspwiki.version>3.0.0</jspwiki.version>
+    <jspwiki.version>3.0.0-SNAPSHOT</jspwiki.version>
   </properties>
 
   <dependencyManagement>
@@ -39,85 +39,85 @@
     <dependencies>
       <dependency>
         <groupId>org.apache.jspwiki</groupId>
-        <artifactId>jspwiki-210-adapters</artifactId>
+        <artifactId>jspwiki-knowwe-210-adapters</artifactId>
         <version>${jspwiki.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.jspwiki</groupId>
-        <artifactId>jspwiki-210-test-adaptees</artifactId>
+        <artifactId>jspwiki-knowwe-210-test-adaptees</artifactId>
         <version>${jspwiki.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.jspwiki</groupId>
-        <artifactId>jspwiki-api</artifactId>
+        <artifactId>jspwiki-knowwe-api</artifactId>
         <version>${jspwiki.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.jspwiki</groupId>
-        <artifactId>jspwiki-bootstrap</artifactId>
+        <artifactId>jspwiki-knowwe-bootstrap</artifactId>
         <version>${jspwiki.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.jspwiki</groupId>
-        <artifactId>jspwiki-cache</artifactId>
+        <artifactId>jspwiki-knowwe-cache</artifactId>
         <version>${jspwiki.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.jspwiki</groupId>
-        <artifactId>jspwiki-event</artifactId>
+        <artifactId>jspwiki-knowwe-event</artifactId>
         <version>${jspwiki.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.jspwiki</groupId>
-        <artifactId>jspwiki-http</artifactId>
+        <artifactId>jspwiki-knowwe-http</artifactId>
         <version>${jspwiki.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.jspwiki</groupId>
-        <artifactId>jspwiki-kendra-searchprovider</artifactId>
+        <artifactId>jspwiki-knowwe-kendra-searchprovider</artifactId>
         <version>${jspwiki.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.jspwiki</groupId>
-        <artifactId>jspwiki-main</artifactId>
+        <artifactId>jspwiki-knowwe-main</artifactId>
         <version>${jspwiki.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.jspwiki</groupId>
-        <artifactId>jspwiki-markdown</artifactId>
+        <artifactId>jspwiki-knowwe-markdown</artifactId>
         <version>${jspwiki.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.jspwiki</groupId>
-        <artifactId>jspwiki-portable</artifactId>
+        <artifactId>jspwiki-knowwe-portable</artifactId>
         <version>${jspwiki.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.jspwiki</groupId>
-        <artifactId>jspwiki-tika-searchprovider</artifactId>
+        <artifactId>jspwiki-knowwe-tika-searchprovider</artifactId>
         <version>${jspwiki.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.jspwiki</groupId>
-        <artifactId>jspwiki-util</artifactId>
+        <artifactId>jspwiki-knowwe-util</artifactId>
         <version>${jspwiki.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.jspwiki</groupId>
-        <artifactId>jspwiki-war</artifactId>
+        <artifactId>jspwiki-knowwe-war</artifactId>
         <version>${jspwiki.version}</version>
         <type>war</type>
       </dependency>
@@ -125,103 +125,103 @@
       <!-- integration tests artifacts -->
       <dependency>
         <groupId>org.apache.jspwiki.it</groupId>
-        <artifactId>jspwiki-it-test-cma</artifactId>
+        <artifactId>jspwiki-knowwe-it-test-cma</artifactId>
         <version>${jspwiki.version}</version>
         <type>war</type>
       </dependency>
 
       <dependency>
         <groupId>org.apache.jspwiki.it</groupId>
-        <artifactId>jspwiki-it-test-cma-jdbc</artifactId>
+        <artifactId>jspwiki-knowwe-it-test-cma-jdbc</artifactId>
         <version>${jspwiki.version}</version>
         <type>war</type>
       </dependency>
 
       <dependency>
         <groupId>org.apache.jspwiki.it</groupId>
-        <artifactId>jspwiki-it-test-custom</artifactId>
+        <artifactId>jspwiki-knowwe-it-test-custom</artifactId>
         <version>${jspwiki.version}</version>
         <type>war</type>
       </dependency>
 
       <dependency>
         <groupId>org.apache.jspwiki.it</groupId>
-        <artifactId>jspwiki-it-test-custom-absolute-urls</artifactId>
+        <artifactId>jspwiki-knowwe-it-test-custom-absolute-urls</artifactId>
         <version>${jspwiki.version}</version>
         <type>war</type>
       </dependency>
 
       <dependency>
         <groupId>org.apache.jspwiki.it</groupId>
-        <artifactId>jspwiki-it-test-custom-jdbc</artifactId>
+        <artifactId>jspwiki-knowwe-it-test-custom-jdbc</artifactId>
         <version>${jspwiki.version}</version>
         <type>war</type>
       </dependency>
 
       <dependency>
         <groupId>org.apache.jspwiki.it</groupId>
-        <artifactId>jspwiki-selenide-tests</artifactId>
+        <artifactId>jspwiki-knowwe-selenide-tests</artifactId>
         <version>${jspwiki.version}</version>
       </dependency>
 
       <!-- wikipages artifacts -->
       <dependency>
         <groupId>org.apache.jspwiki.wikipages</groupId>
-        <artifactId>jspwiki-wikipages-de</artifactId>
+        <artifactId>jspwiki-knowwe-wikipages-de</artifactId>
         <version>${jspwiki.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.jspwiki.wikipages</groupId>
-        <artifactId>jspwiki-wikipages-en</artifactId>
+        <artifactId>jspwiki-knowwe-wikipages-en</artifactId>
         <version>${jspwiki.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.jspwiki.wikipages</groupId>
-        <artifactId>jspwiki-wikipages-es</artifactId>
+        <artifactId>jspwiki-knowwe-wikipages-es</artifactId>
         <version>${jspwiki.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.jspwiki.wikipages</groupId>
-        <artifactId>jspwiki-wikipages-fi</artifactId>
+        <artifactId>jspwiki-knowwe-wikipages-fi</artifactId>
         <version>${jspwiki.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.jspwiki.wikipages</groupId>
-        <artifactId>jspwiki-wikipages-fr</artifactId>
+        <artifactId>jspwiki-knowwe-wikipages-fr</artifactId>
         <version>${jspwiki.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.jspwiki.wikipages</groupId>
-        <artifactId>jspwiki-wikipages-it</artifactId>
+        <artifactId>jspwiki-knowwe-wikipages-it</artifactId>
         <version>${jspwiki.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.jspwiki.wikipages</groupId>
-        <artifactId>jspwiki-wikipages-nl</artifactId>
+        <artifactId>jspwiki-knowwe-wikipages-nl</artifactId>
         <version>${jspwiki.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.jspwiki.wikipages</groupId>
-        <artifactId>jspwiki-wikipages-pt_BR</artifactId>
+        <artifactId>jspwiki-knowwe-wikipages-pt_BR</artifactId>
         <version>${jspwiki.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.jspwiki.wikipages</groupId>
-        <artifactId>jspwiki-wikipages-ru</artifactId>
+        <artifactId>jspwiki-knowwe-wikipages-ru</artifactId>
         <version>${jspwiki.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.jspwiki.wikipages</groupId>
-        <artifactId>jspwiki-wikipages-zh_CN</artifactId>
+        <artifactId>jspwiki-knowwe-wikipages-zh_CN</artifactId>
         <version>${jspwiki.version}</version>
       </dependency>
     </dependencies>
