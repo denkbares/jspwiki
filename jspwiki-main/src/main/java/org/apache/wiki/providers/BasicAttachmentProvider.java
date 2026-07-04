@@ -44,6 +44,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -363,6 +364,13 @@ public class BasicAttachmentProvider implements AttachmentProvider {
             for( final String attachment : attachments ) {
                 final File f = new File( dir, attachment );
                 if( f.isDirectory() ) {
+                    final File[] files = f.listFiles();
+                    if (files == null || files.length == 0) {
+                        // can happen with git synced wiki contents, just clean up
+                        LOG.warn("Cleaning up empty attachment folder: " + f.getPath());
+                        f.delete();
+                        continue;
+                    }
                     String attachmentName = unmangleName( attachment );
 
                     //  Is it a new-stylea attachment directory?  If yes, we'll just deduce the name.  If not, however,
@@ -522,13 +530,19 @@ public class BasicAttachmentProvider implements AttachmentProvider {
      */
     @Override
     public void deleteAttachment( final Attachment att ) throws ProviderException {
-        final File dir = findAttachmentDir( att );
-        final String[] files = dir.list();
-        for( final String s : files ) {
-            final File file = new File( dir.getAbsolutePath() + "/" + s );
-            file.delete();
+        File dir = findAttachmentDir( att );
+        String[] files = dir.list();
+        try {
+            for(int i = 0; i < Objects.requireNonNull(files).length; i++ )
+            {
+                File file = new File( dir.getAbsolutePath() + "/" + files[i] );
+                Files.delete(file.toPath());
+            }
+            Files.delete(dir.toPath());
         }
-        dir.delete();
+        catch (IOException e) {
+            throw new ProviderException("Could not delete attachment: " + att.getName(), e);
+        }
     }
 
     /**
@@ -563,8 +577,8 @@ public class BasicAttachmentProvider implements AttachmentProvider {
      *  {@inheritDoc}
      */
     @Override
-    public void moveAttachmentsForPage( final String oldParent, final String newParent ) throws ProviderException {
-        final File srcDir = findPageDir( oldParent );
+    public void moveAttachmentsForPage(final Page oldParent, final String newParent ) throws ProviderException {
+        final File srcDir = findPageDir( oldParent.getName() );
         final File destDir = findPageDir( newParent );
 
         LOG.debug( "Trying to move all attachments from " + srcDir + " to " + destDir );

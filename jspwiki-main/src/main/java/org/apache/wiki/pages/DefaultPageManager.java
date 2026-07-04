@@ -91,7 +91,7 @@ public class DefaultPageManager implements PageManager {
     private final PageProvider m_provider;
     private final Engine m_engine;
     private final int m_expiryTime;
-    protected final ConcurrentHashMap< String, PageLock > m_pageLocks = new ConcurrentHashMap<>();
+    protected ConcurrentHashMap< String, PageLock > m_pageLocks = new ConcurrentHashMap<>();
     private final PageSorter pageSorter = new PageSorter();
     private LockReaper m_reaper;
 
@@ -485,7 +485,7 @@ public class DefaultPageManager implements PageManager {
     @Override
     public boolean pageExists( final String pageName ) throws ProviderException {
         if (pageName == null || pageName.isEmpty()) {
-            throw new ProviderException("Illegal page name");
+            return false;
         }
 
         return m_provider.pageExists(pageName);
@@ -569,7 +569,7 @@ public class DefaultPageManager implements PageManager {
         if( page instanceof Attachment ) {
             m_engine.getManager( AttachmentManager.class ).deleteVersion( ( Attachment )page );
         } else {
-            m_provider.deleteVersion( page.getName(), page.getVersion() );
+            m_provider.deleteVersion( page, page.getVersion() );
             // FIXME: If this was the latest, reindex Lucene, update RefMgr
         }
     }
@@ -611,7 +611,7 @@ public class DefaultPageManager implements PageManager {
     @Override
     public void deletePage( final Page page ) throws ProviderException {
         fireEvent( WikiPageEvent.PAGE_DELETE_REQUEST, page.getName() );
-        m_provider.deletePage( page.getName() );
+        m_provider.deletePage( page );
         fireEvent( WikiPageEvent.PAGE_DELETED, page.getName() );
     }
 
@@ -704,7 +704,7 @@ public class DefaultPageManager implements PageManager {
                         pagesChanged++;
                     }
                 }
-                LOG.info( "Profile name change for '" + newPrincipal + "' caused " + pagesChanged + " page ACLs to change also." );
+                LOG.info( "Profile name change for '" + newPrincipal.toString() + "' caused " + pagesChanged + " page ACLs to change also." );
             } catch( final ProviderException e ) {
                 // Oooo! This is really bad...
                 LOG.error( "Could not change user name in Page ACLs because of Provider error:" + e.getMessage(), e );

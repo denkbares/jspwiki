@@ -43,6 +43,7 @@ public class XmlUtilTest {
         elements = XmlUtil.parse( "ini/jspwiki_module.xml", "/modules/editor" );
         Assertions.assertEquals( 2, elements.size() );
 
+
         elements = XmlUtil.parse( "ini/jspwiki_module.xml", "/modules/heck" );
         Assertions.assertEquals( 0, elements.size() );
 

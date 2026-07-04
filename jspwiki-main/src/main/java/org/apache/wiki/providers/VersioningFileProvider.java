@@ -41,6 +41,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
 
 /**
@@ -548,25 +549,43 @@ public class VersioningFileProvider extends AbstractFileProvider {
      *  @throws {@inheritDoc}
      */
     @Override
-    public void deletePage( final String page ) throws ProviderException {
+    public void deletePage( final Page page ) throws ProviderException {
         super.deletePage( page );
-        final File dir = findOldPageDir( page );
+        boolean hasError = false;
+        final File dir = findOldPageDir( page.getName() );
         if( dir.exists() && dir.isDirectory() ) {
             final File[] files = dir.listFiles( new WikiFileFilter() );
-            for( final File file : files ) {
-                if (!file.delete()) {
-                    LOG.warn("Failed to delete " + file.getAbsolutePath());
+            for( final File file : Objects.requireNonNull(files)) {
+                try {
+                    Files.delete(file.toPath());
+                }
+                catch (IOException e) {
+                    LOG.error("Can't delete file " + file.getAbsolutePath() + " " + e.getMessage(), e);
+                    hasError = true;
                 }
             }
 
             final File propfile = new File( dir, PROPERTYFILE );
             if( propfile.exists() ) {
-                if (!propfile.delete()) {
-                    LOG.warn("Failed to delete " + propfile.getAbsolutePath());
+                try {
+                    Files.delete(propfile.toPath());
+                }
+                catch (IOException e) {
+                    LOG.error("Can't delete file " + propfile.getAbsolutePath() + " " + e.getMessage(), e);
+                    hasError = true;
                 }
             }
 
-            dir.delete();
+            try {
+                Files.delete(dir.toPath());
+            }
+            catch (IOException e) {
+                LOG.error("Can't delete directory " + propfile.getAbsolutePath() + " " + e.getMessage(), e);
+                hasError = true;
+            }
+            if (hasError) {
+                throw new ProviderException("Can't completely delete the old version for file " + page);
+            }
         }
     }
 
@@ -577,17 +596,17 @@ public class VersioningFileProvider extends AbstractFileProvider {
      *  definitely not recommended.
      */
     @Override
-    public void deleteVersion( final String page, final int version ) throws ProviderException {
-        final File dir = findOldPageDir( page );
-        int latest = findLatestVersion( page );
+    public void deleteVersion(final Page page, final int version ) throws ProviderException {
+        final File dir = findOldPageDir( page.getName() );
+        int latest = findLatestVersion( page.getName() );
         if( version == PageProvider.LATEST_VERSION ||
             version == latest ||
             (version == 1 && latest == -1) ) {
             //  Delete the properties
             try {
-                final Properties props = getPageProperties( page );
+                final Properties props = getPageProperties( page.getName() );
                 props.remove( ((latest > 0) ? latest : 1)+".author" );
-                putPageProperties( page, props );
+                putPageProperties( page.getName(), props );
             } catch( final IOException e ) {
                 LOG.error("Unable to modify page properties",e);
                 throw new ProviderException("Could not modify page properties: " + e.getMessage());
@@ -597,11 +616,11 @@ public class VersioningFileProvider extends AbstractFileProvider {
             super.deleteVersion( page, PageProvider.LATEST_VERSION );
 
             //  Copy the old file to the new location
-            latest = findLatestVersion( page );
+            latest = findLatestVersion( page.getName() );
 
-            final File pageDir = findOldPageDir( page );
+            final File pageDir = findOldPageDir( page.getName() );
             final File previousFile = new File( pageDir, latest + FILE_EXT );
-            final File pageFile = findPage(page);
+            final File pageFile = findPage(page.getName());
             try( final InputStream in = new BufferedInputStream( Files.newInputStream( previousFile.toPath() ) );
                  final OutputStream out = new BufferedOutputStream( Files.newOutputStream( pageFile.toPath() ) ) ) {
                 if( previousFile.exists() ) {
@@ -655,14 +674,14 @@ public class VersioningFileProvider extends AbstractFileProvider {
      *  {@inheritDoc}
      */
     @Override
-    public void movePage( final String from, final String to ) {
+    public void movePage(final Page from, final String to ) {
         // Move the file itself
-        final File fromFile = findPage( from );
+        final File fromFile = findPage( from.getName() );
         final File toFile = findPage( to );
         fromFile.renameTo( toFile );
 
         // Move any old versions
-        final File fromOldDir = findOldPageDir( from );
+        final File fromOldDir = findOldPageDir( from.getName() );
         final File toOldDir = findOldPageDir( to );
         fromOldDir.renameTo( toOldDir );
     }
