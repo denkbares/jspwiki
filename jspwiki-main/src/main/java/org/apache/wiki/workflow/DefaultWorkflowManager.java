@@ -290,8 +290,29 @@ public class DefaultWorkflowManager implements WorkflowManager, Serializable {
                 default: break;
                 }
             }
-            serializeToDisk( new File( m_engine.getWorkDir(), SERIALIZATION_FILE ) );
+            if( shouldSerializeToDisk( event ) ) {
+                serializeToDisk( new File( m_engine.getWorkDir(), SERIALIZATION_FILE ) );
+            }
         }
+    }
+
+    /**
+     * Persist only when queued decisions change.
+     *
+     * Waiting {@link Decision}s are the only workflow state that must survive a restart; workflows that
+     * immediately run to completion without waiting do not need disk persistence.
+     *
+     * @param event the workflow event to inspect
+     * @return {@code true} if the event changes recoverable waiting state
+     */
+    boolean shouldSerializeToDisk( final WikiEvent event ) {
+        if( !( event instanceof WorkflowEvent ) || !( event.getSrc() instanceof Decision ) ) {
+            return false;
+        }
+
+        return event.getType() == WorkflowEvent.DQ_ADDITION
+               || event.getType() == WorkflowEvent.DQ_REMOVAL
+               || event.getType() == WorkflowEvent.DQ_REASSIGN;
     }
 
     /**
