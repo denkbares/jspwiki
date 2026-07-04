@@ -26,10 +26,10 @@
   </parent>
 
   <groupId>org.apache.jspwiki</groupId>
-  <artifactId>jspwiki-builder</artifactId>
+  <artifactId>jspwiki-knowwe-builder</artifactId>
   <modelVersion>4.0.0</modelVersion>
   <name>Apache JSPWiki</name>
-  <version>3.0.0</version>
+  <version>3.0.0-SNAPSHOT</version>
   <packaging>pom</packaging>
   <description>Apache JSPWiki is a leading open source WikiWiki engine, feature-rich
     and built around standard JEE components (Java, servlets, JSP).</description>
@@ -893,7 +893,7 @@
             <!-- <deployables>
               <deployable>
                 <groupId>${project.groupId}</groupId>
-                <artifactId>jspwiki-war</artifactId>
+                <artifactId>jspwiki-knowwe-war</artifactId>
                 <type>war</type>
                 <properties>
                   <context>/JSPWiki</context>

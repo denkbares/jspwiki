@@ -21,11 +21,11 @@
 
   <parent>
     <groupId>org.apache.jspwiki.it</groupId>
-    <artifactId>jspwiki-it-tests</artifactId>
-    <version>3.0.0</version>
+    <artifactId>jspwiki-knowwe-it-tests</artifactId>
+    <version>3.0.0-SNAPSHOT</version>
   </parent>
   
-  <artifactId>jspwiki-selenide-tests</artifactId>
+  <artifactId>jspwiki-knowwe-selenide-tests</artifactId>
   <modelVersion>4.0.0</modelVersion>
   <description>selenide tests for jspwiki</description>
   
@@ -37,7 +37,7 @@
 
     <dependency>
       <groupId>org.apache.jspwiki</groupId>
-      <artifactId>jspwiki-main</artifactId>
+      <artifactId>jspwiki-knowwe-main</artifactId>
       <version>${project.version}</version>
     </dependency>
 

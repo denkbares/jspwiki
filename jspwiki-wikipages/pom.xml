@@ -21,12 +21,12 @@
 
   <parent>
     <groupId>org.apache.jspwiki</groupId>
-    <artifactId>jspwiki-builder</artifactId>
-    <version>3.0.0</version>
+    <artifactId>jspwiki-knowwe-builder</artifactId>
+    <version>3.0.0-SNAPSHOT</version>
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
-  <artifactId>jspwiki-wikipages-builder</artifactId>
+  <artifactId>jspwiki-knowwe-wikipages-builder</artifactId>
   <groupId>org.apache.jspwiki.wikipages</groupId>
   <name>Apache JSPWiki initial wiki pages builder</name>
   <packaging>pom</packaging>
@@ -63,7 +63,7 @@
   <dependencies>
     <dependency><!-- artificial dependency just to ensure that the wiki pages are built after the markdown module has generated the markdown pages -->
       <groupId>org.apache.jspwiki</groupId>
-      <artifactId>jspwiki-markdown</artifactId>
+      <artifactId>jspwiki-knowwe-markdown</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>
       <exclusions>
