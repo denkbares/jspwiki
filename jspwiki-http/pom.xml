@@ -21,30 +21,30 @@
 
   <parent>
     <groupId>org.apache.jspwiki</groupId>
-    <artifactId>jspwiki-builder</artifactId>
-    <version>3.0.0</version>
+    <artifactId>jspwiki-knowwe-builder</artifactId>
+    <version>3.0.0-SNAPSHOT</version>
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
-  <artifactId>jspwiki-http</artifactId>
+  <artifactId>jspwiki-knowwe-http</artifactId>
   <name>Apache JSPWiki http servlet and filters</name>
 
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>jspwiki-api</artifactId>
+      <artifactId>jspwiki-knowwe-api</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>jspwiki-util</artifactId>
+      <artifactId>jspwiki-knowwe-util</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>jspwiki-event</artifactId>
+      <artifactId>jspwiki-knowwe-event</artifactId>
       <version>${project.version}</version>
     </dependency>
 
