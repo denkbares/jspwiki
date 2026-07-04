@@ -20,8 +20,8 @@ package org.apache.wiki.auth.authorize;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.StringEscapeUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.exceptions.NoRequiredPropertyException;
 import org.apache.wiki.auth.NoSuchPrincipalException;
@@ -82,7 +82,7 @@ import org.apache.commons.io.FileUtils;
  */
 public class XMLGroupDatabase implements GroupDatabase {
 
-    private static final Logger LOG = LogManager.getLogger( XMLGroupDatabase.class );
+    private static final Logger LOG = LoggerFactory.getLogger( XMLGroupDatabase.class );
 
     /** The jspwiki.properties property specifying the file system location of the group database. */
     public static final String    PROP_DATABASE    = "jspwiki.xmlGroupDatabaseFile";
@@ -284,7 +284,7 @@ public class XMLGroupDatabase implements GroupDatabase {
                 m_dom = factory.newDocumentBuilder().newDocument();
                 m_dom.appendChild( m_dom.createElement( "groups" ) );
             } catch( final ParserConfigurationException e ) {
-                LOG.fatal( "Could not create in-memory DOM" );
+                LOG.error( "Could not create in-memory DOM" );
             }
         }
 
@@ -365,7 +365,7 @@ public class XMLGroupDatabase implements GroupDatabase {
 
     private void saveDOM() throws WikiSecurityException {
         if ( m_dom == null ) {
-            LOG.fatal( "Group database doesn't exist in memory." );
+            LOG.error( "Group database doesn't exist in memory." );
         }
 
         final File newFile = new File( m_file.getAbsolutePath() + ".new" );

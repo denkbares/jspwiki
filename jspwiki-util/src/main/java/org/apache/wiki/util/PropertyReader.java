@@ -34,8 +34,8 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 
 import jakarta.servlet.ServletContext;
 
@@ -51,7 +51,7 @@ import jakarta.servlet.ServletContext;
  */
 public final class PropertyReader {
 
-    private static final Logger LOG = LogManager.getLogger( PropertyReader.class );
+    private static final Logger LOG = LoggerFactory.getLogger( PropertyReader.class );
 
     /**
      * Path to the base property file, {@value}, usually overridden by values provided in

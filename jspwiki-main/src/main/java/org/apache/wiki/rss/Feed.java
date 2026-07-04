@@ -27,8 +27,8 @@ import org.apache.wiki.variables.VariableManager;
 import jakarta.servlet.ServletContext;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.wiki.providers.BasicAttachmentProvider;
 
 /**
@@ -36,7 +36,7 @@ import org.apache.wiki.providers.BasicAttachmentProvider;
  */
 public abstract class Feed {
     protected final List<Entry> m_entries = new ArrayList<>();
-    private static final Logger LOG = LogManager.getLogger( Feed.class );
+    private static final Logger LOG = LoggerFactory.getLogger( Feed.class );
 
     protected String m_feedURL;
     protected String m_channelTitle;

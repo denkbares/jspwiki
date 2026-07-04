@@ -18,8 +18,8 @@
  */
 package org.apache.wiki.markdown;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.wiki.api.engine.EngineLifecycleExtension;
 
 import java.util.Properties;
@@ -31,7 +31,7 @@ import java.util.Properties;
  */
 public class MarkdownSetupEngineLifecycleExtension implements EngineLifecycleExtension {
 
-    private static final Logger LOG = LogManager.getLogger( MarkdownSetupEngineLifecycleExtension.class );
+    private static final Logger LOG = LoggerFactory.getLogger( MarkdownSetupEngineLifecycleExtension.class );
 
     /** {@inheritDoc} */
     @Override

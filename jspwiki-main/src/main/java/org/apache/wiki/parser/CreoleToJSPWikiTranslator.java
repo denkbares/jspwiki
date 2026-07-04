@@ -30,7 +30,8 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <p>Translates Creole markp to JSPWiki markup. Simple translator uses regular expressions.
@@ -48,7 +49,7 @@ import org.apache.log4j.Logger;
  */
 public class CreoleToJSPWikiTranslator
 {
-    private static final Logger LOG = Logger.getLogger(CreoleToJSPWikiTranslator.class);
+    private static final Logger LOG = LoggerFactory.getLogger(CreoleToJSPWikiTranslator.class);
     // These variables are expanded so that admins
     // can display information about the current installed
     // pagefilter

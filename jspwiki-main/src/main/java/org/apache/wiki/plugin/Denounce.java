@@ -20,8 +20,8 @@
  */
 package org.apache.wiki.plugin;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.oro.text.GlobCompiler;
 import org.apache.oro.text.regex.MalformedPatternException;
 import org.apache.oro.text.regex.Pattern;
@@ -59,7 +59,7 @@ import java.util.ResourceBundle;
  */
 public class Denounce implements Plugin {
 
-    private static final Logger LOG = LogManager.getLogger( Denounce.class );
+    private static final Logger LOG = LoggerFactory.getLogger( Denounce.class );
 
     /** Parameter name for setting the link.  Value is <tt>{@value}</tt>. */
     public static final String PARAM_LINK = "link";

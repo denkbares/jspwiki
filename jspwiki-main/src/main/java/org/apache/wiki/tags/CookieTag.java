@@ -32,8 +32,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.jsp.PageContext;
 import jakarta.servlet.jsp.tagext.TagSupport;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.wiki.WikiEngine;
 
 
@@ -99,7 +99,7 @@ public class CookieTag
 {
     private static final long serialVersionUID = 0L;
 
-    private static final Logger LOG = LogManager.getLogger( CookieTag.class );
+    private static final Logger LOG = LoggerFactory.getLogger( CookieTag.class );
 
     /** Name of the cookie value. Required. */
     private String m_name;

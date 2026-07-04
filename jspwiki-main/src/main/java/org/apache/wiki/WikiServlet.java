@@ -18,8 +18,8 @@
  */
 package org.apache.wiki;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.engine.EngineLifecycleExtension;
 import org.apache.wiki.api.spi.Wiki;
@@ -44,7 +44,7 @@ public class WikiServlet extends HttpServlet {
 
     private static final long serialVersionUID = 3258410651167633973L;
     private Engine m_engine;
-    private static final Logger LOG = LogManager.getLogger( WikiServlet.class.getName() );
+    private static final Logger LOG = LoggerFactory.getLogger( WikiServlet.class.getName() );
 
     /**
      * {@inheritDoc}
