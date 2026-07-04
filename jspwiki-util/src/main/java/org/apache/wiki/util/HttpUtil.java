@@ -19,8 +19,8 @@
 package org.apache.wiki.util;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -41,7 +41,7 @@ import org.apache.commons.net.util.SubnetUtils;
  */
 public final class HttpUtil {
 
-    private static final Logger LOG = LogManager.getLogger( HttpUtil.class );
+    private static final Logger LOG = LoggerFactory.getLogger( HttpUtil.class );
     private static final int    ONE                   = 48;
     private static final int    NINE                  = 57;
     private static final int    DOT                   = 46;

@@ -36,8 +36,8 @@ import org.apache.commons.fileupload2.core.FileItemFactory;
 import org.apache.commons.fileupload2.core.FileUploadException;
 import org.apache.commons.fileupload2.core.ProgressListener;
 import org.apache.commons.fileupload2.jakarta.servlet6.JakartaServletFileUpload;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.wiki.api.core.Attachment;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.core.ContextEnum;
@@ -88,7 +88,7 @@ public class AttachmentServlet extends HttpServlet {
     private static final int BUFFER_SIZE = 8192;
 
     private Engine m_engine;
-    private static final Logger LOG = LogManager.getLogger( AttachmentServlet.class );
+    private static final Logger LOG = LoggerFactory.getLogger( AttachmentServlet.class );
     private static final String HDR_VERSION = "version";
 
     /** The maximum size that an attachment can be. */
@@ -134,7 +134,7 @@ public class AttachmentServlet extends HttpServlet {
         if( !f.exists() ) {
             f.mkdirs();
         } else if( !f.isDirectory() ) {
-            LOG.fatal( "A file already exists where the temporary dir is supposed to be: {}. Please remove it.", tmpDir );
+            LOG.error( "A file already exists where the temporary dir is supposed to be: {}. Please remove it.", tmpDir );
         }
 
         LOG.debug( "UploadServlet initialized. Using {} for temporary storage.", tmpDir );

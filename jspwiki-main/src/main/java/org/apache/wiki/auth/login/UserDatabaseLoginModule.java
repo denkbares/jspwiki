@@ -18,8 +18,8 @@
  */
 package org.apache.wiki.auth.login;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.wiki.auth.NoSuchPrincipalException;
 import org.apache.wiki.auth.WikiPrincipal;
 import org.apache.wiki.auth.user.UserDatabase;
@@ -55,7 +55,7 @@ import java.io.IOException;
  */
 public class UserDatabaseLoginModule extends AbstractLoginModule {
 
-    private static final Logger LOG = LogManager.getLogger( UserDatabaseLoginModule.class );
+    private static final Logger LOG = LoggerFactory.getLogger( UserDatabaseLoginModule.class );
 
     /**
      * @see javax.security.auth.spi.LoginModule#login()

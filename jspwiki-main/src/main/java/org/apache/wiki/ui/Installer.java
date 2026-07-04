@@ -46,7 +46,8 @@ import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Manages JSPWiki installation on behalf of <code>admin/Install.jsp</code>. The contents of this class were previously part of
@@ -55,7 +56,7 @@ import org.apache.log4j.Logger;
  * @since 2.4.20
  */
 public class Installer {
-    private static final Logger LOG = Logger.getLogger(Installer.class);
+    private static final Logger LOG = LoggerFactory.getLogger(Installer.class);
 
     public static final String ADMIN_ID = "admin";
     public static final String ADMIN_NAME = "Administrator";

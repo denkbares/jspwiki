@@ -18,8 +18,8 @@
  */
 package org.apache.wiki.providers;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.core.Page;
@@ -62,7 +62,7 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class CachingProvider implements PageProvider {
 
-    private static final Logger LOG = LogManager.getLogger( CachingProvider.class );
+    private static final Logger LOG = LoggerFactory.getLogger( CachingProvider.class );
 
     private CachingManager cachingManager;
     private PageProvider provider;

@@ -18,8 +18,8 @@
  */
 package org.apache.wiki.auth.login;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.wiki.auth.WikiPrincipal;
 import org.apache.wiki.util.HttpUtil;
 
@@ -59,7 +59,7 @@ public class AnonymousLoginModule extends AbstractLoginModule
      */
     public static final String PROMPT = "User name";
 
-    protected static final Logger LOG = LogManager.getLogger( AnonymousLoginModule.class );
+    protected static final Logger LOG = LoggerFactory.getLogger( AnonymousLoginModule.class );
 
     /**
      * {@inheritDoc}

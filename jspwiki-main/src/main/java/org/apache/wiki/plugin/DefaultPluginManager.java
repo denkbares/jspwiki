@@ -21,8 +21,8 @@ package org.apache.wiki.plugin;
 
 import org.apache.commons.lang3.ClassUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.oro.text.regex.MalformedPatternException;
 import org.apache.oro.text.regex.MatchResult;
 import org.apache.oro.text.regex.Pattern;
@@ -162,7 +162,7 @@ import java.util.StringTokenizer;
 public class DefaultPluginManager extends BaseModuleManager implements PluginManager {
 
     private static final String PLUGIN_INSERT_PATTERN = "\\{?(INSERT)?\\s*([\\w\\._]+)[ \\t]*(WHERE)?[ \\t]*";
-    private static final Logger LOG = LogManager.getLogger( DefaultPluginManager.class );
+    private static final Logger LOG = LoggerFactory.getLogger( DefaultPluginManager.class );
     private static final String DEFAULT_FORMS_PACKAGE = "org.apache.wiki.forms";
 
     private final ArrayList< String > m_searchPath = new ArrayList<>();
@@ -207,7 +207,7 @@ public class DefaultPluginManager extends BaseModuleManager implements PluginMan
         try {
             m_pluginPattern = compiler.compile( PLUGIN_INSERT_PATTERN );
         } catch( final MalformedPatternException e ) {
-            LOG.fatal( "Internal error: someone messed with pluginmanager patterns.", e );
+            LOG.error( "Internal error: someone messed with pluginmanager patterns.", e );
             throw new InternalWikiException( "PluginManager patterns are broken" , e );
         }
     }

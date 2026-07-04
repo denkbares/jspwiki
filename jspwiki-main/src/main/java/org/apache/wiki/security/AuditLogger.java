@@ -27,7 +27,8 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.wiki.WikiEngine;
 import org.apache.wiki.event.WikiEvent;
 import org.apache.wiki.event.WikiEventListener;
@@ -44,7 +45,7 @@ import org.apache.wiki.util.MailUtil;
  */
 public final class AuditLogger implements WikiEventListener {
 
-    private static final Logger LOG = Logger.getLogger(AuditLogger.class);
+    private static final Logger LOG = LoggerFactory.getLogger(AuditLogger.class);
 
     private static AuditLogger INSTANCE;
 

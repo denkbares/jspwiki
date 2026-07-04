@@ -18,8 +18,8 @@
  */
 package org.apache.wiki.util;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 
 import jakarta.mail.Authenticator;
 import jakarta.mail.Message;
@@ -205,7 +205,7 @@ public final class MailUtil {
     private static final String PROP_MAIL_AUTH = "mail.smtp.auth";
     private static final String PROP_MAILS_AUTH = "mail.smtps.auth";
 
-    static final Logger LOG = LogManager.getLogger(MailUtil.class);
+    static final Logger LOG = LoggerFactory.getLogger(MailUtil.class);
 
     static final String DEFAULT_MAIL_JNDI_NAME       = "mail/Session";
 
@@ -299,7 +299,7 @@ public final class MailUtil {
             Transport.send(msg);
             LOG.info("Sent e-mail to={}, subject=\"{}\", used {} mail session.", to, subject, (c_useJndi ? "JNDI" : "standalone") );
         } catch (final MessagingException e) {
-            LOG.error(e);
+            LOG.error("Error while sending", e);
             throw e;
         }
     }
