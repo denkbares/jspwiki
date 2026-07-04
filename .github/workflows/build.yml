@@ -1,12 +1,8 @@
-# KnowWE 3.0 migration green gate.
-# Focused, deterministic build used as the regression gate for PRs into knowwe-3.0.
-# (The upstream `maven.yml` multi-OS/multi-JDK + integration-tests matrix is intentionally
-#  not the per-chunk gate — it is slow and flaky across the migration.)
 name: KnowWE 3.0 build
 
 on:
   push:
-    branches: [ knowwe-3.0, "port/**" ]
+    branches: [ knowwe-3.0 ]
   pull_request:
     branches: [ knowwe-3.0 ]
 

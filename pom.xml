@@ -79,6 +79,7 @@
     <jrcs-diff.version>0.4.2</jrcs-diff.version>
     <junit.version>6.0.1</junit.version>
     <log4j2.version>2.25.2</log4j2.version>
+    <logback.version>1.5.19</logback.version>
     <lucene.version>9.12.2</lucene.version>
     <mockito.version>5.20.0</mockito.version>
     <nekohtml.version>2.1.3</nekohtml.version>
@@ -450,6 +451,18 @@
       </dependency>
 
       <dependency>
+        <groupId>ch.qos.logback</groupId>
+        <artifactId>logback-classic</artifactId>
+        <version>${logback.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>ch.qos.logback</groupId>
+        <artifactId>logback-core</artifactId>
+        <version>${logback.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-log4j12</artifactId>
         <version>${slf4j.version}</version>
@@ -515,6 +528,21 @@
       </dependency>
     </dependencies>
   </dependencyManagement>
+
+  <repositories>
+    <repository>
+      <id>des-repo-public</id>
+      <name>Denkbares Public Repository</name>
+      <url>https://repo.denkbares.com/repo-public/</url>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <snapshots>
+        <enabled>true</enabled>
+        <checksumPolicy>ignore</checksumPolicy>
+      </snapshots>
+    </repository>
+  </repositories>
 
   <build>
     <defaultGoal>verify apache-rat:check</defaultGoal>
