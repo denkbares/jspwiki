@@ -18,8 +18,8 @@
  */
 package org.apache.wiki.auth;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.wiki.api.core.Acl;
 import org.apache.wiki.api.core.AclEntry;
 import org.apache.wiki.api.core.Context;
@@ -78,7 +78,7 @@ import java.util.WeakHashMap;
  */
 public class DefaultAuthorizationManager implements AuthorizationManager {
 
-    private static final Logger LOG = LogManager.getLogger( DefaultAuthorizationManager.class );
+    private static final Logger LOG = LoggerFactory.getLogger( DefaultAuthorizationManager.class );
 
     private Authorizer m_authorizer;
 
@@ -252,7 +252,7 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
                 		          "This file should exist regardless of the existance of a global policy file. " +
                                   "The global policy file is identified by the java.security.policy variable. ";
                 final WikiSecurityException wse = new WikiSecurityException( sb );
-                LOG.fatal( sb, wse );
+                LOG.error( sb, wse );
                 throw wse;
             }
         } catch ( final Exception e) {
@@ -279,7 +279,7 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
             try {
                 return ClassUtil.buildInstance( "org.apache.wiki.auth.authorize", clazz );
             } catch( final ReflectiveOperationException e ) {
-                LOG.fatal( "Authorizer {} cannot be instantiated", clazz, e );
+                LOG.error( "Authorizer {} cannot be instantiated", clazz, e );
                 throw new WikiException( "Authorizer " + clazz + " cannot be instantiated", e );
             }
         }

@@ -18,8 +18,8 @@
  */
 package org.apache.wiki.content;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.wiki.api.core.Attachment;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.core.Engine;
@@ -53,7 +53,7 @@ import org.apache.wiki.security.EventUtil;
  */
 public class DefaultPageRenamer implements PageRenamer {
 
-    private static final Logger LOG = LogManager.getLogger( DefaultPageRenamer.class );
+    private static final Logger LOG = LoggerFactory.getLogger( DefaultPageRenamer.class );
     
     private boolean m_camelCase;
     

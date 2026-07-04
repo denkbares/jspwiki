@@ -21,9 +21,8 @@ package org.apache.wiki.event;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import org.apache.commons.lang3.ArrayUtils;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 
 import java.security.Principal;
 
@@ -119,7 +118,7 @@ public final class WikiSecurityEvent extends WikiEvent {
     public static final int   LOGIN_ALERT = 56;
     
     /** The security logging service. */
-    private static final Logger LOG = LogManager.getLogger( "SecurityLog" );
+    private static final Logger LOG = LoggerFactory.getLogger( "SecurityLog" );
     
     private final Principal m_principal;
     
@@ -148,14 +147,14 @@ public final class WikiSecurityEvent extends WikiEvent {
         this.m_principal = principal;
         this.m_target = target;
         
-        if( LOG.isEnabled( Level.ERROR ) && ArrayUtils.contains( ERROR_EVENTS, type ) ) {
-            LOG.error( this );
-        } else if( LOG.isEnabled( Level.WARN ) && ArrayUtils.contains( WARN_EVENTS, type ) ) {
-            LOG.warn( this );
-        } else if( LOG.isEnabled( Level.INFO ) && ArrayUtils.contains( INFO_EVENTS, type ) ) {
-            LOG.info( this );
+        if( LOG.isErrorEnabled() && ArrayUtils.contains( ERROR_EVENTS, type ) ) {
+            LOG.error( this.toString() );
+        } else if( LOG.isWarnEnabled() && ArrayUtils.contains( WARN_EVENTS, type ) ) {
+            LOG.warn( this.toString() );
+        } else if( LOG.isInfoEnabled() && ArrayUtils.contains( INFO_EVENTS, type ) ) {
+            LOG.info( this.toString() );
         }
-        LOG.debug( this );
+        LOG.debug( this.toString() );
     }
 
     /**

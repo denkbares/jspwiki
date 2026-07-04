@@ -257,7 +257,7 @@ public class XMLUserDatabase extends AbstractUserDatabase {
                 c_dom = factory.newDocumentBuilder().newDocument();
                 c_dom.appendChild( c_dom.createElement( "users" ) );
             } catch( final ParserConfigurationException e ) {
-                LOG.fatal( "Could not create in-memory DOM" );
+                LOG.error( "Could not create in-memory DOM" );
             }
         }
     }
@@ -365,7 +365,7 @@ public class XMLUserDatabase extends AbstractUserDatabase {
     @Override
     public synchronized void rename( final String loginName, final String newName) throws DuplicateUserException, WikiSecurityException {
         if( c_dom == null ) {
-            LOG.fatal( "Could not rename profile '" + loginName + "'; database does not exist" );
+            LOG.error( "Could not rename profile '" + loginName + "'; database does not exist" );
             throw new IllegalStateException( "FATAL: database does not exist" );
         }
         checkForRefresh();
@@ -407,7 +407,7 @@ public class XMLUserDatabase extends AbstractUserDatabase {
     @Override
     public synchronized void save( final UserProfile profile ) throws WikiSecurityException {
         if ( c_dom == null ) {
-            LOG.fatal( "Could not save profile " + profile + " database does not exist" );
+            LOG.error( "Could not save profile " + profile + " database does not exist" );
             throw new IllegalStateException( "FATAL: database does not exist" );
         }
 

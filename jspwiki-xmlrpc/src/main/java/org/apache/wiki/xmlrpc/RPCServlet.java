@@ -18,8 +18,8 @@
  */
 package org.apache.wiki.xmlrpc;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.core.ContextEnum;
 import org.apache.wiki.api.core.Engine;
@@ -63,7 +63,7 @@ public class RPCServlet extends HttpServlet {
     private Engine m_engine;
     private final XmlRpcServer m_xmlrpcServer = new XmlRpcServer();
 
-    private static final Logger LOG = LogManager.getLogger( RPCServlet.class );
+    private static final Logger LOG = LoggerFactory.getLogger( RPCServlet.class );
 
     public void initHandler( final String prefix, final String handlerName ) throws ClassNotFoundException {
         /*
@@ -99,7 +99,7 @@ public class RPCServlet extends HttpServlet {
             // FIXME: The metaweblog API should be possible to turn off.
             initHandler( "metaWeblog", "org.apache.wiki.xmlrpc.MetaWeblogHandler" );
         } catch( final Exception e ) {
-            LOG.fatal("Unable to start RPC interface: ", e);
+            LOG.error("Unable to start RPC interface: ", e);
             throw new ServletException( "No RPC interface", e );
         }
     }

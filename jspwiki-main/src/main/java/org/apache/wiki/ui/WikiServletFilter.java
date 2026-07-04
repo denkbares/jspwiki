@@ -18,9 +18,9 @@
  */
 package org.apache.wiki.ui;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.ThreadContext;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
+import org.slf4j.MDC;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.core.Session;
@@ -52,7 +52,7 @@ import java.io.PrintWriter;
  */
 public class WikiServletFilter implements Filter {
 
-    private static final Logger LOG = LogManager.getLogger( WikiServletFilter.class );
+    private static final Logger LOG = LoggerFactory.getLogger( WikiServletFilter.class );
     protected Engine m_engine;
 
     /**
@@ -132,12 +132,8 @@ public class WikiServletFilter implements Filter {
             }
         }
 
-        try {
-            ThreadContext.push( m_engine.getApplicationName() + ":" + httpRequest.getRequestURL() );
+        try (MDC.MDCCloseable ignored = MDC.putCloseable( m_engine.getApplicationName(), httpRequest.getRequestURL().toString() )) {
             chain.doFilter( httpRequest, response );
-        } finally {
-            ThreadContext.pop();
-            ThreadContext.remove( m_engine.getApplicationName() + ":" + httpRequest.getRequestURL() );
         }
     }
 

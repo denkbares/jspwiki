@@ -19,9 +19,9 @@
 package org.apache.wiki.ui;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.ThreadContext;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
+import org.slf4j.MDC;
 import org.apache.wiki.WatchDog;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.core.Engine;
@@ -72,7 +72,7 @@ import java.io.UnsupportedEncodingException;
  */
 public class WikiJSPFilter extends WikiServletFilter {
 
-    private static final Logger LOG = LogManager.getLogger( WikiJSPFilter.class );
+    private static final Logger LOG = LoggerFactory.getLogger( WikiJSPFilter.class );
     private String m_wiki_encoding;
     private boolean useEncoding;
 
@@ -88,8 +88,7 @@ public class WikiJSPFilter extends WikiServletFilter {
     @Override
     public void doFilter( final ServletRequest  request, final ServletResponse response, final FilterChain chain ) throws ServletException, IOException {
         final WatchDog w = WatchDog.getCurrentWatchDog( m_engine );
-        try {
-            ThreadContext.push( m_engine.getApplicationName() + ":" + ( ( HttpServletRequest )request ).getRequestURI() );
+        try (MDC.MDCCloseable ignored = MDC.putCloseable( m_engine.getApplicationName(), ( ( HttpServletRequest )request ).getRequestURI() )) {
             w.enterState("Filtering for URL "+((HttpServletRequest)request).getRequestURI(), 90 );
             final HttpServletResponseWrapper responseWrapper = new JSPWikiServletResponseWrapper( ( HttpServletResponse )response, m_wiki_encoding, useEncoding );
             request.setCharacterEncoding( m_engine.getContentEncoding().displayName() );
@@ -130,8 +129,6 @@ public class WikiJSPFilter extends WikiServletFilter {
             }
         } finally {
             w.exitState();
-            ThreadContext.pop();
-            ThreadContext.remove( m_engine.getApplicationName() + ":" + ( ( HttpServletRequest )request ).getRequestURI() );
         }
     }
 
@@ -279,7 +276,7 @@ public class WikiJSPFilter extends WikiServletFilter {
             try {
 				flushBuffer();
 			} catch( final IOException e ) {
-                LOG.error( e );
+                LOG.error( "Error while flushing", e );
                 return StringUtils.EMPTY;
 			}
 
@@ -290,7 +287,7 @@ public class WikiJSPFilter extends WikiServletFilter {
 
 				return m_output.toString();
 			} catch( final UnsupportedEncodingException e ) {
-                LOG.error( e );
+                LOG.error( "Unable to convert to string", e );
                 return StringUtils.EMPTY;
              }
         }

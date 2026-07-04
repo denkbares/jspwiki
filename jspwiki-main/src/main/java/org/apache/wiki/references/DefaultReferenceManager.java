@@ -19,8 +19,8 @@
 package org.apache.wiki.references;
 
 import org.apache.commons.lang3.time.StopWatch;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.wiki.InternalWikiException;
 import org.apache.wiki.LinkCollector;
 import org.apache.wiki.api.core.Attachment;
@@ -125,7 +125,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
 
     private final boolean m_matchEnglishPlurals;
 
-    private static final Logger LOG = LogManager.getLogger( DefaultReferenceManager.class);
+    private static final Logger LOG = LoggerFactory.getLogger( DefaultReferenceManager.class);
     private static final String SERIALIZATION_FILE = "refmgr.ser";
     private static final String SERIALIZATION_DIR  = "refmgr-attr";
 
@@ -200,7 +200,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
                     final Page wp = m_engine.getManager( PageManager.class ).getPage( page.getName() );
 
                     if( wp.getLastModified() == null ) {
-                        LOG.fatal( "Provider returns null lastModified.  Please submit a bug report." );
+                        LOG.error( "Provider returns null lastModified.  Please submit a bug report." );
                     } else if( wp.getLastModified().getTime() > saved ) {
                         updatePageReferences( wp );
                     }
@@ -293,7 +293,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
 
 	        return TextUtil.toHexString( dig ) + ".cache";
 		} catch( final NoSuchAlgorithmException e ) {
-			LOG.fatal( "What do you mean - no such algorithm?", e );
+			LOG.error( "What do you mean - no such algorithm?", e );
 			return null;
 		}
     }
@@ -624,7 +624,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
                 m_refersTo.put( page.getName(), new TreeSet<>() );
             }
         } catch( final ClassCastException e ) {
-            LOG.fatal( "Invalid collection entry in ReferenceManager.buildKeyLists().", e );
+            LOG.error( "Invalid collection entry in ReferenceManager.buildKeyLists().", e );
         }
     }
 

@@ -18,8 +18,8 @@
  */
 package org.apache.wiki.providers;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.wiki.api.core.Attachment;
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.core.Page;
@@ -101,7 +101,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
     /** The default extension for the attachment directory. */
     public static final String ATTDIR_EXTENSION = "-dir";
     
-    private static final Logger LOG = LogManager.getLogger( BasicAttachmentProvider.class );
+    private static final Logger LOG = LoggerFactory.getLogger( BasicAttachmentProvider.class );
 
     /**
      *  {@inheritDoc}

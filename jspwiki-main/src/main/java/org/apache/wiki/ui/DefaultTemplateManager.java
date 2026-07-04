@@ -19,8 +19,8 @@
 package org.apache.wiki.ui;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.wiki.InternalWikiException;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.core.Engine;
@@ -55,7 +55,7 @@ import java.util.TreeSet;
  */
 public class DefaultTemplateManager extends BaseModuleManager implements TemplateManager {
 
-    private static final Logger LOG = LogManager.getLogger( DefaultTemplateManager.class );
+    private static final Logger LOG = LoggerFactory.getLogger( DefaultTemplateManager.class );
 
     /**
      *  Creates a new TemplateManager.  There is typically one manager per engine.
@@ -165,7 +165,7 @@ public class DefaultTemplateManager extends BaseModuleManager implements Templat
     @Override
     public String findJSP( final PageContext pageContext, final String template, final String name ) {
         if( name == null || template == null ) {
-            LOG.fatal("findJSP() was asked to find a null template or name (" + template + "," + name + ")." + " JSP page '" +
+            LOG.error("findJSP() was asked to find a null template or name (" + template + "," + name + ")." + " JSP page '" +
                       ( ( HttpServletRequest )pageContext.getRequest() ).getRequestURI() + "'" );
             throw new InternalWikiException( "Illegal arguments to findJSP(); please check logs." );
         }

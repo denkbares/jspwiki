@@ -18,8 +18,8 @@
  */
 package org.apache.wiki.util;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -51,7 +51,7 @@ public final class FileUtil {
 
     /** Size of the buffer used when copying large chunks of data. */
     private static final int      BUFFER_SIZE = 8192;
-    private static final Logger   LOG         = LogManager.getLogger(FileUtil.class);
+    private static final Logger   LOG         = LoggerFactory.getLogger(FileUtil.class);
 
     /**
      *  Private constructor prevents instantiation.

@@ -26,7 +26,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Map;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *  This class is still experimental.
@@ -34,7 +35,7 @@ import org.apache.log4j.Logger;
  */
 public abstract class WikiFormAdminBean implements AdminBean {
     
-    private static final Logger LOG = Logger.getLogger(WikiFormAdminBean.class);
+    private static final Logger LOG = LoggerFactory.getLogger(WikiFormAdminBean.class);
 
     public abstract String getForm( Context context );
     

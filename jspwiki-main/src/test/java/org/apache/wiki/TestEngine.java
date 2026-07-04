@@ -20,8 +20,8 @@
 package org.apache.wiki;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.wiki.api.Release;
 import org.apache.wiki.api.core.Attachment;
 import org.apache.wiki.api.core.Context;
@@ -64,7 +64,7 @@ import java.util.Properties;
  *  Simple test engine that always assumes pages are found.
  */
 public class TestEngine extends WikiEngine {
-    private static final Logger LOG = LogManager.getLogger( TestEngine.class );
+    private static final Logger LOG = LoggerFactory.getLogger( TestEngine.class );
 
     private Session m_adminWikiSession;
     private Session m_janneWikiSession;

@@ -18,8 +18,8 @@
  */
 package org.apache.wiki.providers;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.wiki.api.core.Attachment;
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.core.Page;
@@ -56,7 +56,7 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class CachingAttachmentProvider implements AttachmentProvider {
 
-    private static final Logger LOG = LogManager.getLogger( CachingAttachmentProvider.class );
+    private static final Logger LOG = LoggerFactory.getLogger( CachingAttachmentProvider.class );
 
     private AttachmentProvider provider;
     private CachingManager cachingManager;

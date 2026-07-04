@@ -38,8 +38,8 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.wiki.util.HttpUtil;
 
 /**
@@ -50,7 +50,7 @@ import org.apache.wiki.util.HttpUtil;
  */
 public class RSS20Feed extends Feed
 {
-    private static final Logger LOG = LogManager.getLogger( RSS20Feed.class );
+    private static final Logger LOG = LoggerFactory.getLogger( RSS20Feed.class );
 
     /**
      *  Creates an RSS 2.0 feed for the specified Context.
