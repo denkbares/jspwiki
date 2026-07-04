@@ -23,8 +23,8 @@ import net.sf.ehcache.CacheManager;
 import net.sf.ehcache.Ehcache;
 import net.sf.ehcache.Element;
 import net.sf.ehcache.event.CacheEventListenerAdapter;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.engine.Initializable;
 import org.apache.wiki.api.exceptions.WikiException;
@@ -46,7 +46,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class EhcacheCachingManager implements CachingManager, Initializable {
 
-    private static final Logger LOG = LogManager.getLogger( EhcacheCachingManager.class );
+    private static final Logger LOG = LoggerFactory.getLogger( EhcacheCachingManager.class );
     private static final int DEFAULT_CACHE_SIZE = 1_000;
     private static final int DEFAULT_CACHE_EXPIRY_PERIOD = 24*60*60;
 

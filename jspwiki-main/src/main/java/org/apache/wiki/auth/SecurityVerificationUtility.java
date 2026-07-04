@@ -19,8 +19,8 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.event.MailEvent;
 import java.util.logging.Level;
 import org.apache.commons.validator.routines.EmailValidator;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.wiki.WikiSession;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.core.Engine;
@@ -33,7 +33,7 @@ import org.apache.wiki.util.MailUtil;
  */
 public class SecurityVerificationUtility {
 
-    private static final Logger LOG = LogManager.getLogger(SecurityVerificationUtility.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SecurityVerificationUtility.class);
 
     public void verify(Engine wiki) {
         //Context wikiContext = Wiki.context().create(wiki, request, ContextEnum.PAGE_NONE.getRequestContext());

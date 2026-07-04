@@ -299,7 +299,7 @@ public final class MailUtil {
             Transport.send(msg);
             LOG.info("Sent e-mail to={}, subject=\"{}\", used {} mail session.", to, subject, (c_useJndi ? "JNDI" : "standalone") );
         } catch (final MessagingException e) {
-            LOG.error(e);
+            LOG.error("Error while sending", e);
             throw e;
         }
     }

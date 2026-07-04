@@ -24,8 +24,8 @@ import java.util.Date;
 import java.util.Properties;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.wiki.api.Release;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -50,7 +50,7 @@ public final class ProductUpdateChecker implements Runnable {
         ProductUpdateChecker.initialize(p);
         Thread.sleep(9999999);
     }*/
-    private static final Logger LOG = LogManager.getLogger(ProductUpdateChecker.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ProductUpdateChecker.class);
 
     private ProductUpdateChecker(Properties props) {
         if ("true".equalsIgnoreCase(props.getProperty("jspwiki.updateCheck.enabled", "false"))) {

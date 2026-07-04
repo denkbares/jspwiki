@@ -276,7 +276,7 @@ public class WikiJSPFilter extends WikiServletFilter {
             try {
 				flushBuffer();
 			} catch( final IOException e ) {
-                LOG.error( e );
+                LOG.error( "Error while flushing", e );
                 return StringUtils.EMPTY;
 			}
 
@@ -287,7 +287,7 @@ public class WikiJSPFilter extends WikiServletFilter {
 
 				return m_output.toString();
 			} catch( final UnsupportedEncodingException e ) {
-                LOG.error( e );
+                LOG.error( "Unable to convert to string", e );
                 return StringUtils.EMPTY;
              }
         }

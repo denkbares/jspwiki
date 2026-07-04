@@ -18,8 +18,8 @@
  */
 package org.apache.wiki.http.filter;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.core.Session;
 import org.apache.wiki.api.spi.Wiki;
@@ -42,7 +42,7 @@ import java.io.IOException;
  */
 public class CsrfProtectionFilter implements Filter {
 
-    private static final Logger LOG = LogManager.getLogger( CsrfProtectionFilter.class );
+    private static final Logger LOG = LoggerFactory.getLogger( CsrfProtectionFilter.class );
 
     public static final String ANTICSRF_PARAM = "X-XSRF-TOKEN";
 
