@@ -56,10 +56,12 @@ public class EhcacheCachingManager implements CachingManager, Initializable {
 	/** {@inheritDoc} */
 	@Override
 	public void shutdown() {
-		LOG.info("Shutting down local CacheManager: "+cacheManager);
+		LOG.info("Shutting down local CacheManager: " + cacheManager);
 		cacheMap.clear();
 		cacheStats.clear();
-		cacheManager.shutdown();
+		if (cacheManager != null)  { // in case initialize was not called, e.g. in tests
+			cacheManager.shutdown();
+		}
 	}
 
 	/** {@inheritDoc} */
@@ -71,12 +73,19 @@ public class EhcacheCachingManager implements CachingManager, Initializable {
 		if (useCache) {
 			final URL location = this.getClass().getResource(confLocation);
 			LOG.info("Reading ehcache configuration file from classpath on /{}", location);
-			cacheManager = CacheManager.newInstance(location);
-			Configuration configuration = ConfigurationFactory.parseConfiguration(location);
-			if (configuration.getName() == null && engine != null) {
-				configuration.name(engine.getApplicationName());
+			if (engine != null) {
+				// Distinct engines get distinct CacheManagers, named by application name, so their
+				// caches do not collide (required for the multi-wiki / multi-instance case).
+				final Configuration configuration = ConfigurationFactory.parseConfiguration(location);
+				if (configuration.getName() == null) {
+					configuration.name(engine.getApplicationName());
+				}
+				cacheManager = CacheManager.newInstance(configuration);
 			}
-			cacheManager = CacheManager.newInstance(configuration);
+			else {
+				// No engine (e.g. tests): use the shared singleton so repeated initialization is tolerated.
+				cacheManager = CacheManager.create(location);
+			}
 			registerCache(CACHE_ATTACHMENTS);
 			registerCache(CACHE_ATTACHMENTS_COLLECTION);
 			registerCache(CACHE_ATTACHMENTS_DYNAMIC);

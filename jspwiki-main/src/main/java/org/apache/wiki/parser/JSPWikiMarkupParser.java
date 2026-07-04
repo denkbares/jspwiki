@@ -326,7 +326,12 @@ public class JSPWikiMarkupParser extends MarkupParser {
 			case LOCAL:
 				el = new Element("a").setAttribute("class", CLASS_FOOTNOTE);
 				el.setAttribute("name", "ref-" + m_context.getName() + "-" + link.substring(1));
-				el.addContent("[" + text + "]");
+				if (!m_allowHTML) {
+					el.addContent("[" + escapeHTMLEntities(text) + "]");
+				}
+				else {
+					el.addContent("[" + text + "]");
+				}
 				break;
 
 			//  With the image, external and interwiki types we need to make sure nobody can put in Javascript or

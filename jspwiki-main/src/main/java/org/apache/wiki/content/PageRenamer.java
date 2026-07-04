@@ -47,8 +47,7 @@ public interface PageRenamer {
      *
      * @param oldName the former page name
      * @param newName the new page name
-     * @param context WikiContext
      */
-    void firePageRenameEvent( String oldName, String newName, Context context );
+    void firePageRenameEvent( String oldName, String newName );
 
 }
