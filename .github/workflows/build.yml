@@ -1,0 +1,37 @@
+# KnowWE 3.0 migration green gate.
+# Focused, deterministic build used as the regression gate for PRs into knowwe-3.0.
+# (The upstream `maven.yml` multi-OS/multi-JDK + integration-tests matrix is intentionally
+#  not the per-chunk gate — it is slow and flaky across the migration.)
+name: KnowWE 3.0 build
+
+on:
+  push:
+    branches: [ knowwe-3.0, "port/**" ]
+  pull_request:
+    branches: [ knowwe-3.0 ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: knowwe-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+      - name: Build with Maven
+        run: mvn -B -V -T 1C package
