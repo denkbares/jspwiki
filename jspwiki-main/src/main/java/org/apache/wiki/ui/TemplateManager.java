@@ -18,17 +18,7 @@
  */
 package org.apache.wiki.ui;
 
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.Strings;
-import org.slf4j.LoggerFactory;
-import org.apache.wiki.api.core.Context;
-import org.apache.wiki.i18n.InternationalizationManager;
-import org.apache.wiki.modules.ModuleManager;
-import org.apache.wiki.preferences.Preferences;
-import org.apache.wiki.util.ClassUtil;
-
-import jakarta.servlet.jsp.PageContext;
-import jakarta.servlet.jsp.jstl.fmt.LocaleSupport;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -39,6 +29,17 @@ import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.TimeZone;
 import java.util.Vector;
+
+import jakarta.servlet.jsp.PageContext;
+import jakarta.servlet.jsp.jstl.fmt.LocaleSupport;
+
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.LoggerFactory;
+import org.apache.wiki.api.core.Context;
+import org.apache.wiki.i18n.InternationalizationManager;
+import org.apache.wiki.modules.ModuleManager;
+import org.apache.wiki.preferences.Preferences;
+import org.apache.wiki.util.ClassUtil;
 
 
 /**
@@ -316,58 +317,67 @@ public interface TemplateManager extends ModuleManager {
      *  rendered.  It's thus a good idea to make this request only once during the page life cycle.
      *
      *  @param ctx The current wiki context
-     *  @param type What kind of resource should be added?
+     *  @param type What kind of a request should be added?
      *  @param resource The resource to add.
      */
-    static void addResourceRequest( final Context ctx, final String type, final String resource ) {
-        HashMap< String, Vector< String > > resourcemap = ctx.getVariable( RESOURCE_INCLUDES );
-        if( resourcemap == null ) {
+    static void addResourceRequest(final Context ctx, final String type, final String resource) {
+        addResourceRequests(ctx, Collections.singletonList(type), Collections.singletonList(resource));
+    }
+
+    static void addResourceRequests(final Context ctx, final List<String> types, final List<String> resourcePaths) {
+        HashMap<String, Vector<String>> resourcemap = ctx.getVariable(RESOURCE_INCLUDES);
+        if (resourcemap == null) {
             resourcemap = new HashMap<>();
         }
 
-        // Module has to be treated as script for further processing of RESOURCE_INCLUDES variable
-        final String resourceType = type.equals(RESOURCE_SCRIPT_MODULE) ? RESOURCE_SCRIPT : type;
+        for (int i = 0; i < types.size(); i++) {
+            String type = types.get(i);
+            String resource = resourcePaths.get(i);
+            // Module has to be treated as script for further processing of RESOURCE_INCLUDES variable
+            final String resourceType = type.equals(RESOURCE_SCRIPT_MODULE) ? RESOURCE_SCRIPT : type;
 
-        Vector< String > resources = resourcemap.get( resourceType );
-        if( resources == null ) {
-            resources = new Vector<>();
-        }
-        String resolvedResource = resource;
-        if( Strings.CS.startsWith( resource, "engine://" ) ) {
-            final String val = ctx.getEngine().getWikiProperties().getProperty( resource.substring( 9 ) ); // "engine//:".length() == 9
-            if( StringUtils.isNotBlank( val ) ) {
-                resolvedResource = val;
+            Vector<String> resources = resourcemap.get(resourceType);
+            if (resources == null) {
+                resources = new Vector<>();
             }
+            String resolvedResource = resource;
+            if( StringUtils.startsWith( resource, "engine://" ) ) {
+                final String val = ctx.getEngine().getWikiProperties().getProperty( resource.substring( 9 ) ); // "engine//:".length() == 9
+                if( StringUtils.isNotBlank( val ) ) {
+                    resolvedResource = val;
+                }
+            }
+
+            String resourceString = null;
+            switch (type) {
+                case RESOURCE_SCRIPT_MODULE:
+                    resourceString = "<script type='module' src='" + resource + "'></script>";
+                    break;
+                case RESOURCE_SCRIPT:
+                    resourceString = "<script type='text/javascript' src='" + resolvedResource + "'></script>";
+                    break;
+                case RESOURCE_STYLESHEET:
+                    resourceString = "<link rel='stylesheet' type='text/css' href='" + resolvedResource + "' />";
+                    break;
+                case RESOURCE_INLINECSS:
+                    resourceString = "<style type='text/css'>\n" + resolvedResource + "\n</style>\n";
+                    break;
+                case RESOURCE_JSFUNCTION:
+                case RESOURCE_HTTPHEADER:
+                    resourceString = resolvedResource;
+                    break;
+            }
+
+            if (resourceString != null) {
+                resources.add(resourceString);
+            }
+
+            LoggerFactory.getLogger(TemplateManager.class).debug("Request to add a resource: " + resourceString);
+
+            resourcemap.put(resourceType, resources);
         }
 
-        String resourceString = null;
-        switch( type ) {
-        case RESOURCE_SCRIPT_MODULE:
-            resourceString = "<script type='module' src='" + resource + "'></script>";
-            break;
-        case RESOURCE_SCRIPT:
-            resourceString = "<script type='text/javascript' src='" + resolvedResource + "'></script>";
-            break;
-        case RESOURCE_STYLESHEET:
-            resourceString = "<link rel='stylesheet' type='text/css' href='" + resolvedResource + "' />";
-            break;
-        case RESOURCE_INLINECSS:
-            resourceString = "<style type='text/css'>\n" + resolvedResource + "\n</style>\n";
-            break;
-        case RESOURCE_JSFUNCTION:
-        case RESOURCE_HTTPHEADER:
-            resourceString = resolvedResource;
-            break;
-        }
-
-        if( resourceString != null ) {
-            resources.add( resourceString );
-        }
-
-        LoggerFactory.getLogger( TemplateManager.class ).debug( "Request to add a resource: {}", resourceString );
-
-        resourcemap.put(resourceType, resources );
-        ctx.setVariable( RESOURCE_INCLUDES, resourcemap );
+        ctx.setVariable(RESOURCE_INCLUDES, resourcemap);
     }
 
     /**
