@@ -49,7 +49,7 @@ import org.apache.lucene.search.highlight.QueryScorer;
 import org.apache.lucene.search.highlight.SimpleHTMLEncoder;
 import org.apache.lucene.search.highlight.SimpleHTMLFormatter;
 import org.apache.lucene.store.Directory;
-import org.apache.lucene.store.NIOFSDirectory;
+import org.apache.lucene.store.FSDirectory;
 import org.apache.wiki.InternalWikiException;
 import org.apache.wiki.WatchDog;
 import org.apache.wiki.WikiBackgroundThread;
@@ -77,6 +77,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -98,7 +99,7 @@ public class LuceneSearchProvider implements SearchProvider {
 
     protected static final Logger LOG = LoggerFactory.getLogger( LuceneSearchProvider.class );
 
-    private Engine m_engine;
+    protected Engine m_engine;
     private Executor searchExecutor;
 
     // Lucene properties.
@@ -124,7 +125,7 @@ public class LuceneSearchProvider implements SearchProvider {
     protected static final String LUCENE_PAGE_NAME     = "name";
     protected static final String LUCENE_PAGE_KEYWORDS = "keywords";
 
-    private String m_luceneDirectory;
+    protected String m_luceneDirectory;
     protected final List< Object[] > m_updates = Collections.synchronizedList( new ArrayList<>() );
 
     /** Maximum number of fragments from search matches. */
@@ -132,8 +133,7 @@ public class LuceneSearchProvider implements SearchProvider {
 
     /** The maximum number of hits to return from searches. */
     public static final int MAX_SEARCH_HITS = 99_999;
-
-    private static final String PUNCTUATION_TO_SPACES = StringUtils.repeat( " ", TextUtil.PUNCTUATION_CHARS_ALLOWED.length() );
+    protected static final String PUNCTUATION_TO_SPACES = StringUtils.repeat( " ", TextUtil.PUNCTUATION_CHARS_ALLOWED.length() );
 
     /** {@inheritDoc} */
     @Override
@@ -141,7 +141,7 @@ public class LuceneSearchProvider implements SearchProvider {
         m_engine = engine;
         searchExecutor = Executors.newCachedThreadPool();
 
-        m_luceneDirectory = engine.getWorkDir() + File.separator + LUCENE_DIR;
+        m_luceneDirectory = engine.getWorkDir() + File.separator + LUCENE_DIR + File.separator + getIndexId() + File.separator + Paths.get(props.getProperty("var.basedir", "unknown-wiki")).getFileName();
 
         final int initialDelay = TextUtil.getIntegerProperty( props, PROP_LUCENE_INITIALDELAY, LuceneUpdater.INITIAL_DELAY );
         final int indexDelay   = TextUtil.getIntegerProperty( props, PROP_LUCENE_INDEXDELAY, LuceneUpdater.INDEX_DELAY );
@@ -175,6 +175,16 @@ public class LuceneSearchProvider implements SearchProvider {
         updater.start();
     }
 
+	/**
+	 * Override/change the return value of this method if the index changes, to make sure a new index is generated
+	 */
+	protected String getIndexId() {
+		// bumped v1 -> v2 for the Lucene 6.6.6 -> 10 upgrade: Lucene 10 cannot open a v6 on-disk index
+		// (IndexFormatTooOldException). A new id routes to a fresh directory so the search index is rebuilt
+		// from the wiki pages instead of crashing; the old v6 directory is simply left unused.
+		return "v2";
+	}
+
     /**
      * Returns the handling engine.
      *
@@ -205,7 +215,7 @@ public class LuceneSearchProvider implements SearchProvider {
 
                 LOG.info( "Starting Lucene reindexing, this can take a couple of minutes..." );
 
-                final Directory luceneDir = new NIOFSDirectory( dir.toPath() );
+                final Directory luceneDir = FSDirectory.open( dir.toPath() );
                 try( final IndexWriter writer = getIndexWriter( luceneDir ) ) {
                     long pagesIndexed = 0L;
                     final Collection< Page > allPages = m_engine.getManager( PageManager.class ).getAllPages();
@@ -310,7 +320,7 @@ public class LuceneSearchProvider implements SearchProvider {
         pageRemoved( page );
 
         // Now add back the new version.
-        try( final Directory luceneDir = new NIOFSDirectory( new File( m_luceneDirectory ).toPath() );
+        try( final Directory luceneDir = FSDirectory.open( new File( m_luceneDirectory ).toPath() );
              final IndexWriter writer = getIndexWriter( luceneDir ) ) {
             luceneIndexPage( page, text, writer );
         } catch( final IOException e ) {
@@ -324,7 +334,7 @@ public class LuceneSearchProvider implements SearchProvider {
         LOG.debug( "Done updating Lucene index for page '{}'.", page.getName() );
     }
 
-    private Analyzer getLuceneAnalyzer() throws ProviderException {
+    protected Analyzer getLuceneAnalyzer() throws ProviderException {
         try {
             return ClassUtil.buildInstance( m_analyzerClass );
         } catch( final Exception e ) {
@@ -403,7 +413,7 @@ public class LuceneSearchProvider implements SearchProvider {
      */
     @Override
     public synchronized void pageRemoved( final Page page ) {
-        try( final Directory luceneDir = new NIOFSDirectory( new File( m_luceneDirectory ).toPath() );
+        try( final Directory luceneDir = FSDirectory.open( new File( m_luceneDirectory ).toPath() );
              final IndexWriter writer = getIndexWriter( luceneDir ) ) {
             final Query query = new TermQuery( new Term( LUCENE_ID, page.getName() ) );
             writer.deleteDocuments( query );
@@ -467,7 +477,7 @@ public class LuceneSearchProvider implements SearchProvider {
         ArrayList< SearchResult > list = null;
         Highlighter highlighter = null;
 
-        try( final Directory luceneDir = new NIOFSDirectory( new File( m_luceneDirectory ).toPath() );
+        try( final Directory luceneDir = FSDirectory.open( new File( m_luceneDirectory ).toPath() );
              final IndexReader reader = DirectoryReader.open( luceneDir ) ) {
             final String[] queryfields = { LUCENE_PAGE_CONTENTS, LUCENE_PAGE_NAME, LUCENE_AUTHOR, LUCENE_ATTACHMENTS, LUCENE_PAGE_KEYWORDS };
             final QueryParser qp = new MultiFieldQueryParser( queryfields, getLuceneAnalyzer() );
@@ -585,7 +595,7 @@ public class LuceneSearchProvider implements SearchProvider {
     }
 
     // FIXME: This class is dumb; needs to have a better implementation
-    private static class SearchResultImpl implements SearchResult {
+    protected static class SearchResultImpl implements SearchResult {
 
         private final Page m_page;
         private final int m_score;

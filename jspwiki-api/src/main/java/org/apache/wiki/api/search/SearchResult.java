@@ -20,6 +20,9 @@ package org.apache.wiki.api.search;
 
 import org.apache.wiki.api.core.Page;
 
+import java.util.HashMap;
+import java.util.Map;
+
 
 /**
  *  Defines a search result.
@@ -47,5 +50,17 @@ public interface SearchResult {
      * @since 2.4
      */
     String[] getContexts();
+
+    /**
+     * Returns a map version of this search result, to allow easier search customization.
+     *
+     * @return a map version of this search result
+     */
+    default Map<String,Object> toMap() {
+        final HashMap<String,Object> jsonMap = new HashMap<>();
+        jsonMap.put( "page", getPage().getName() );
+        jsonMap.put( "score", getScore() );
+        return jsonMap;
+    }
 
 }

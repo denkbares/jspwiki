@@ -62,6 +62,9 @@ public interface TemplateManager extends ModuleManager {
     /** Requests a script to be loaded. Value is {@value}. */
     String RESOURCE_SCRIPT = "script";
 
+    /** Requests a script to be loaded as module. Value is {@value}. */
+    String RESOURCE_SCRIPT_MODULE = "module";
+
     /** Requests inlined CSS. Value is {@value}. */
     String RESOURCE_INLINECSS = "inlinecss";
 
@@ -322,7 +325,10 @@ public interface TemplateManager extends ModuleManager {
             resourcemap = new HashMap<>();
         }
 
-        Vector< String > resources = resourcemap.get( type );
+        // Module has to be treated as script for further processing of RESOURCE_INCLUDES variable
+        final String resourceType = type.equals(RESOURCE_SCRIPT_MODULE) ? RESOURCE_SCRIPT : type;
+
+        Vector< String > resources = resourcemap.get( resourceType );
         if( resources == null ) {
             resources = new Vector<>();
         }
@@ -336,6 +342,9 @@ public interface TemplateManager extends ModuleManager {
 
         String resourceString = null;
         switch( type ) {
+        case RESOURCE_SCRIPT_MODULE:
+            resourceString = "<script type='module' src='" + resource + "'></script>";
+            break;
         case RESOURCE_SCRIPT:
             resourceString = "<script type='text/javascript' src='" + resolvedResource + "'></script>";
             break;
@@ -357,7 +366,7 @@ public interface TemplateManager extends ModuleManager {
 
         LoggerFactory.getLogger( TemplateManager.class ).debug( "Request to add a resource: {}", resourceString );
 
-        resourcemap.put( type, resources );
+        resourcemap.put(resourceType, resources );
         ctx.setVariable( RESOURCE_INCLUDES, resourcemap );
     }
 

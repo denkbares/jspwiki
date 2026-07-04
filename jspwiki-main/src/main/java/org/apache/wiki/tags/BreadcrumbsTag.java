@@ -113,28 +113,28 @@ public class BreadcrumbsTag extends WikiTagBase
     @Override
     public int doWikiStartTag() throws IOException {
         final HttpSession session = pageContext.getSession();
-        FixedQueue trail = (FixedQueue) session.getAttribute(BREADCRUMBTRAIL_KEY);
+        FixedQueue trail = new FixedQueue(m_maxQueueSize);
+        FixedQueue existing = (FixedQueue) session.getAttribute(BREADCRUMBTRAIL_KEY);
+        if (existing != null) {
+            trail.addAll(existing);
+        }
         final String page = m_wikiContext.getPage().getName();
 
-        if( trail == null ) {
-            trail = new FixedQueue(m_maxQueueSize);
-        } else {
-            //  check if page still exists (could be deleted/renamed by another user)
-            for (int i = 0;i<trail.size();i++) {
-                if( !m_wikiContext.getEngine().getManager( PageManager.class ).wikiPageExists( trail.get( i ) ) ) {
-                    trail.remove(i);
-                }
+        //  check if page still exists (could be deleted/renamed by another user)
+        for (int i = 0;i<trail.size();i++) {
+            if( !m_wikiContext.getEngine().getManager( PageManager.class ).wikiPageExists( trail.get( i ) ) ) {
+                trail.remove(i);
             }
         }
 
         if( m_wikiContext.getRequestContext().equals( ContextEnum.PAGE_VIEW.getRequestContext() ) ) {
             if( m_wikiContext.getEngine().getManager( PageManager.class ).wikiPageExists( page ) ) {
                 if( trail.isEmpty() ) {
-                    trail.pushItem( page );
+                    if ( page != null) trail.pushItem( page );
                 } else {
                     // Don't add the page to the queue if the page was just refreshed
                     if( !trail.getLast().equals( page ) ) {
-                        trail.pushItem( page );
+                        if ( page != null) trail.pushItem( page );
                     }
                 }
             } else {
@@ -184,7 +184,8 @@ public class BreadcrumbsTag extends WikiTagBase
             m_size = size;
         }
 
-        String pushItem( final String o ) {
+        synchronized String pushItem( final String o ) {
+            remove(o);
             add( o );
             if( size() > m_size ) {
                 return removeFirst();
@@ -196,10 +197,11 @@ public class BreadcrumbsTag extends WikiTagBase
         /**
          * @param pageName the page to be deleted from the breadcrumb
          */
-        public void removeItem( final String pageName ) {
+        synchronized public void removeItem( final String pageName ) {
             for( int i = 0; i < size(); i++ ) {
                 final String page = get( i );
-                if( page != null && page.equals( pageName ) ) {
+                //noinspection ConstantConditions
+                if (!(page instanceof String) || (page != null && page.equals(pageName))) {
                     remove( page );
                 }
             }

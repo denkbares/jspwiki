@@ -419,7 +419,9 @@ public class AttachmentServlet extends HttpServlet {
             final Context context = Wiki.context().create( m_engine, req, ContextEnum.PAGE_ATTACH.getRequestContext() );
             final UploadListener pl = new UploadListener();
 
-            m_engine.getManager( ProgressManager.class ).startProgress( pl, progressId );
+            if( progressId != null ) {
+                m_engine.getManager( ProgressManager.class ).startProgress( pl, progressId );
+            }
             
             if (req.getContentLengthLong() > m_maxSize) {
                 //we don't want total upload size to be larger than the max

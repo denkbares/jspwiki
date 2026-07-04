@@ -268,8 +268,7 @@ public class WikiEngine implements Engine {
         m_useUTF8        = StandardCharsets.UTF_8.name().equals( TextUtil.getStringProperty( props, PROP_ENCODING, StandardCharsets.ISO_8859_1.name() ) );
         m_saveUserInfo   = TextUtil.getBooleanProperty( props, PROP_STOREUSERNAME, m_saveUserInfo );
         m_frontPage      = TextUtil.getStringProperty( props, PROP_FRONTPAGE, "Main" );
-        m_templateDir    = TextUtil.getStringProperty( props, PROP_TEMPLATEDIR, "default" );
-        enforceValidTemplateDirectory();
+        updateTemplateDir();
 
         //
         //  Initialize the important modules.  Any exception thrown by the managers means that we will not start up.
@@ -353,6 +352,11 @@ public class WikiEngine implements Engine {
         
         new SecurityVerificationUtility().verify(this);
         m_isConfigured = true;
+    }
+
+    public void updateTemplateDir() {
+        m_templateDir    = TextUtil.getStringProperty(m_properties, PROP_TEMPLATEDIR, "default" );
+        enforceValidTemplateDirectory();
     }
 
     void createAndFindWorkingDirectory( final Properties props ) throws WikiException {
@@ -462,17 +466,27 @@ public class WikiEngine implements Engine {
             }
         }
     }
-
     /**
      *  Initializes the reference manager. Scans all existing WikiPages for
      *  internal links and adds them to the ReferenceManager object.
      *
      *  @throws WikiException If the reference manager initialization fails.
      */
+
     public void initReferenceManager() throws WikiException {
+        initReferenceManager(false);
+    }
+    /**
+     *  Initializes the reference manager. Scans all existing WikiPages for
+     *  internal links and adds them to the ReferenceManager object.
+     *  @param reinit if false: does init only if no instance of a ReferenceManager exists
+     *                if true: if a ReferenceManager exists, it will be dismissed and a new one will be initialized
+     *  @throws WikiException If the reference manager initialization fails.
+     */
+    public void initReferenceManager(boolean reinit) throws WikiException {
         try {
             // Build a new manager with default key lists.
-            if( getManager( ReferenceManager.class ) == null ) {
+            if( getManager( ReferenceManager.class ) == null || reinit) {
                 final ArrayList< Page > pages = new ArrayList<>();
                 pages.addAll( getManager( PageManager.class ).getAllPages() );
                 pages.addAll( getManager( AttachmentManager.class ).getAllAttachments() );

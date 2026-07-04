@@ -542,7 +542,7 @@ public class XMLUserDatabase extends AbstractUserDatabase {
                 if( StringUtils.isEmpty( lockExpiry ) || lockExpiry.isEmpty() ) {
                     profile.setLockExpiry( null );
                 } else {
-                    profile.setLockExpiry( new Date( Long.parseLong( lockExpiry ) ) );
+                    profile.setLockExpiry( parseDate( profile, lockExpiry ) );
                 }
                 final String oldHahes = user.getAttribute(OLD_HASHES_TAG);
                 if (oldHahes != null && oldHahes.length() > 0) {
