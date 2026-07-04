@@ -23,6 +23,7 @@ import org.slf4j.Logger;
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.core.Session;
 import org.apache.wiki.api.spi.Wiki;
+import org.apache.wiki.util.CsrfProtectionAllowList;
 
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
@@ -54,12 +55,13 @@ public class CsrfProtectionFilter implements Filter {
     /** {@inheritDoc} */
     @Override
     public void doFilter( final ServletRequest request, final ServletResponse response, final FilterChain chain ) throws IOException, ServletException {
-        if( isPost( ( HttpServletRequest ) request ) ) {
+        if( isPost( ( HttpServletRequest ) request ) && !CsrfProtectionAllowList.isAllowListed( ( HttpServletRequest ) request ) ) {
             final Engine engine = Wiki.engine().find( request.getServletContext(), null );
             final Session session = Wiki.session().find( engine, ( HttpServletRequest ) request );
             if( !requestContainsValidCsrfToken( request, session ) ) {
                 LOG.error( "Incorrect {} param with value '{}' received for {}",
                            ANTICSRF_PARAM, request.getParameter( ANTICSRF_PARAM ), ( ( HttpServletRequest ) request ).getPathInfo() );
+                ( ( HttpServletResponse ) response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
                 ( ( HttpServletResponse ) response ).sendRedirect( "/error/Forbidden.html" );
                 return;
             }
@@ -69,6 +71,9 @@ public class CsrfProtectionFilter implements Filter {
 
     public static boolean isCsrfProtectedPost( final HttpServletRequest request ) {
         if( isPost( request ) ) {
+            if( CsrfProtectionAllowList.isAllowListed( request ) ) {
+                return true;
+            }
             final Engine engine = Wiki.engine().find( request.getServletContext(), null );
             final Session session = Wiki.session().find( engine, request );
             return requestContainsValidCsrfToken( request, session );
