@@ -62,6 +62,22 @@ public class WorkflowManagerTest {
     }
 
     @Test
+    public void testShouldSerializeOnlyForDecisionQueueChanges() {
+        final Decision d = new SimpleDecision( w.getId(), w.getAttributes(), "decision.editWikiApproval", new WikiPrincipal( "Actor1" ) );
+
+        Assertions.assertFalse( wm.shouldSerializeToDisk( new WorkflowEvent( w, WorkflowEvent.CREATED ) ) );
+        Assertions.assertFalse( wm.shouldSerializeToDisk( new WorkflowEvent( w, WorkflowEvent.STARTED ) ) );
+        Assertions.assertFalse( wm.shouldSerializeToDisk( new WorkflowEvent( w, WorkflowEvent.RUNNING ) ) );
+        Assertions.assertFalse( wm.shouldSerializeToDisk( new WorkflowEvent( w, WorkflowEvent.WAITING ) ) );
+        Assertions.assertFalse( wm.shouldSerializeToDisk( new WorkflowEvent( w, WorkflowEvent.COMPLETED ) ) );
+        Assertions.assertFalse( wm.shouldSerializeToDisk( new WorkflowEvent( w, WorkflowEvent.ABORTED ) ) );
+
+        Assertions.assertTrue( wm.shouldSerializeToDisk( new WorkflowEvent( d, WorkflowEvent.DQ_ADDITION ) ) );
+        Assertions.assertTrue( wm.shouldSerializeToDisk( new WorkflowEvent( d, WorkflowEvent.DQ_REMOVAL ) ) );
+        Assertions.assertTrue( wm.shouldSerializeToDisk( new WorkflowEvent( d, WorkflowEvent.DQ_REASSIGN ) ) );
+    }
+
+    @Test
     public void testStart() throws WikiException {
         // Once we start the workflow, it should show that it's started and the WM should have assigned it an ID
         Assertions.assertFalse( w.isStarted() );
