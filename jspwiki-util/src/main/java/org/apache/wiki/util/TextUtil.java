@@ -54,7 +54,7 @@ public final class TextUtil {
     public static final String LEGACY_CHARS_ALLOWED = "._";
 
     /** Lists all punctuation characters allowed in page names. */
-    public static final String PUNCTUATION_CHARS_ALLOWED = " ()&+,-=._$";
+    public static final String PUNCTUATION_CHARS_ALLOWED = " ()&+,-=._$@";
 
     /** Private constructor prevents instantiation. */
     private TextUtil() {}
@@ -315,6 +315,7 @@ public final class TextUtil {
      *  @return The parsed value (or defvalue).
      */
     public static int parseIntParameter( final String value, final int defvalue ) {
+        if (value == null) return defvalue;
         try {
             return Integer.parseInt( value.trim() );
         } catch( final Exception e ) {
