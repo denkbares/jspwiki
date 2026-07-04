@@ -142,10 +142,10 @@ public abstract class MarkupParser {
      *  @param context The WikiContext.
      *  @param in The reader from which we are reading the bytes from.
      */
-    protected MarkupParser( final Context context, final Reader in ) {
+    protected MarkupParser( final Context context, final Reader in, LinkParsingOperations linkParsingOperations ) {
         m_engine = context.getEngine();
         m_context = context;
-        m_linkParsingOperations = new LinkParsingOperations( m_context );
+        m_linkParsingOperations = linkParsingOperations;
         setInputReader( in );
     }
 
@@ -359,7 +359,7 @@ public abstract class MarkupParser {
      *  @since 2.6
      */
     public static String wikifyLink( final String link ) {
-        return TextUtil.cleanString( link, TextUtil.LEGACY_CHARS_ALLOWED );
+        return TextUtil.cleanString( link, TextUtil.LEGACY_CHARS_ALLOWED + '&' /* not so nice hack for multi wiki separator*/);
     }
 
 }

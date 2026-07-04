@@ -19,6 +19,9 @@
 package org.apache.wiki;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.wiki.content.DefaultPageRenamerManager;
+import org.apache.wiki.pages.DefaultPageNameResolverManager;
+import org.apache.wiki.pages.PageNameResolverManager;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 import org.apache.wiki.api.Release;
@@ -281,6 +284,7 @@ public class WikiEngine implements Engine {
             initComponent( CommandResolver.class, this, props );
             initComponent( urlclass.getName(), URLConstructor.class );
             initComponent( CachingManager.class, this, props );
+            initComponent( DefaultPageNameResolverManager.class, props);
             initComponent( PageManager.class, this, props );
             initComponent( PluginManager.class, this, props );
             initComponent( DifferenceManager.class, this, props );
@@ -300,7 +304,7 @@ public class WikiEngine implements Engine {
             initComponent( TemplateManager.class, this, props );
             initComponent( FilterManager.class, this, props );
             initComponent( AdminBeanManager.class, this );
-            initComponent( PageRenamer.class, this, props );
+            initComponent( DefaultPageRenamerManager.class, this, props );
 
             // RenderingManager depends on FilterManager events.
             initComponent( RenderingManager.class );
@@ -310,7 +314,8 @@ public class WikiEngine implements Engine {
             initReferenceManager();
 
             //  Hook the different manager routines into the system.
-            getManager( FilterManager.class ).addPageFilter( getManager( ReferenceManager.class ), -1001 );
+            ReferenceManager manager = getManager(ReferenceManager.class);
+            getManager( FilterManager.class ).addPageFilter(manager, -1001 );
             getManager( FilterManager.class ).addPageFilter( getManager( SearchManager.class ), -1002 );
         } catch( final RuntimeException e ) {
             // RuntimeExceptions may occur here, even if they shouldn't.
@@ -564,7 +569,7 @@ public class WikiEngine implements Engine {
     /** {@inheritDoc} */
     @Override
     public String getFrontPage() {
-        return m_frontPage;
+        return getManager(PageNameResolverManager.class).getPageNameResolver().resolvePageName(m_frontPage, this.m_properties);
     }
 
     /** {@inheritDoc} */

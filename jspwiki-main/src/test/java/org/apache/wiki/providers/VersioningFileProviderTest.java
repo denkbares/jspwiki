@@ -33,13 +33,23 @@ import org.apache.wiki.util.FileUtil;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.StringReader;
 import java.io.Writer;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Collection;
+import java.util.Date;
 import java.util.List;
 import java.util.Properties;
 
@@ -56,10 +66,18 @@ public class VersioningFileProviderTest {
                 + "author=" + OLD_AUTHOR + "\n";
 
     private final Properties PROPS = TestEngine.getTestProperties( "/jspwiki-vers-custom.properties" );
-    private TestEngine engine = TestEngine.build( PROPS );
+    protected TestEngine engine = createEngine();
+
+    protected TestEngine createEngine() {
+        return TestEngine.build( PROPS );
+    }
 
     // this is the testing page directory
-    private String files = engine.getWikiProperties().getProperty( AbstractFileProvider.PROP_PAGEDIR );
+    private String files = getWikiPageDirectory();
+
+    protected String getWikiPageDirectory() {
+        return engine.getWikiProperties().getProperty(AbstractFileProvider.PROP_PAGEDIR);
+    }
 
     @AfterEach
     public void tearDown() {
@@ -153,32 +171,32 @@ public class VersioningFileProviderTest {
        // also create an associated properties file with some history
         injectFile(NAME1+FileSystemProvider.PROP_EXT, FAKE_HISTORY);
 
-        final String result1 = engine.getManager( PageManager.class ).getText( NAME1 );
+        final String result1 = engine.getManager( PageManager.class ).getText( getPageName1() );
         Assertions.assertEquals( fakeWikiPage, result1, "latest should be initial" );
 
         // now update the wiki page to create a new version
         final String text = "diddo\r\n";
-        engine.saveText( NAME1, text );
+        engine.saveText( getPageName1(), text );
 
         // confirm the right number of versions have been recorded
-        final List< WikiPage > versionHistory = engine.getManager( PageManager.class ).getVersionHistory(NAME1);
+        final List< WikiPage > versionHistory = engine.getManager( PageManager.class ).getVersionHistory(getPageName1() );
         Assertions.assertEquals( 2, versionHistory.size(), "number of versions" );
 
         // fetch the updated page
-        final String result2 = engine.getManager( PageManager.class ).getText( NAME1 );
+        final String result2 = engine.getManager( PageManager.class ).getText( getPageName1()  );
         Assertions.assertEquals( text, result2, "latest should be new version" );
-        final String result3 = engine.getManager( PageManager.class ).getText( NAME1, 2 ); // Should be the 2nd version.
+        final String result3 = engine.getManager( PageManager.class ).getText( getPageName1() , 2 ); // Should be the 2nd version.
         Assertions.assertEquals( text, result3, "fetch new by version did not work" );
 
         // now confirm the original page has been archived
-        final String result4 = engine.getManager( PageManager.class ).getText( NAME1, 1 );
+        final String result4 = engine.getManager( PageManager.class ).getText( getPageName1() , 1 );
         Assertions.assertEquals( fakeWikiPage, result4, "fetch original by version Assertions.failed" );
 
-        final Page pageNew = engine.getManager( PageManager.class ).getPage( NAME1, 2 );
+        final Page pageNew = engine.getManager( PageManager.class ).getPage( getPageName1() , 2 );
         Assertions.assertEquals( 2, pageNew.getVersion(), "new version" );
         Assertions.assertEquals( "Guest", pageNew.getAuthor(), "new author" );
 
-        final Page pageOld = engine.getManager( PageManager.class ).getPage( NAME1, 1 );
+        final Page pageOld = engine.getManager( PageManager.class ).getPage( getPageName1() , 1 );
         Assertions.assertEquals( 1, pageOld.getVersion(), "old version" );
         Assertions.assertEquals( OLD_AUTHOR, pageOld.getAuthor(), "old author" );
     }
@@ -200,39 +218,39 @@ public class VersioningFileProviderTest {
         // next update the wiki page to create a version number 2
         // with a different username
         final String text2 = "diddo\r\n";
-        engine.saveTextAsJanne( NAME1, text2 );
+        engine.saveTextAsJanne( getPageName1(), text2 );
 
         // finally, update the wiki page to create a version number 3
         final String text3 = "whateverNext\r\n";
-        engine.saveText( NAME1, text3 );
+        engine.saveText( getPageName1(), text3 );
 
         // confirm the right number of versions have been recorded
-        final Collection< Page > versionHistory = engine.getManager( PageManager.class ).getVersionHistory(NAME1);
+        final Collection< Page > versionHistory = engine.getManager( PageManager.class ).getVersionHistory(getPageName1());
         Assertions.assertEquals( 3, versionHistory.size(), "number of versions" );
 
         // fetch the latest version of the page
-        final String result = engine.getManager( PageManager.class ).getText( NAME1 );
+        final String result = engine.getManager( PageManager.class ).getText( getPageName1() );
         Assertions.assertEquals( text3, result, "latest should be newest version" );
-        final String result2 = engine.getManager( PageManager.class ).getText( NAME1, 3 );
+        final String result2 = engine.getManager( PageManager.class ).getText( getPageName1(), 3 );
         Assertions.assertEquals( text3, result2, "fetch new by version did not work" );
 
         // confirm the original page was archived
-        final String result3 = engine.getManager( PageManager.class ).getText( NAME1, 1 );
+        final String result3 = engine.getManager( PageManager.class ).getText( getPageName1(), 1 );
         Assertions.assertEquals( fakeWikiPage, result3, "fetch original by version Assertions.failed" );
 
         // confirm the first update was archived
-        final String result4 = engine.getManager( PageManager.class ).getText( NAME1, 2 );
+        final String result4 = engine.getManager( PageManager.class ).getText( getPageName1(), 2 );
         Assertions.assertEquals( text2, result4, "fetch original by version Assertions.failed" );
 
-        final Page pageNew = engine.getManager( PageManager.class ).getPage( NAME1 );
+        final Page pageNew = engine.getManager( PageManager.class ).getPage( getPageName1() );
         Assertions.assertEquals( 3, pageNew.getVersion(), "newest version" );
-        Assertions.assertEquals( pageNew.getAuthor(), "Guest", "newest author" );
+        Assertions.assertEquals( "Guest", pageNew.getAuthor(), "newest author" );
 
-        final Page pageMiddle = engine.getManager( PageManager.class ).getPage( NAME1, 2 );
+        final Page pageMiddle = engine.getManager( PageManager.class ).getPage( getPageName1(), 2 );
         Assertions.assertEquals( 2, pageMiddle.getVersion(), "middle version" );
         Assertions.assertEquals( Users.JANNE, pageMiddle.getAuthor(), "middle author" );
 
-        final Page pageOld = engine.getManager( PageManager.class ).getPage( NAME1, 1 );
+        final Page pageOld = engine.getManager( PageManager.class ).getPage( getPageName1(), 1 );
         Assertions.assertEquals( 1, pageOld.getVersion(), "old version" );
         Assertions.assertEquals( OLD_AUTHOR, pageOld.getAuthor(), "old author" );
     }
@@ -331,8 +349,12 @@ public class VersioningFileProviderTest {
         engine.saveText( NAME1, text );
         final Page page = engine.getManager( PageManager.class ).getPage( NAME1, 1 );
 
-        Assertions.assertEquals( NAME1, page.getName(), "name" );
+        Assertions.assertEquals( getPageName1(), page.getName(), "name" );
         Assertions.assertEquals( 1, page.getVersion(), "version" );
+    }
+
+    protected String getPageName1() {
+        return NAME1;
     }
 
     @Test
@@ -425,29 +447,32 @@ public class VersioningFileProviderTest {
         final PageManager mgr = engine.getManager( PageManager.class );
         final PageProvider provider = mgr.getProvider();
 
-        final WikiPage p = new WikiPage( (Engine) engine, NAME1 );
-        provider.deletePage( p );
+        WikiPage p = new WikiPage((Engine) engine, NAME1);
+        provider.deletePage(p);
+
         final File f = new File( files, NAME1+AbstractFileProvider.FILE_EXT );
         Assertions.assertFalse( f.exists(), "file exists" );
     }
 
     @Test
     public void testDeleteVersion() throws Exception {
-        engine.saveText( NAME1, "v1\r\n" );
-        engine.saveText( NAME1, "v2\r\n" );
-        engine.saveText( NAME1, "v3\r\n" );
+        engine.saveText( getPageName1(), "v1\r\n" );
+        engine.saveText( getPageName1(), "v2\r\n" );
+        engine.saveText( getPageName1(), "v3\r\n" );
 
         final PageManager mgr = engine.getManager( PageManager.class );
         final PageProvider provider = mgr.getProvider();
 
         List< Page > l = provider.getVersionHistory( NAME1 );
         Assertions.assertEquals( 3, l.size(), "wrong # of versions" );
-        final WikiPage p = new WikiPage( (Engine) engine, NAME1 );
-        provider.deleteVersion( p, 2 );
-        l = provider.getVersionHistory( NAME1 );
+
+        WikiPage p = new WikiPage((Engine) engine, NAME1);
+        provider.deleteVersion(p, 2);
+
+        l = provider.getVersionHistory( getPageName1() );
         Assertions.assertEquals( 2, l.size(), "wrong # of versions" );
-        Assertions.assertEquals( "v1\r\n", provider.getPageText( NAME1, 1 ), "v1" );
-        Assertions.assertEquals( "v3\r\n", provider.getPageText( NAME1, 3 ), "v3" );
+        Assertions.assertEquals( "v1\r\n", provider.getPageText( getPageName1(), 1 ), "v1" );
+        Assertions.assertEquals( "v3\r\n", provider.getPageText( getPageName1(), 3 ), "v3" );
 
         try {
             provider.getPageText( NAME1, 2 );
@@ -489,13 +514,178 @@ public class VersioningFileProviderTest {
         context.getPage().setAttribute( Page.CHANGENOTE, "Test change" );
         engine.getManager( PageManager.class ).saveText( context, "test" );
         for( int i = 0; i < 5; i++ ) {
-            final Page p2 = engine.getManager( PageManager.class ).getPage( NAME1 ).clone();
+            final Page p2 = engine.getManager( PageManager.class ).getPage( getPageName1() ).clone();
             p2.removeAttribute(Page.CHANGENOTE);
             context.setPage( p2 );
             engine.getManager( PageManager.class ).saveText( context, "test"+i );
         }
-        final Page p3 = engine.getManager( PageManager.class ).getPage( NAME1, -1 );
+        final Page p3 = engine.getManager( PageManager.class ).getPage( getPageName1(), -1 );
         Assertions.assertNull( p3.getAttribute( Page.CHANGENOTE ) );
+    }
+
+    // ----------------------------------------------------------------------------------------------------
+    // Tests for the creation-date batch: persisting the creation date in page.properties and the optional
+    // restore-creation-dates.properties recovery mechanism (see VersioningFileProvider).
+    // ----------------------------------------------------------------------------------------------------
+
+    @TempDir
+    File creationDateTempDir;
+
+    /**
+     * Builds a standalone provider on an isolated page directory so the creation-date batch logic can be
+     * exercised directly and deterministically, without going through the background thread started by
+     * initialize().
+     */
+    private VersioningFileProvider standaloneProvider() {
+        final VersioningFileProvider provider = new VersioningFileProvider();
+        provider.m_pageDirectory = creationDateTempDir.getAbsolutePath();
+        provider.m_encoding = AbstractFileProvider.DEFAULT_ENCODING;
+        return provider;
+    }
+
+    /** Reads back the page.properties that the batch wrote for the given (never-versioned) page. */
+    private Properties readPageProperties( final VersioningFileProvider provider, final String page ) throws IOException {
+        final File propsFile = new File( provider.findOldPageDir( page ), VersioningFileProvider.PROPERTYFILE );
+        final Properties props = new Properties();
+        try( final InputStream in = new FileInputStream( propsFile ) ) {
+            props.load( in );
+        }
+        return props;
+    }
+
+    private static Instant toInstant( final String isoDateTime ) {
+        return Instant.from( DateTimeFormatter.ISO_DATE_TIME.parse( isoDateTime ) );
+    }
+
+    private static Date asDate( final String localDateTime ) {
+        return Date.from( LocalDateTime.parse( localDateTime ).atZone( ZoneId.systemDefault() ).toInstant() );
+    }
+
+    @Test
+    public void testParseRestoreDateFormats() {
+        // epoch milliseconds
+        Assertions.assertEquals( Instant.ofEpochMilli( 1523518260000L ),
+                DateSupport.parseRestoreDate( "1523518260000" ).toInstant(), "epoch millis" );
+
+        // ISO date-time with offset
+        Assertions.assertEquals( Instant.parse( "2018-04-12T07:31:00Z" ),
+                DateSupport.parseRestoreDate( "2018-04-12T09:31:00+02:00" ).toInstant(), "ISO offset" );
+
+        // ISO local date-time (system zone), "T" separated
+        Assertions.assertEquals( asDate( "2018-04-12T09:31:00" ).toInstant(),
+                DateSupport.parseRestoreDate( "2018-04-12T09:31:00" ).toInstant(), "ISO local with T" );
+
+        // ISO local date-time (system zone), space separated
+        Assertions.assertEquals( asDate( "2018-04-12T09:31:00" ).toInstant(),
+                DateSupport.parseRestoreDate( "2018-04-12 09:31:00" ).toInstant(), "ISO local with space" );
+
+        // date only (start of day, system zone)
+        Assertions.assertEquals( LocalDate.parse( "2018-04-12" ).atStartOfDay( ZoneId.systemDefault() ).toInstant(),
+                DateSupport.parseRestoreDate( "2018-04-12" ).toInstant(), "date only" );
+    }
+
+    @Test
+    public void testParseRestoreDateInvalidReturnsNull() {
+        Assertions.assertNull( DateSupport.parseRestoreDate( "not-a-date" ) );
+        Assertions.assertNull( DateSupport.parseRestoreDate( "" ) );
+        Assertions.assertNull( DateSupport.parseRestoreDate( null ) );
+    }
+
+    @Test
+    public void testRestoreDatePreferredWhenFileSystemDateNewer() throws Exception {
+        final VersioningFileProvider provider = standaloneProvider();
+        final String page = "RestoreNewer";
+
+        // file system timestamp is later than the restore date -> it was reset by a copy/zip
+        final WikiPage wikiPage = new WikiPage( (Engine) engine, page );
+        wikiPage.setLastModified( asDate( "2020-01-01T00:00:00" ) );
+
+        final Properties restore = new Properties();
+        restore.setProperty( provider.mangleName( wikiPage.getName() ) + "#latest", "2018-04-12T09:31:00" );
+
+        Assertions.assertTrue( provider.ensureCreationDateProperties( wikiPage, restore ), "properties should be written" );
+
+        final Instant persisted = toInstant( readPageProperties( provider, wikiPage.getName() ).getProperty( "1.date" ) );
+        Assertions.assertEquals( asDate( "2018-04-12T09:31:00" ).toInstant(), persisted,
+                "older restored date should win over the newer file system timestamp" );
+    }
+
+    @Test
+    public void testRestoreDateFallbackToPlainPageNameKey() throws Exception {
+        final VersioningFileProvider provider = standaloneProvider();
+        final String page = "RestorePlainKey";
+
+        final WikiPage wikiPage = new WikiPage( (Engine) engine, page );
+        wikiPage.setLastModified( asDate( "2020-01-01T00:00:00" ) );
+
+        // key stored under the plain (un-mangled) page name, not the mangled file name
+        final Properties restore = new Properties();
+        restore.setProperty( wikiPage.getName() + "#latest", "2017-05-06T07:08:09" );
+
+        provider.ensureCreationDateProperties( wikiPage, restore );
+
+        final Instant persisted = toInstant( readPageProperties( provider, wikiPage.getName() ).getProperty( "1.date" ) );
+        Assertions.assertEquals( asDate( "2017-05-06T07:08:09" ).toInstant(), persisted,
+                "restore date should also be found under the plain page name key" );
+    }
+
+    @Test
+    public void testFileSystemDateKeptWhenOlderThanRestoreDate() throws Exception {
+        final VersioningFileProvider provider = standaloneProvider();
+        final String page = "RestoreOlderFs";
+
+        // file system timestamp is older than the restore date -> keep the (earlier) file system date
+        final Date fsDate = asDate( "2018-01-01T00:00:00" );
+        final WikiPage wikiPage = new WikiPage( (Engine) engine, page );
+        wikiPage.setLastModified( fsDate );
+
+        final Properties restore = new Properties();
+        restore.setProperty( provider.mangleName( wikiPage.getName() ) + "#latest", "2020-06-15T10:00:00" );
+
+        provider.ensureCreationDateProperties( wikiPage, restore );
+
+        final Instant persisted = toInstant( readPageProperties( provider, wikiPage.getName() ).getProperty( "1.date" ) );
+        Assertions.assertEquals( fsDate.toInstant(), persisted,
+                "file system date must be kept when it is older than the restore date" );
+    }
+
+    @Test
+    public void testFileSystemDateUsedWhenNoRestoreEntry() throws Exception {
+        final VersioningFileProvider provider = standaloneProvider();
+        final String page = "NoRestoreEntry";
+
+        final Date fsDate = asDate( "2019-09-09T12:00:00" );
+        final WikiPage wikiPage = new WikiPage( (Engine) engine, page );
+        wikiPage.setLastModified( fsDate );
+
+        Assertions.assertTrue( provider.ensureCreationDateProperties( wikiPage, new Properties() ),
+                "creation date must be persisted even without a restore file" );
+
+        final Properties persisted = readPageProperties( provider, wikiPage.getName() );
+        Assertions.assertEquals( fsDate.toInstant(), toInstant( persisted.getProperty( "1.date" ) ),
+                "file system date should be used when no restore entry exists" );
+        Assertions.assertEquals( "unknown", persisted.getProperty( "1.author" ),
+                "author should default to 'unknown' without heritage properties" );
+    }
+
+    @Test
+    public void testHeritageAuthorPersistedForSingleVersionPage() throws Exception {
+        final VersioningFileProvider provider = standaloneProvider();
+        final String page = "HeritageAuthor";
+
+        final WikiPage wikiPage = new WikiPage( (Engine) engine, page );
+        wikiPage.setLastModified( asDate( "2016-03-03T03:03:03" ) );
+
+        // simulate a heritage properties file written by the FileSystemProvider (keyed by the resolved page name)
+        final File heritage = new File( creationDateTempDir, provider.mangleName( wikiPage.getName() ) + FileSystemProvider.PROP_EXT );
+        try( final Writer out = new FileWriter( heritage ) ) {
+            out.write( "author=brian\n" );
+        }
+
+        provider.ensureCreationDateProperties( wikiPage, new Properties() );
+
+        Assertions.assertEquals( "brian", readPageProperties( provider, wikiPage.getName() ).getProperty( "1.author" ),
+                "version 1 author should be taken from the heritage properties" );
     }
 
     /**

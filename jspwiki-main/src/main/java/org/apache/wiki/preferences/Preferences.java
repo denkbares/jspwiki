@@ -237,7 +237,7 @@ public class Preferences extends HashMap< String,String > {
             loc = Locale.getDefault();
         }
 
-        LOG.debug( "using locale " + loc.toString() );
+        LOG.debug( "using locale " + loc );
         return loc;
     }
 

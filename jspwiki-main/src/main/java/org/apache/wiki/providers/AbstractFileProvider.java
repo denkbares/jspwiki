@@ -52,505 +52,512 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.TreeSet;
-import org.apache.commons.lang3.SystemUtils;
-
 
 /**
- *  Provides a simple directory based repository for Wiki pages.
- *  <P>
- *  All files have ".txt" appended to make life easier for those who insist on using Windows or other software which makes assumptions
- *  on the files contents based on its name.
- *  <p>
- *  This class functions as a superclass to all file based providers.
+ * Provides a simple directory based repository for Wiki pages.
+ * <p>
+ * All files have ".txt" appended to make life easier for those who insist on using Windows or other software which
+ * makes assumptions
+ * on the files contents based on its name.
+ * <p>
+ * This class functions as a superclass to all file based providers.
  *
- *  @since 2.1.21.
+ * @since 2.1.21.
  */
 public abstract class AbstractFileProvider implements PageProvider {
 
-    private static final Logger LOG = LoggerFactory.getLogger(AbstractFileProvider.class);
-    private String m_pageDirectory = "/tmp/";
-    protected String m_encoding;
+	private static final Logger LOG = LoggerFactory.getLogger(AbstractFileProvider.class);
+	protected String m_pageDirectory = "/tmp/";
+	protected String m_encoding;
 
-    protected Engine m_engine;
+	protected Engine m_engine;
 
-    public static final String PROP_CUSTOMPROP_MAXLIMIT = "custom.pageproperty.max.allowed";
-    public static final String PROP_CUSTOMPROP_MAXKEYLENGTH = "custom.pageproperty.key.length";
-    public static final String PROP_CUSTOMPROP_MAXVALUELENGTH = "custom.pageproperty.value.length";
+	public static final String PROP_CUSTOMPROP_MAXLIMIT = "custom.pageproperty.max.allowed";
+	public static final String PROP_CUSTOMPROP_MAXKEYLENGTH = "custom.pageproperty.key.length";
+	public static final String PROP_CUSTOMPROP_MAXVALUELENGTH = "custom.pageproperty.value.length";
 
-    public static final int DEFAULT_MAX_PROPLIMIT = 200;
-    public static final int DEFAULT_MAX_PROPKEYLENGTH = 255;
-    public static final int DEFAULT_MAX_PROPVALUELENGTH = 4096;
+	public static final int DEFAULT_MAX_PROPLIMIT = 200;
+	public static final int DEFAULT_MAX_PROPKEYLENGTH = 255;
+	public static final int DEFAULT_MAX_PROPVALUELENGTH = 4096;
 
-    /** This parameter limits the number of custom page properties allowed on a page */
-    public static int MAX_PROPLIMIT = DEFAULT_MAX_PROPLIMIT;
+	/**
+	 * This parameter limits the number of custom page properties allowed on a page
+	 */
+	public static int MAX_PROPLIMIT = DEFAULT_MAX_PROPLIMIT;
 
-    /**
-     * This number limits the length of a custom page property key length. The default value here designed with future JDBC providers in mind.
-     */
-    public static int MAX_PROPKEYLENGTH = DEFAULT_MAX_PROPKEYLENGTH;
+	/**
+	 * This number limits the length of a custom page property key length. The default value here designed with future
+	 * JDBC providers in mind.
+	 */
+	public static int MAX_PROPKEYLENGTH = DEFAULT_MAX_PROPKEYLENGTH;
 
-    /**
-     * This number limits the length of a custom page property value length. The default value here designed with future JDBC providers in mind.
-     */
-    public static int MAX_PROPVALUELENGTH = DEFAULT_MAX_PROPVALUELENGTH;
+	/**
+	 * This number limits the length of a custom page property value length. The default value here designed with future
+	 * JDBC providers in mind.
+	 */
+	public static int MAX_PROPVALUELENGTH = DEFAULT_MAX_PROPVALUELENGTH;
 
-    /** Name of the property that defines where page directories are. */
-    public static final String PROP_PAGEDIR = "jspwiki.fileSystemProvider.pageDir";
+	/**
+	 * Name of the property that defines where page directories are.
+	 */
+	public static final String PROP_PAGEDIR = "jspwiki.fileSystemProvider.pageDir";
 
-    /**
-     *  All files should have this extension to be recognized as JSPWiki files. We default to .txt, because that is probably easiest for
-     *  Windows users, and guarantees correct handling.
-     */
-    public static final String FILE_EXT = ".txt";
+	/**
+	 * All files should have this extension to be recognized as JSPWiki files. We default to .txt, because that is
+	 * probably easiest for
+	 * Windows users, and guarantees correct handling.
+	 */
+	public static final String FILE_EXT = ".txt";
 
-    /** The default encoding. */
-    public static final String DEFAULT_ENCODING = StandardCharsets.ISO_8859_1.toString();
+	/**
+	 * The default encoding.
+	 */
+	public static final String DEFAULT_ENCODING = StandardCharsets.ISO_8859_1.toString();
 
-    private boolean m_windowsHackNeeded;
+	private boolean m_windowsHackNeeded;
 
-    /**
-     *  {@inheritDoc}
-     *  @throws FileNotFoundException If the specified page directory does not exist.
-     *  @throws IOException In case the specified page directory is a file, not a directory.
-     */
-    @Override
-    public void initialize( final Engine engine, final Properties properties ) throws NoRequiredPropertyException, IOException, FileNotFoundException {
-        LOG.debug( "Initing FileSystemProvider" );
-        m_pageDirectory = TextUtil.getCanonicalFilePathProperty( properties, PROP_PAGEDIR,
-                                                          System.getProperty( "user.home" ) + File.separator + "jspwiki-files" );
+	/**
+	 * {@inheritDoc}
+	 *
+	 * @throws FileNotFoundException If the specified page directory does not exist.
+	 * @throws IOException           In case the specified page directory is a file, not a directory.
+	 */
+	@Override
+	public void initialize(final Engine engine, final Properties properties) throws NoRequiredPropertyException, IOException, FileNotFoundException {
+		LOG.debug("Initing FileSystemProvider");
+		m_pageDirectory = get_m_pageDirectory(properties);
 
-        final File f = new File( m_pageDirectory );
+		final File f = new File(m_pageDirectory);
 
-        if( !f.exists() ) {
-            if( !f.mkdirs() ) {
-                throw new IOException( "Failed to create page directory " + f.getAbsolutePath() + " , please check property " + PROP_PAGEDIR );
-            }
-        } else {
-            if( !f.isDirectory() ) {
-                throw new IOException( "Page directory is not a directory: " + f.getAbsolutePath() );
-            }
-            if( !f.canWrite() ) {
-                throw new IOException( "Page directory is not writable: " + f.getAbsolutePath() );
-            }
-        }
+		if (!f.exists()) {
+			if (!f.mkdirs()) {
+				throw new IOException("Failed to create page directory " + f.getAbsolutePath() + " , please check property " + PROP_PAGEDIR);
+			}
+		}
+		else {
+			if (!f.isDirectory()) {
+				throw new IOException("Page directory is not a directory: " + f.getAbsolutePath());
+			}
+			if (!f.canWrite()) {
+				throw new IOException("Page directory is not writable: " + f.getAbsolutePath());
+			}
+		}
 
-        m_engine = engine;
-        m_encoding = properties.getProperty( Engine.PROP_ENCODING, DEFAULT_ENCODING );
-        m_windowsHackNeeded = SystemUtils.IS_OS_WINDOWS;
+		m_engine = engine;
+		m_encoding = properties.getProperty(Engine.PROP_ENCODING, DEFAULT_ENCODING);
+		final String os = System.getProperty("os.name").toLowerCase();
+		if (os.startsWith("windows") || os.equals("nt")) {
+			m_windowsHackNeeded = true;
+		}
 
-        MAX_PROPLIMIT = TextUtil.getIntegerProperty( properties, PROP_CUSTOMPROP_MAXLIMIT, DEFAULT_MAX_PROPLIMIT );
-        MAX_PROPKEYLENGTH = TextUtil.getIntegerProperty( properties, PROP_CUSTOMPROP_MAXKEYLENGTH, DEFAULT_MAX_PROPKEYLENGTH );
-        MAX_PROPVALUELENGTH = TextUtil.getIntegerProperty( properties, PROP_CUSTOMPROP_MAXVALUELENGTH, DEFAULT_MAX_PROPVALUELENGTH );
+		MAX_PROPLIMIT = TextUtil.getIntegerProperty(properties, PROP_CUSTOMPROP_MAXLIMIT, DEFAULT_MAX_PROPLIMIT);
+		MAX_PROPKEYLENGTH = TextUtil.getIntegerProperty(properties, PROP_CUSTOMPROP_MAXKEYLENGTH, DEFAULT_MAX_PROPKEYLENGTH);
+		MAX_PROPVALUELENGTH = TextUtil.getIntegerProperty(properties, PROP_CUSTOMPROP_MAXVALUELENGTH, DEFAULT_MAX_PROPVALUELENGTH);
 
-        LOG.info( "Wikipages are read from '" + m_pageDirectory + "'" );
-    }
+		LOG.info("Wikipages are read from '" + m_pageDirectory + "'");
+	}
 
+	public static String get_m_pageDirectory(Properties properties) {
+		return TextUtil.getCanonicalFilePathProperty(properties, PROP_PAGEDIR,
+				System.getProperty("user.home") + File.separator + "jspwiki-files");
+	}
 
-    String getPageDirectory()
-    {
-        return m_pageDirectory;
-    }
+	String getPageDirectory() {
+		return m_pageDirectory;
+	}
 
-    private static final String[] WINDOWS_DEVICE_NAMES = {
-        "con", "prn", "nul", "aux", "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",
-        "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8", "com9"
-    };
+	String getPageDirectory(String page) {
+		return m_pageDirectory;
+	}
 
-    /**
-     *  This makes sure that the queried page name is still readable by the file system.  For example, all XML entities
-     *  and slashes are encoded with the percent notation.
-     *
-     *  @param pagename The name to mangle
-     *  @return The mangled name.
-     */
-    protected String mangleName( String pagename ) {
-        pagename = TextUtil.urlEncode( pagename, m_encoding );
-        pagename = TextUtil.replaceString( pagename, "/", "%2F" );
+	private static final String[] WINDOWS_DEVICE_NAMES = {
+			"con", "prn", "nul", "aux", "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",
+			"com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8", "com9"
+	};
 
-        //  Names which start with a dot must be escaped to prevent problems. Since we use URL encoding, this is invisible in our unescaping.
-        if( pagename.startsWith( "." ) ) {
-            pagename = "%2E" + pagename.substring( 1 );
-        }
+	/**
+	 * This makes sure that the queried page name is still readable by the file system.  For example, all XML entities
+	 * and slashes are encoded with the percent notation.
+	 *
+	 * @param pagename The name to mangle
+	 * @return The mangled name.
+	 */
+	protected String mangleName(String pagename) {
+		pagename = TextUtil.urlEncode(pagename, m_encoding);
+		pagename = TextUtil.replaceString(pagename, "/", "%2F");
 
-        if( m_windowsHackNeeded ) {
-            final String pn = pagename.toLowerCase();
-            final StringBuilder pagenameBuilder = new StringBuilder(pagename);
-            for( final String windowsDeviceName : WINDOWS_DEVICE_NAMES ) {
-                if( windowsDeviceName.equals( pn ) ) {
-                    pagenameBuilder.insert(0, "$$$");
-                }
-            }
-            pagename = pagenameBuilder.toString();
-        }
+		//  Names which start with a dot must be escaped to prevent problems. Since we use URL encoding, this is invisible in our unescaping.
+		if (pagename.startsWith(".")) {
+			pagename = "%2E" + pagename.substring(1);
+		}
 
-        return pagename;
-    }
+		if (m_windowsHackNeeded) {
+			final String pn = pagename.toLowerCase();
+			final StringBuilder pagenameBuilder = new StringBuilder(pagename);
+			for (final String windowsDeviceName : WINDOWS_DEVICE_NAMES) {
+				if (windowsDeviceName.equals(pn)) {
+					pagenameBuilder.insert(0, "$$$");
+				}
+			}
+			pagename = pagenameBuilder.toString();
+		}
 
-    /**
-     *  This makes the reverse of mangleName.
-     *
-     *  @param filename The filename to unmangle
-     *  @return The unmangled name.
-     */
-    protected String unmangleName( String filename ) {
-        // The exception should never happen.
-        if( m_windowsHackNeeded && filename.startsWith( "$$$" ) && filename.length() > 3 ) {
-            filename = filename.substring( 3 );
-        }
+		return pagename;
+	}
 
-        return TextUtil.urlDecode( filename, m_encoding );
-    }
+	/**
+	 * This makes the reverse of mangleName.
+	 *
+	 * @param filename The filename to unmangle
+	 * @return The unmangled name.
+	 */
+	protected String unmangleName(String filename) {
+		// The exception should never happen.
+		if (m_windowsHackNeeded && filename.startsWith("$$$") && filename.length() > 3) {
+			filename = filename.substring(3);
+		}
 
-    /**
-     *  Finds a Wiki page from the page repository.
-     *
-     *  @param page The name of the page.
-     *  @return A File to the page.  May be null.
-     */
-    protected File findPage( final String page ) {
-        return new File( m_pageDirectory, mangleName( page ) + FILE_EXT );
-    }
+		return TextUtil.urlDecode(filename, m_encoding);
+	}
 
-    /**
-     *  {@inheritDoc}
-     */
-    @Override
-    public boolean pageExists( final String page ) {
-        return findPage( page ).exists();
-    }
+	/**
+	 * Finds a Wiki page from the page repository.
+	 *
+	 * @param page The name of the page.
+	 * @return A File to the page.  May be null.
+	 */
+	protected File findPage(final String page) {
+		return new File(m_pageDirectory, mangleName(page) + FILE_EXT);
+	}
 
-    /**
-     *  {@inheritDoc}
-     */
-    @Override
-    public boolean pageExists( final String page, final int version ) {
-        return pageExists( page );
-    }
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean pageExists(final String page) {
+		return findPage(page).exists();
+	}
 
-    /**
-     *  This implementation just returns the current version, as filesystem does not provide versioning information for now.
-     *
-     *  {@inheritDoc}
-     */
-    @Override
-    public String getPageText( final String page, final int version ) throws ProviderException {
-        return getPageText( page );
-    }
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public boolean pageExists(final String page, final int version) {
+		return pageExists(page);
+	}
 
-    /**
-     *  Read the text directly from the correct file.
-     */
-    private String getPageText( final String page ) {
-        String result  = null;
-        final File pagedata = findPage( page );
-        if( pagedata.exists() ) {
-            if( pagedata.canRead() ) {
-                try( final InputStream in = Files.newInputStream( pagedata.toPath() ) ) {
-                    result = FileUtil.readContents( in, m_encoding );
-                } catch( final IOException e ) {
-                    LOG.error( "Failed to read", e );
-                }
-            } else {
-                LOG.warn( "Failed to read page '" + page + "' from '" + pagedata.getAbsolutePath() + "', possibly a permissions problem" );
-            }
-        } else {
-            // This is okay.
-            LOG.info( "New page '" + page + "'" );
-        }
-        
-        return deobfuscate(result);
-    }
-    
-    /**
-     * An api hook to provide obfuscation of data before it's written to disk.
-     * Useful for wiring in your own custom encryption mechanism if so desired.
-     * @since 3.0.0
-     * 
-     * @param pageContent
-     * @return 
-     */
-    public String obfuscate(String pageContent) {
-        return pageContent;
-    }
-    
-    /**
-     * An api hook to provide deobfuscation of data before it's written to disk.
-     * Useful for wiring in your own custom decryption mechanism if so desired.
-     * @since 3.0.0
-     * @param pageContent
-     * @return 
-     */
-    public String deobfuscate(String pageContent) {
-        return pageContent;
-    }
+	/**
+	 * This implementation just returns the current version, as filesystem does not provide versioning information for
+	 * now.
+	 * <p>
+	 * {@inheritDoc}
+	 */
+	@Override
+	public String getPageText(final String page, final int version) throws ProviderException {
+		return getPageText(page);
+	}
 
-    /**
-     *  {@inheritDoc}
-     */
-    @Override
-    public void putPageText( final Page page, final String text ) throws ProviderException {
-        final File file = findPage( page.getName() );
-        try( final PrintWriter out = new PrintWriter( new OutputStreamWriter( Files.newOutputStream( file.toPath() ), m_encoding ) ) ) {
-            out.print( obfuscate(text) );
-        } catch( final IOException e ) {
-            LOG.error( "Saving failed", e );
-        }
-    }
+	/**
+	 * Read the text directly from the correct file.
+	 */
+	private String getPageText(final String page) {
+		String result = null;
+		final File pagedata = findPage(page);
+		if (pagedata.exists()) {
+			if (pagedata.canRead()) {
+				try (final InputStream in = Files.newInputStream(pagedata.toPath())) {
+					result = FileUtil.readContents(in, m_encoding);
+				}
+				catch (final IOException e) {
+					LOG.error("Failed to read", e);
+				}
+			}
+			else {
+				LOG.warn("Failed to read page '" + page + "' from '" + pagedata.getAbsolutePath() + "', possibly a permissions problem");
+			}
+		}
+		else {
+			// This is okay.
+			LOG.info("New page '" + page + "'");
+		}
 
-    /**
-     *  {@inheritDoc}
-     */
-    @Override
-    public Collection< Page > getAllPages()  throws ProviderException {
-        LOG.debug("Getting all pages...");
-        final ArrayList< Page > set = new ArrayList<>();
-        final File wikipagedir = new File( m_pageDirectory );
-        final File[] wikipages = wikipagedir.listFiles( new WikiFileFilter() );
+		return result;
+	}
 
-        if( wikipages == null ) {
-            LOG.error("Wikipages directory '" + m_pageDirectory + "' does not exist! Please check " + PROP_PAGEDIR + " in jspwiki.properties.");
-            throw new ProviderException( "Page directory does not exist" );
-        }
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void putPageText(final Page page, final String text) throws ProviderException {
+		final File file = findPage(page.getName());
+		File parentFile = file.getParentFile();
+		if (!parentFile.exists()) {
+			parentFile.mkdirs();
+		}
+		try (final PrintWriter out = new PrintWriter(new OutputStreamWriter(Files.newOutputStream(file.toPath()), m_encoding))) {
+			out.print(text);
+		}
+		catch (final IOException e) {
+			LOG.error("Saving failed", e);
+		}
+	}
 
-        for( final File wikipage : wikipages ) {
-            final String wikiname = wikipage.getName();
-            final int cutpoint = wikiname.lastIndexOf( FILE_EXT );
-            final Page page = getPageInfo( unmangleName( wikiname.substring( 0, cutpoint ) ), PageProvider.LATEST_VERSION );
-            if( page == null ) {
-                // This should not really happen.
-                // FIXME: Should we throw an exception here?
-                LOG.error( "Page " + wikiname + " was found in directory listing, but could not be located individually." );
-                continue;
-            }
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Collection<Page> getAllPages() throws ProviderException {
+		LOG.debug("Getting all pages...");
+		final ArrayList<Page> set = new ArrayList<>();
+		final File wikipagedir = new File(m_pageDirectory);
+		final File[] wikipages = wikipagedir.listFiles(new WikiFileFilter());
 
-            set.add( page );
-        }
+		if (wikipages == null) {
+			LOG.error("Wikipages directory '" + m_pageDirectory + "' does not exist! Please check " + PROP_PAGEDIR + " in jspwiki.properties.");
+			throw new ProviderException("Page directory does not exist");
+		}
 
-        return set;
-    }
+		for (final File wikipage : wikipages) {
+			final String wikiname = wikipage.getName();
+			final int cutpoint = wikiname.lastIndexOf(FILE_EXT);
+			final Page page = getPageInfo(unmangleName(wikiname.substring(0, cutpoint)), PageProvider.LATEST_VERSION);
+			if (page == null) {
+				// This should not really happen.
+				// FIXME: Should we throw an exception here?
+				LOG.error("Page " + wikiname + " was found in directory listing, but could not be located individually.");
+				continue;
+			}
 
-    /**
-     *  Does not work.
-     *
-     *  @param date {@inheritDoc}
-     *  @return {@inheritDoc}
-     */
-    @Override
-    public Collection< Page > getAllChangedSince( final Date date )
-    {
-        return new ArrayList<>(); // FIXME
-    }
+			set.add(page);
+		}
 
-    /**
-     *  {@inheritDoc}
-     */
-    @Override
-    public int getPageCount() {
-        final File wikipagedir = new File( m_pageDirectory );
-        final File[] wikipages = wikipagedir.listFiles( new WikiFileFilter() );
-        return wikipages != null ? wikipages.length : 0;
-    }
+		return set;
+	}
 
-    /**
-     * Iterates through all WikiPages, matches them against the given query, and returns a Collection of SearchResult objects.
-     *
-     * {@inheritDoc}
-     */
-    @Override
-    public Collection< SearchResult > findPages( final QueryItem[] query ) {
-        final File wikipagedir = new File( m_pageDirectory );
-        final TreeSet< SearchResult > res = new TreeSet<>( new SearchResultComparator() );
-        final SearchMatcher matcher = new SearchMatcher( m_engine, query );
-        final File[] wikipages = wikipagedir.listFiles( new WikiFileFilter() );
+	/**
+	 * Does not work.
+	 *
+	 * @param date {@inheritDoc}
+	 * @return {@inheritDoc}
+	 */
+	@Override
+	public Collection<Page> getAllChangedSince(final Date date) {
+		return new ArrayList<>(); // FIXME
+	}
 
-        if( wikipages != null ) {
-            for( final File wikipage : wikipages ) {
-                final String filename = wikipage.getName();
-                final int cutpoint = filename.lastIndexOf( FILE_EXT );
-                final String wikiname = unmangleName( filename.substring( 0, cutpoint ) );
-                try( final InputStream input = Files.newInputStream( wikipage.toPath() ) ) {
-                    final String pagetext = FileUtil.readContents( input, m_encoding );
-                    final SearchResult comparison = matcher.matchPageContent( wikiname, pagetext );
-                    if( comparison != null ) {
-                        res.add( comparison );
-                    }
-                } catch( final IOException e ) {
-                    LOG.error( "Failed to read " + filename, e );
-                }
-            }
-        }
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int getPageCount() {
+		final File wikipagedir = new File(m_pageDirectory);
+		final File[] wikipages = wikipagedir.listFiles(new WikiFileFilter());
+		return wikipages != null ? wikipages.length : 0;
+	}
 
-        return res;
-    }
+	/**
+	 * Iterates through all WikiPages, matches them against the given query, and returns a Collection of SearchResult
+	 * objects.
+	 * <p>
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Collection<SearchResult> findPages(final QueryItem[] query) {
+		final File wikipagedir = new File(m_pageDirectory);
+		final TreeSet<SearchResult> res = new TreeSet<>(new SearchResultComparator());
+		final SearchMatcher matcher = new SearchMatcher(m_engine, query);
+		final File[] wikipages = wikipagedir.listFiles(new WikiFileFilter());
 
-    /**
-     *  Always returns the latest version, since FileSystemProvider
-     *  does not support versioning.
-     *
-     *  {@inheritDoc}
-     */
-    @Override
-    public Page getPageInfo( final String page, final int version ) throws ProviderException {
-        final File file = findPage( page );
-        if( !file.exists() ) {
-            return null;
-        }
+		if (wikipages != null) {
+			for (final File wikipage : wikipages) {
+				final String filename = wikipage.getName();
+				final int cutpoint = filename.lastIndexOf(FILE_EXT);
+				final String wikiname = unmangleName(filename.substring(0, cutpoint));
+				try (final InputStream input = Files.newInputStream(wikipage.toPath())) {
+					final String pagetext = FileUtil.readContents(input, m_encoding);
+					final SearchResult comparison = matcher.matchPageContent(wikiname, pagetext);
+					if (comparison != null) {
+						res.add(comparison);
+					}
+				}
+				catch (final IOException e) {
+					LOG.error("Failed to read " + filename, e);
+				}
+			}
+		}
 
-        final Page p = Wiki.contents().page( m_engine, page );
-        p.setLastModified( new Date( file.lastModified() ) );
+		return res;
+	}
 
-        return p;
-    }
+	/**
+	 * Always returns the latest version, since FileSystemProvider
+	 * does not support versioning.
+	 * <p>
+	 * {@inheritDoc}
+	 */
+	@Override
+	public Page getPageInfo(final String page, final int version) throws ProviderException {
+		final File file = findPage(page);
+		if (file == null || !file.exists()) {
+			return null;
+		}
 
-    /**
-     *  The FileSystemProvider provides only one version.
-     *
-     *  {@inheritDoc}
-     */
-    @Override
-    public List< Page > getVersionHistory( final String page ) throws ProviderException {
-        final ArrayList< Page > list = new ArrayList<>();
-        list.add( getPageInfo( page, PageProvider.LATEST_VERSION ) );
+		final Page p = Wiki.contents().page(m_engine, page);
+		p.setLastModified(new Date(file.lastModified()));
 
-        return list;
-    }
+		return p;
+	}
 
-    /**
-     *  {@inheritDoc}
-     */
-    @Override
-    public String getProviderInfo()
-    {
-        return "";
-    }
+	/**
+	 * The FileSystemProvider provides only one version.
+	 * <p>
+	 * {@inheritDoc}
+	 */
+	@Override
+	public List<Page> getVersionHistory(final String page) throws ProviderException {
+		final ArrayList<Page> list = new ArrayList<>();
+		list.add(getPageInfo(page, PageProvider.LATEST_VERSION));
 
-    /**
-     *  {@inheritDoc}
-     */
-    @Override
-    public void deleteVersion(final Page page, final int version ) throws ProviderException {
-        if( version == WikiProvider.LATEST_VERSION ) {
-            final File f = findPage(page.getName());
-            f.delete();
-        }
-    }
+		return list;
+	}
 
-    /**
-     *  {@inheritDoc}
-     * @param page
-     */
-    @Override
-    public void deletePage( final Page page) throws ProviderException {
-        final File f = findPage(page.getName());
-        try {
-            Files.delete(f.toPath());
-        }
-        catch (IOException e) {
-            throw new ProviderException(e.getMessage(), e);
-        }
-    }
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public String getProviderInfo() {
+		return "";
+	}
 
-    /**
-     * Set the custom properties provided into the given page.
-     *
-     * @since 2.10.2
-     */
-    protected void setCustomProperties( final Page page, final Properties properties ) {
-        final Enumeration< ? > propertyNames = properties.propertyNames();
-    	while( propertyNames.hasMoreElements() ) {
-            final String key = ( String )propertyNames.nextElement();
-            if( !key.equals( Page.AUTHOR ) && !key.equals( Page.CHANGENOTE ) && !key.equals( Page.VIEWCOUNT ) ) {
-                page.setAttribute( key, properties.get( key ) );
-            }
-    	}
-    }
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public void deleteVersion(final Page page, final int version) throws ProviderException {
+		if (version == WikiProvider.LATEST_VERSION) {
+			final File f = findPage(page.getName());
+			f.delete();
+		}
+	}
 
-    /**
-     * Get custom properties using {@link #addCustomProperties(Page, Properties)}, validate them using {@link #validateCustomPageProperties(Properties)}
-     * and add them to default properties provided
-     *
-     * @since 2.10.2
-     */
-    protected void getCustomProperties( final Page page, final Properties defaultProperties ) throws IOException {
-        final Properties customPageProperties = addCustomProperties( page, defaultProperties );
-        validateCustomPageProperties( customPageProperties );
-        defaultProperties.putAll( customPageProperties );
-    }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * @param page
+	 */
+	@Override
+	public void deletePage(final Page page) throws ProviderException {
+		final File f = findPage(page.getName());
+		try {
+			Files.delete(f.toPath());
+		}
+		catch (IOException e) {
+			throw new ProviderException(e.getMessage(), e);
+		}
+	}
 
-    /**
-     * By default all page attributes that start with "@" are returned as custom properties.
-     * This can be overwritten by custom FileSystemProviders to save additional properties.
-     * CustomPageProperties are validated by {@link #validateCustomPageProperties(Properties)}
-     *
-     * @since 2.10.2
-     * @param page the current page
-     * @param props the default properties of this page
-     * @return default implementation returns empty Properties.
-     */
-    protected Properties addCustomProperties( final Page page, final Properties props ) {
-        final Properties customProperties = new Properties();
-        if( page != null ) {
-            final Map< String, Object > atts = page.getAttributes();
-            for( final String key : atts.keySet() ) {
-                final Object value = atts.get( key );
-                if( key.startsWith( "@" ) && value != null ) {
-                    customProperties.put( key, value.toString() );
-                }
-            }
+	/**
+	 * Set the custom properties provided into the given page.
+	 *
+	 * @since 2.10.2
+	 */
+	protected void setCustomProperties(final Page page, final Properties properties) {
+		final Enumeration<?> propertyNames = properties.propertyNames();
+		while (propertyNames.hasMoreElements()) {
+			final String key = (String) propertyNames.nextElement();
+			if (!key.equals(Page.AUTHOR) && !key.equals(Page.CHANGENOTE) && !key.equals(Page.VIEWCOUNT)) {
+				page.setAttribute(key, properties.get(key));
+			}
+		}
+	}
 
-        }
-        return customProperties;
-    }
+	/**
+	 * Get custom properties using {@link #addCustomProperties(Page, Properties)}, validate them using
+	 * {@link #validateCustomPageProperties(Properties)}
+	 * and add them to default properties provided
+	 *
+	 * @since 2.10.2
+	 */
+	protected void getCustomProperties(final Page page, final Properties defaultProperties) throws IOException {
+		final Properties customPageProperties = addCustomProperties(page, defaultProperties);
+		validateCustomPageProperties(customPageProperties);
+		defaultProperties.putAll(customPageProperties);
+	}
 
-    /**
-     * Default validation, validates that key and value is ASCII <code>StringUtils.isAsciiPrintable()</code> and within lengths set up in jspwiki-custom.properties.
-     * This can be overwritten by custom FileSystemProviders to validate additional properties
-     * See https://issues.apache.org/jira/browse/JSPWIKI-856
-     * @since 2.10.2
-     * @param customProperties the custom page properties being added
-     */
-    protected void validateCustomPageProperties( final Properties customProperties ) throws IOException {
-    	// Default validation rules
-        if( customProperties != null && !customProperties.isEmpty() ) {
-            if( customProperties.size() > MAX_PROPLIMIT ) {
-                throw new IOException( "Too many custom properties. You are adding " + customProperties.size() + ", but max limit is " + MAX_PROPLIMIT );
-            }
-            final Enumeration< ? > propertyNames = customProperties.propertyNames();
-            while( propertyNames.hasMoreElements() ) {
-                final String key = ( String )propertyNames.nextElement();
-                final String value = ( String )customProperties.get( key );
-                if( key != null ) {
-                    if( key.length() > MAX_PROPKEYLENGTH ) {
-                        throw new IOException( "Custom property key " + key + " is too long. Max allowed length is " + MAX_PROPKEYLENGTH );
-                    }
-                    if( !StringUtils.isAsciiPrintable( key ) ) {
-                        throw new IOException( "Custom property key " + key + " is not simple ASCII!" );
-                    }
-                }
-                if( value != null ) {
-                    if( value.length() > MAX_PROPVALUELENGTH ) {
-                        throw new IOException( "Custom property key " + key + " has value that is too long. Value=" + value + ". Max allowed length is " + MAX_PROPVALUELENGTH );
-                    }
-                    if( !StringUtils.isAsciiPrintable( value ) ) {
-                        throw new IOException( "Custom property key " + key + " has value that is not simple ASCII! Value=" + value );
-                    }
-                }
-            }
-        }
-    }
+	/**
+	 * By default all page attributes that start with "@" are returned as custom properties.
+	 * This can be overwritten by custom FileSystemProviders to save additional properties.
+	 * CustomPageProperties are validated by {@link #validateCustomPageProperties(Properties)}
+	 *
+	 * @param page  the current page
+	 * @param props the default properties of this page
+	 * @return default implementation returns empty Properties.
+	 * @since 2.10.2
+	 */
+	protected Properties addCustomProperties(final Page page, final Properties props) {
+		final Properties customProperties = new Properties();
+		if (page != null) {
+			final Map<String, Object> atts = page.getAttributes();
+			for (final String key : atts.keySet()) {
+				final Object value = atts.get(key);
+				if (key.startsWith("@") && value != null) {
+					customProperties.put(key, value.toString());
+				}
+			}
+		}
+		return customProperties;
+	}
 
-    /**
-     *  A simple filter which filters only those filenames which correspond to the
-     *  file extension used.
-     */
-    public static class WikiFileFilter implements FilenameFilter {
-        /**
-         *  {@inheritDoc}
-         */
-        @Override
-        public boolean accept( final File dir, final String name ) {
-            return name.endsWith( FILE_EXT );
-        }
-    }
+	/**
+	 * Default validation, validates that key and value is ASCII <code>StringUtils.isAsciiPrintable()</code> and within
+	 * lengths set up in jspwiki-custom.properties.
+	 * This can be overwritten by custom FileSystemProviders to validate additional properties
+	 * See https://issues.apache.org/jira/browse/JSPWIKI-856
+	 *
+	 * @param customProperties the custom page properties being added
+	 * @since 2.10.2
+	 */
+	protected void validateCustomPageProperties(final Properties customProperties) throws IOException {
+		// Default validation rules
+		if (customProperties != null && !customProperties.isEmpty()) {
+			if (customProperties.size() > MAX_PROPLIMIT) {
+				throw new IOException("Too many custom properties. You are adding " + customProperties.size() + ", but max limit is " + MAX_PROPLIMIT);
+			}
+			final Enumeration<?> propertyNames = customProperties.propertyNames();
+			while (propertyNames.hasMoreElements()) {
+				final String key = (String) propertyNames.nextElement();
+				final String value = (String) customProperties.get(key);
+				if (key != null) {
+					if (key.length() > MAX_PROPKEYLENGTH) {
+						throw new IOException("Custom property key " + key + " is too long. Max allowed length is " + MAX_PROPKEYLENGTH);
+					}
+					if (!StringUtils.isAsciiPrintable(key)) {
+						throw new IOException("Custom property key " + key + " is not simple ASCII!");
+					}
+				}
+				if (value != null) {
+					if (value.length() > MAX_PROPVALUELENGTH) {
+						throw new IOException("Custom property key " + key + " has value that is too long. Value=" + value + ". Max allowed length is " + MAX_PROPVALUELENGTH);
+					}
+					if (!StringUtils.isAsciiPrintable(value)) {
+						throw new IOException("Custom property key " + key + " has value that is not simple ASCII! Value=" + value);
+					}
+				}
+			}
+		}
+	}
 
+	/**
+	 * A simple filter which filters only those filenames which correspond to the
+	 * file extension used.
+	 */
+	public static class WikiFileFilter implements FilenameFilter {
+		/**
+		 * {@inheritDoc}
+		 */
+		@Override
+		public boolean accept(final File dir, final String name) {
+			return name.endsWith(FILE_EXT);
+		}
+	}
 }

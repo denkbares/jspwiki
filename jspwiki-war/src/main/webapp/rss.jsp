@@ -35,25 +35,19 @@
 <%@ page import="org.apache.wiki.preferences.Preferences" %>
 <%@ page import="org.apache.wiki.rss.*" %>
 <%@ page import="org.apache.wiki.util.*" %>
+<%@ page import="org.apache.wiki.cache.CachingManager" %>
 
 <%!
     private Logger log = LoggerFactory.getLogger("JSPWiki");
-    private CacheManager m_cacheManager = CacheManager.getInstance();
-    private String cacheName = "jspwiki.rssCache";
-    private Cache m_rssCache;
     private int m_expiryPeriod = 24*60*60;
     private int cacheCapacity = 1000;
 %>
 
 <%
-    if (m_cacheManager.cacheExists(cacheName)) {
-        m_rssCache = m_cacheManager.getCache(cacheName);
-    } else {
-        log.info("cache with name " + cacheName +  " not found in ehcache.xml, creating it with defaults.");
-        m_rssCache = new Cache(cacheName, cacheCapacity, false, false, m_expiryPeriod, m_expiryPeriod);
-        m_cacheManager.addCache(m_rssCache);
-    }
+
     Engine wiki = Wiki.engine().find( getServletConfig() );
+
+
     // Create wiki context and check for authorization
     Context wikiContext = Wiki.context().create( wiki, request, ContextEnum.PAGE_RSS.getRequestContext() );
     if(!wiki.getManager( AuthorizationManager.class ).hasAccess( wikiContext, response ) ) return;
@@ -134,18 +128,10 @@
     //
     //  TODO: Figure out if it would be a good idea to use a disk-based cache here.
     //
+     // ---- ADDITION: REMOVED CACHE as it was not using the JSPWiki CachingManager (and rss is not used anyway)
     String hashKey = wikipage.getName()+";"+mode+";"+type+";"+latest.getTime();
-    
-    String rss = "";
 
-    Element element = m_rssCache.get(hashKey);
-    if (element != null) {
-      rss = (String) element.getObjectValue();
-    } else { 
-        rss = wiki.getManager( RSSGenerator.class ).generateFeed( wikiContext, changed, mode, type );
-        m_rssCache.put( new Element( hashKey, rss ) );
-    }
-    
+    String rss = wiki.getManager( RSSGenerator.class ).generateFeed( wikiContext, changed, mode, type );
     out.println( rss );
     
     w.exitState(); 

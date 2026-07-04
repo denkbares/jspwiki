@@ -18,8 +18,9 @@
  */
 package org.apache.wiki.providers;
 
-import org.slf4j.LoggerFactory;
-import org.slf4j.Logger;
+import net.sf.ehcache.Ehcache;
+import net.sf.ehcache.Element;
+import net.sf.ehcache.event.CacheEventListenerAdapter;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.core.Page;
@@ -36,6 +37,8 @@ import org.apache.wiki.parser.MarkupParser;
 import org.apache.wiki.render.RenderingManager;
 import org.apache.wiki.util.ClassUtil;
 import org.apache.wiki.util.TextUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -44,7 +47,6 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Properties;
 import java.util.TreeSet;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 
@@ -62,13 +64,13 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class CachingProvider implements PageProvider {
 
-    private static final Logger LOG = LoggerFactory.getLogger( CachingProvider.class );
+	private static final Logger LOG = LoggerFactory.getLogger( CachingProvider.class );
 
     private CachingManager cachingManager;
     private PageProvider provider;
     private Engine engine;
 
-    private final AtomicBoolean allRequested = new AtomicBoolean();
+    private volatile boolean allRequested;
     private final AtomicLong pages = new AtomicLong( 0L );
 
     /**
@@ -81,7 +83,13 @@ public class CachingProvider implements PageProvider {
         // engine is used for getting the search engine
         this.engine = engine;
         cachingManager = this.engine.getManager( CachingManager.class );
-        cachingManager.registerListener( CachingManager.CACHE_PAGES, "expired", allRequested );
+        cachingManager.registerListener(  CachingManager.CACHE_PAGES, new CacheEventListenerAdapter() {
+            @Override
+            public void notifyElementExpired(Ehcache cache, Element element) {
+                allRequested = false; // signal that the cache no longer contains all elements...
+            }
+        });
+        allRequested = false;
 
         //  Find and initialize real provider.
         final String classname;
@@ -242,14 +250,14 @@ public class CachingProvider implements PageProvider {
     @Override
     public Collection< Page > getAllPages() throws ProviderException {
         final Collection< Page > all;
-        if ( !allRequested.get() ) {
+        if ( !allRequested ) {
             all = provider.getAllPages();
             // Make sure that all pages are in the cache.
             synchronized( this ) {
                 for( final Page p : all ) {
                     cachingManager.put( CachingManager.CACHE_PAGES,  p.getName(), p );
                 }
-                allRequested.set( true );
+                allRequested = true;
             }
             pages.set( all.size() );
         } else {
@@ -301,7 +309,7 @@ public class CachingProvider implements PageProvider {
     }
 
     //  FIXME: Kludge: make sure that the page is also parsed and it gets all the necessary variables.
-    private void refreshMetadata( final Page page ) {
+    private void refreshMetadata( final Page page, int version) {
         if( page != null && !page.hasMetadata() ) {
             final RenderingManager mgr = engine.getManager( RenderingManager.class );
             try {
@@ -330,7 +338,7 @@ public class CachingProvider implements PageProvider {
             // We do not cache old versions.
             page = provider.getPageInfo( pageName, version );
         }
-        refreshMetadata( page );
+        refreshMetadata( page, version);
         return page;
     }
 

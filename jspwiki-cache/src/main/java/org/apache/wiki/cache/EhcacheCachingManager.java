@@ -20,16 +20,17 @@ package org.apache.wiki.cache;
 
 import net.sf.ehcache.Cache;
 import net.sf.ehcache.CacheManager;
-import net.sf.ehcache.Ehcache;
 import net.sf.ehcache.Element;
-import net.sf.ehcache.event.CacheEventListenerAdapter;
-import org.slf4j.LoggerFactory;
-import org.slf4j.Logger;
+import net.sf.ehcache.config.Configuration;
+import net.sf.ehcache.config.ConfigurationFactory;
+import net.sf.ehcache.event.CacheEventListener;
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.engine.Initializable;
 import org.apache.wiki.api.exceptions.WikiException;
 import org.apache.wiki.util.CheckedSupplier;
 import org.apache.wiki.util.TextUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.net.URL;
@@ -38,149 +39,154 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 
 /**
  * Ehcache-based {@link CachingManager}.
  */
 public class EhcacheCachingManager implements CachingManager, Initializable {
 
-    private static final Logger LOG = LoggerFactory.getLogger( EhcacheCachingManager.class );
-    private static final int DEFAULT_CACHE_SIZE = 1_000;
-    private static final int DEFAULT_CACHE_EXPIRY_PERIOD = 24*60*60;
+	private static final Logger LOG = LoggerFactory.getLogger(EhcacheCachingManager.class);
+	private static final int DEFAULT_CACHE_SIZE = 50_000;
+	private static final int DEFAULT_CACHE_EXPIRY_PERIOD = 24 * 60 * 60;
 
-    final Map< String, Cache > cacheMap = new ConcurrentHashMap<>();
-    final Map< String, CacheInfo > cacheStats = new ConcurrentHashMap<>();
-    CacheManager cacheManager;
+	final Map<String, Cache> cacheMap = new ConcurrentHashMap<>();
+	private final Map<String, CacheInfo> cacheStats = new ConcurrentHashMap<>();
+	private CacheManager cacheManager;
 
-    /** {@inheritDoc} */
-    @Override
-    public void shutdown() {
-        LOG.info( "Shutting down local CacheManager: " + cacheManager );
-        cacheMap.clear();
-        cacheStats.clear();
-        if( cacheManager != null ) { // in case initialize was not called, e.g. in tests
-            cacheManager.shutdown();
-        }
-    }
+	/** {@inheritDoc} */
+	@Override
+	public void shutdown() {
+		LOG.info("Shutting down local CacheManager: " + cacheManager);
+		cacheMap.clear();
+		cacheStats.clear();
+		if (cacheManager != null)  { // in case initialize was not called, e.g. in tests
+			cacheManager.shutdown();
+		}
+	}
 
-    /** {@inheritDoc} */
-    @Override
-    public void initialize( final Engine engine, final Properties props ) throws WikiException {
-        final String cacheEnabled = TextUtil.getStringProperty( props, PROP_CACHE_ENABLE, PROP_USECACHE_DEPRECATED, "true" );
-        final boolean useCache = "true".equalsIgnoreCase( cacheEnabled );
-        final String confLocation = "/" + TextUtil.getStringProperty( props, PROP_CACHE_CONF_FILE, "ehcache-jspwiki.xml" );
-        if( useCache ) {
-            final URL location = this.getClass().getResource( confLocation );
-            LOG.info( "Reading ehcache configuration file from classpath on /{}", location );
-            cacheManager = CacheManager.create( location );
-            registerCache( CACHE_ATTACHMENTS );
-            registerCache( CACHE_ATTACHMENTS_COLLECTION );
-            registerCache( CACHE_ATTACHMENTS_DYNAMIC );
-            registerCache( CACHE_DOCUMENTS );
-            registerCache( CACHE_PAGES );
-            registerCache( CACHE_PAGES_HISTORY );
-            registerCache( CACHE_PAGES_TEXT );
-        }
-    }
+	/** {@inheritDoc} */
+	@Override
+	public void initialize(final Engine engine, final Properties props) throws WikiException {
+		final String cacheEnabled = TextUtil.getStringProperty(props, PROP_CACHE_ENABLE, PROP_USECACHE_DEPRECATED, "true");
+		final boolean useCache = "true".equalsIgnoreCase(cacheEnabled);
+		final String confLocation = "/" + TextUtil.getStringProperty(props, PROP_CACHE_CONF_FILE, "ehcache-jspwiki.xml");
+		if (useCache) {
+			final URL location = this.getClass().getResource(confLocation);
+			LOG.info("Reading ehcache configuration file from classpath on /{}", location);
+			if (engine != null) {
+				// Distinct engines get distinct CacheManagers, named by application name, so their
+				// caches do not collide (required for the multi-wiki / multi-instance case).
+				final Configuration configuration = ConfigurationFactory.parseConfiguration(location);
+				if (configuration.getName() == null) {
+					configuration.name(engine.getApplicationName());
+				}
+				cacheManager = CacheManager.newInstance(configuration);
+			}
+			else {
+				// No engine (e.g. tests): use the shared singleton so repeated initialization is tolerated.
+				cacheManager = CacheManager.create(location);
+			}
+			registerCache(CACHE_ATTACHMENTS);
+			registerCache(CACHE_ATTACHMENTS_COLLECTION);
+			registerCache(CACHE_ATTACHMENTS_DYNAMIC);
+			registerCache(CACHE_DOCUMENTS);
+			registerCache(CACHE_PAGES);
+			registerCache(CACHE_PAGES_HISTORY);
+			registerCache(CACHE_PAGES_TEXT);
+		}
+	}
 
-    void registerCache( final String cacheName ) {
-        final Cache cache;
-        if( cacheManager.cacheExists( cacheName ) ) {
-            cache = cacheManager.getCache( cacheName );
-        } else {
-            LOG.info( "cache with name {} not found in ehcache configuration file, creating it with defaults.", cacheName );
-            cache = new Cache( cacheName, DEFAULT_CACHE_SIZE, false, false, DEFAULT_CACHE_EXPIRY_PERIOD, DEFAULT_CACHE_EXPIRY_PERIOD );
-            cacheManager.addCache( cache );
-        }
-        cacheMap.put( cacheName, cache );
-        cacheStats.put( cacheName, new CacheInfo( cacheName, cache.getCacheConfiguration().getMaxEntriesLocalHeap() ) );
-    }
+	void registerCache(final String cacheName) {
+		final Cache cache;
+		if (cacheManager.cacheExists(cacheName)) {
+			cache = cacheManager.getCache(cacheName);
+		}
+		else {
+			LOG.info("cache with name {} not found in ehcache configuration file, creating it with defaults.", cacheName);
+			cache = new Cache(cacheName, DEFAULT_CACHE_SIZE, false, false, DEFAULT_CACHE_EXPIRY_PERIOD, DEFAULT_CACHE_EXPIRY_PERIOD);
+			cacheManager.addCache(cache);
+		}
+		cacheMap.put(cacheName, cache);
+		cacheStats.put(cacheName, new CacheInfo(cacheName, cache.getCacheConfiguration().getMaxEntriesLocalHeap()));
+	}
 
-    /** {@inheritDoc} */
-    @Override
-    public boolean enabled( final String cacheName ) {
-        return cacheMap.get( cacheName ) != null;
-    }
+	/** {@inheritDoc} */
+	@Override
+	public boolean enabled(final String cacheName) {
+		return cacheMap.get(cacheName) != null;
+	}
 
-    /** {@inheritDoc} */
-    @Override
-    public CacheInfo info( final String cacheName ) {
-        if( enabled( cacheName ) ) {
-            return cacheStats.get( cacheName );
-        }
-        return null;
-    }
+	/** {@inheritDoc} */
+	@Override
+	public CacheInfo info(final String cacheName) {
+		if (enabled(cacheName)) {
+			return cacheStats.get(cacheName);
+		}
+		return null;
+	}
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override
-    @SuppressWarnings( "unchecked" )
-    public List< String > keys( final String cacheName ) {
-        if( enabled( cacheName ) ) {
-            return cacheMap.get( cacheName ).getKeysWithExpiryCheck();
-        }
-        return Collections.emptyList();
-    }
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	@SuppressWarnings("unchecked")
+	public List<String> keys(final String cacheName) {
+		if (enabled(cacheName)) {
+			return cacheMap.get(cacheName).getKeysWithExpiryCheck();
+		}
+		return Collections.emptyList();
+	}
 
-    /** {@inheritDoc} */
-    @Override
-    @SuppressWarnings( "unchecked" )
-    public < T, E extends Exception > T get( final String cacheName, final Serializable key, final CheckedSupplier< T, E > supplier ) throws E {
-        if( keyAndCacheAreNotNull( cacheName, key ) ) {
-            final Element element = cacheMap.get( cacheName ).get( key );
-            if( element != null ) {
-                cacheStats.get( cacheName ).hit();
-                return ( T )element.getObjectValue();
-            } else {
-                // element doesn't exist in cache, try to retrieve from the cached service instead.
-                final T value = supplier.get();
-                if( value != null ) {
-                    cacheStats.get( cacheName ).miss();
-                    cacheMap.get( cacheName ).put( new Element( key, value ) );
-                }
-                return value;
-            }
-        }
-        return null;
-    }
+	/** {@inheritDoc} */
+	@Override
+	@SuppressWarnings("unchecked")
+	public <T, E extends Exception> T get(final String cacheName, final Serializable key, final CheckedSupplier<T, E> supplier) throws E {
+		if (keyAndCacheAreNotNull(cacheName, key)) {
+			final Element element = cacheMap.get(cacheName).get(key);
+			if (element != null) {
+				cacheStats.get(cacheName).hit();
+				return (T) element.getObjectValue();
+			}
+			else {
+				// element doesn't exist in cache, try to retrieve from the cached service instead.
+				final T value = supplier.get();
+				if (value != null) {
+					cacheStats.get(cacheName).miss();
+					cacheMap.get(cacheName).put(new Element(key, value));
+				}
+				return value;
+			}
+		}
+		return null;
+	}
 
-    /** {@inheritDoc} */
-    @Override
-    public void put( final String cacheName, final Serializable key, final Object val ) {
-        if( keyAndCacheAreNotNull( cacheName, key ) ) {
-            cacheMap.get( cacheName ).put( new Element( key, val ) );
-        }
-    }
+	/** {@inheritDoc} */
+	@Override
+	public void put(final String cacheName, final Serializable key, final Object val) {
+		if (keyAndCacheAreNotNull(cacheName, key)) {
+			cacheMap.get(cacheName).put(new Element(key, val));
+		}
+	}
 
-    /** {@inheritDoc} */
-    @Override
-    public void remove( final String cacheName, final Serializable key ) {
-        if( keyAndCacheAreNotNull( cacheName, key ) ) {
-            cacheMap.get( cacheName ).remove( key );
-        }
-    }
+	/** {@inheritDoc} */
+	@Override
+	public void remove(final String cacheName, final Serializable key) {
+		if (keyAndCacheAreNotNull(cacheName, key)) {
+			cacheMap.get(cacheName).remove(key);
+		}
+	}
 
-    /** {@inheritDoc} */
-    @Override
-    public boolean registerListener( final String cacheName, final String listener, final Object... args ) {
-        if( enabled( cacheName ) && "expired".equals( listener ) ) {
-            final AtomicBoolean allRequested = ( AtomicBoolean )args[0];
-            final CacheEventListenerAdapter expiredCacheListenerAdapter = new CacheEventListenerAdapter() {
-                @Override
-                public void notifyElementExpired( final Ehcache cache, final Element element ) {
-                    allRequested.set( false ); // signal that the cache no longer contains all elements...
-                }
-            };
-            return cacheMap.get( cacheName ).getCacheEventNotificationService().registerListener( expiredCacheListenerAdapter );
-        }
-        return false;
-    }
+	@Override
+	public boolean registerListener(final String cacheName, final CacheEventListener listener) {
+		if (enabled(cacheName)) {
+			return cacheMap.get(cacheName).getCacheEventNotificationService().registerListener(listener);
+		}
+		return false;
+	}
 
-    boolean keyAndCacheAreNotNull( final String cacheName, final Serializable key ) {
-        return enabled( cacheName ) && key != null;
-    }
 
+
+	boolean keyAndCacheAreNotNull(final String cacheName, final Serializable key) {
+		return enabled(cacheName) && key != null;
+	}
 }
