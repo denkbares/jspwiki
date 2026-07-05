@@ -258,7 +258,7 @@ public interface Engine {
         // Try creating an absolute path first
         File defaultFile = null;
         if( getRootPath() != null ) {
-            defaultFile = new File( name );
+            defaultFile = new File( getRootPath() + "/WEB-INF/" + name );
         }
         if( defaultFile == null || !defaultFile.exists() ) {
             log.info( "looking for " + name + " as complete path" );
