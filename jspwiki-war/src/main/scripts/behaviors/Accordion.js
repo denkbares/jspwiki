@@ -95,6 +95,7 @@ var Accordion = new Class({
             nav, pane, name, toggle, type, position,
             i = 0,
             active = "active",
+            animating = "animating",
             toggles = [],
             contents = [],
             panelCSS = "panel".fetchContext(container);
@@ -143,15 +144,18 @@ var Accordion = new Class({
             display: this.options.closed ? -1 : 0, // initial display status
             alwaysHide: !nav, //allow closing all panes
             initialDisplayFx: false, //do not show effect on initial display
+            duration: 300,
 
             onComplete: function(){
                 var el = $(this.elements[this.current]);
                 if(el.offsetHeight > 0){ el.setStyle("height", "auto"); }
+                el.previousElementSibling.removeClass(animating);
             },
 
             onActive: function(toggle, content){
 
                 toggle.addClass(active);
+                toggle.addClass(animating);
                 content.addClass(active);
 
             },
@@ -159,11 +163,14 @@ var Accordion = new Class({
 
                 toggle.removeClass(active);
                 content.removeClass(active);
+                toggle.addClass(animating);
 
             }
 
         });
 
+        // while initializing, the onActive and onBackground methods are called, but not onComplete, so cleanup here
+        toggles.forEach(function(el) {el.removeClass(animating)});
     }
 
 });

@@ -70,14 +70,7 @@ var Wiki = {
         wiki.add = behavior.add.bind(behavior);
         wiki.once = behavior.once.bind(behavior);
         wiki.update = behavior.update.bind(behavior);
-       
-        setTimeout(function(){
-        if (wiki.Snips) {
-            wiki.Snips.loadPlugins();
-        } else {
-            console.warn("snips are not loaded yet, cannot fetch the plugin list");
-        }
-        
+
         //add the standard jspwiki behaviors; needed to render the haddock JSP templates
         wiki.add( "body", wiki.caniuse )
 
@@ -104,6 +97,42 @@ var Wiki = {
                 //show/hide an element when hovering over the "data-hover-parent" element
                 element.onHover( element.get("data-hover-parent") );
             })
+
+          // Click effect: Similar to hover effect, but triggered on click of an element (e.g. for searchbox)
+          // Defined in the following two blocks
+          .add("body", function (element) {
+              // Close open element if clicked anywhere else
+              jq$(element).click(function (event) {
+                  var openParent = jq$('.open-click-parent');
+                  if (jq$.contains(openParent, event.target)) return;
+                  else if (openParent.length > 0 && jq$.contains(openParent[0], event.target)) return;
+                  else openParent.removeClass('open open-click-parent');
+              })
+          })
+
+          .add("[data-click-parent]", function (element) {
+              jq$(element).click(function (event) {
+                  var parentSelector = jq$(this).attr('data-click-parent');
+                  var parent = jq$(parentSelector);
+                  var openParent = jq$('.open-click-parent');
+                  // Close already open parents
+                  if (!openParent.is(parent)) {
+                      openParent.removeClass('open open-click-parent');
+                  }
+                  if (parent.hasClass('open')) {
+                      parent.removeClass('open open-click-parent');
+                  } else {
+                      parent.addClass('open open-click-parent');
+                      var focusTarget = parent.find('#query');
+                      if (focusTarget.length > 0) {
+                          try { focusTarget.focus().select(); } catch (e) { /* no-op */ }
+                      }
+                  }
+                  event.preventDefault();
+                  event.stopPropagation();
+                  return false;
+              });
+          })
 
             .add( "[data-resize]", function(element){
                 //when dragging this element, resize the "data-resize" element
@@ -177,7 +206,6 @@ var Wiki = {
             popstate: wiki.popstate,
             domready: wiki.domready.bind(wiki)
         });
-        }, 500);
 
     },
 
@@ -205,20 +233,8 @@ var Wiki = {
     > wiki.prefs("")                        //erase user-preference cookie
     */
     prefs: function(key, value){
-        var flag = false;
-        var sameSite = "none";
-        if (window.location.href.startsWith("https://")) {
-            flag = true;
-            sameSite = "strict";
-        }
-        return $.cookie.json({
-            name:"JSPWikiUserPrefs", 
-            path:this.BaseUrl, 
-            sameSite: sameSite,
-            secure: flag,
-            httpOnly: flag,
-            expiry:400
-            }, key, value);
+
+        return $.cookie.json({name:"JSPWikiUserPrefs", path:this.BaseUrl, expiry:20}, key, value);
     },
 
     /*
@@ -310,50 +326,20 @@ var Wiki = {
     */
     yoyo: function( header ){
 
-        var height = "offsetHeight",
-            scrollY,
-            lastScrollY = 0,
-
-            //add spacer just infront of fixed element,
-            //and adjust height == header (fixed elements do not take space in the dom)
-            spacer = "div".slick().inject(header, "before"),
-            busy;
+		var sticky = header.querySelector('.navigation').offsetTop;
 
         function update(){
-
-            scrollY = window.getScroll().y;
-
-            spacer.style.paddingTop = header[height]+"px"; //update after window resize
-
-            // Limit scroll top to counteract iOS / OSX bounce.
-            scrollY = scrollY.limit(0, window.getScrollSize().y - window.getSize().y);
-
-            if (Math.abs(lastScrollY - scrollY) > 5 /* minimum difference */) {
-
-                header.ifClass(scrollY > lastScrollY && scrollY > header[height], "scrolling-down");
-                lastScrollY = scrollY;
-
-            }
-            busy = false;
+			header.ifClass(window.pageYOffset > sticky, "scrolling-down");
         }
 
-        function handleEvent(){
-            if(!busy){
-              busy = true;
-              requestAnimationFrame( update );
-            }
-        }
-
-        window.addEvents({ scroll: handleEvent, resize: handleEvent });
-        update(); //first run: set height of the spacer
-
+		window.addEvents({scroll: update, resize: update});
     },
 
 
     /*
     Function: popstate
         When pressing the back-button, the "popstate" event is fired.
-        This popstate function will fire an internal 'popstate' event
+		This popstate function will fire a internal 'popstate' event
         on the target DOM element.
 
         Behaviors (such as Tabs or Accordions) can push the ID of their
@@ -530,9 +516,9 @@ var Wiki = {
         Use the correct url template: view(default), edit-url or clone-url
     */
     toUrl: function(pagename, isEdit, isClone){
-
         var urlTemplate = isClone ? this.CloneUrl : isEdit ? this.EditUrl : this.PageUrl;
-        return urlTemplate.replace(/%23%24%25/, this.cleanPageName(pagename) );
+        var safePageName = encodeURIComponent(this.cleanPageName(pagename));
+        return urlTemplate.replace(/%23%24%25/, safePageName);
 
     },
 
@@ -548,14 +534,16 @@ var Wiki = {
     },
 
     /*
-      Property: cleanPageName
-          Remove all not-allowed chars from a pagename.
-          Trim all whitespace, allow letters, digits and punctuation chars: ()&+, -=._$/ (Note: '/' is now allowed)
-          Mirror of org.apache.wiki.parser.MarkupParser.cleanPageName()
-  */
-    cleanPageName: function(pagename) {
+    Property: cleanPageName
+        Remove all not-allowed chars from a pagename.
+        Trim all whitespace, allow letters, digits and punctuation chars: ()&+, -=._$
+        Mirror of org.apache.wiki.parser.MarkupParser.cleanPageName()
+    */
+    cleanPageName: function( pagename ){
+
         //\w is short for [A-Z_a-z0-9_]
-        return pagename.clean().replace(/[^\w\u00C0-\u1FFF\u2800-\uFFFD()&+,\-=.$/ ]/g, "");
+        return pagename.clean().replace(/[^\w\u00C0-\u1FFF\u2800-\uFFFD()&+,\-=.$ ]/g, "");
+
     },
 
     /*
@@ -658,7 +646,19 @@ var Wiki = {
                 previewcontainer.appendChild(ajaxpreview);
 
             }
+            // Auto size editor and live preview window
+            var editPanes = jq$('.editor');
+            for (var i = 0; i < editPanes.length; i++) {
+                var editor = jq$(editPanes[i]);
+                if (editor.is('#editorarea')) continue;
+                editor.autosize();
+                editor.trigger('autosize.resize');
+            }
+
+            jq$(ajaxpreview).height(jq$(editPanes[0]).height());
         }
+
+
     },
 
     getXHRPreview: function( getContent, previewElement ){
@@ -675,8 +675,7 @@ var Wiki = {
             new Request({
                 url: wiki.XHRHtml2Markup,
                 data: {
-                    htmlPageText: getContent(),
-                    'X-XSRF-TOKEN': wiki.CsrfProtection
+                    htmlPageText: getContent()
                 },
                 onSuccess: function(responseText){
                     preview( responseText.trim() );
@@ -838,7 +837,7 @@ var Wiki = {
                     throw new Error("Wiki rpc error: " + error);
                 }
 
-            }).send( "X-XSRF-TOKEN=" + this.CsrfProtection + "&params=" + params );
+            }).send( "params=" + params );
 
         }
 
