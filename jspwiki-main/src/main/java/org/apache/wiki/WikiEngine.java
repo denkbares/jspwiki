@@ -367,6 +367,14 @@ public class WikiEngine implements Engine {
     void createAndFindWorkingDirectory( final Properties props ) throws WikiException {
         m_workDir = TextUtil.getStringProperty( props, PROP_WORKDIR, null );
 
+        if( m_workDir == null ) {
+            m_workDir = System.getProperty( "java.io.tmpdir", "." );
+            final String baseDirName = new File( TextUtil.getStringProperty( props, "var.basedir", "default" ) ).getName();
+            final String baseDirSuffix = baseDirName.substring( 0, Math.min( baseDirName.length(), 10 ) ).replaceAll( "\\h+", "_" ); // avoid long paths
+            final String appName = TextUtil.getStringProperty( props, PROP_APPNAME, m_appid ).replaceAll( "\\h+", "_" );
+            m_workDir += File.separator + Release.APPNAME + "-" + appName + "-" + baseDirSuffix;
+        }
+
         final File f = new File( m_workDir );
         try {
             f.mkdirs();

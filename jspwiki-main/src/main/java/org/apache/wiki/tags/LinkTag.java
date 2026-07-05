@@ -19,6 +19,8 @@
 package org.apache.wiki.tags;
 
 import org.slf4j.LoggerFactory;
+
+import static org.apache.wiki.utils.WikiPageUtils.getJarVersion;
 import org.slf4j.Logger;
 import org.apache.wiki.api.core.Attachment;
 import org.apache.wiki.api.core.ContextEnum;
@@ -171,6 +173,7 @@ public class LinkTag extends WikiLinkTag implements ParamHandler, BodyTag {
     private String figureOutURL() throws ProviderException {
         String url = null;
         final Engine engine = m_wikiContext.getEngine();
+        boolean appendVersion = false;
 
         if( m_pageName == null ) {
             final Page page = m_wikiContext.getPage();
@@ -183,11 +186,14 @@ public class LinkTag extends WikiLinkTag implements ParamHandler, BodyTag {
             final String params = addParamsForRecipient( null, m_containedParams );
             final String template = engine.getTemplateDir();
             url = engine.getURL( ContextEnum.PAGE_NONE.getRequestContext(), "templates/"+template+"/"+m_templatefile, params );
+            appendVersion = true;
         } else if( m_jsp != null ) {
             final String params = addParamsForRecipient( null, m_containedParams );
             //url = m_wikiContext.getURL( ContextEnum.PAGE_NONE.getRequestContext(), m_jsp, params );
             url = engine.getURL( ContextEnum.PAGE_NONE.getRequestContext(), m_jsp, params );
+            appendVersion = true;
         } else if( m_ref != null ) {
+            appendVersion = true;
             final int interwikipoint;
             if( new LinkParsingOperations( m_wikiContext ).isExternalLink(m_ref) ) {
                 url = m_ref;
@@ -256,6 +262,12 @@ public class LinkTag extends WikiLinkTag implements ParamHandler, BodyTag {
         } else {
             final String page = engine.getFrontPage();
             url = makeBasicURL( m_context, page, null );
+        }
+
+        final String version = m_version == null ? getJarVersion() : m_version;
+        if( appendVersion && url != null && !"version".contains( url ) && !url.endsWith( "/" ) && !url.endsWith( ".jsp" ) ) {
+            final String appendChar = url.contains( "?" ) ? "&" : "?";
+            url += appendChar + "version=" + version;
         }
 
         return url;

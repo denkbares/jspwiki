@@ -361,9 +361,11 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
 
         // Ok, no luck---this must be a user principal
         final Principal[] principals;
+        final UserProfile profile;
         final UserDatabase db = m_engine.getManager( UserManager.class ).getUserDatabase();
         try {
-           principals = db.getPrincipals( name );
+           profile = db.find( name );
+           principals = db.getPrincipals( profile.getLoginName() );
            for( final Principal value : principals ) {
                principal = value;
                if( principal.getName().equals( name ) ) {
