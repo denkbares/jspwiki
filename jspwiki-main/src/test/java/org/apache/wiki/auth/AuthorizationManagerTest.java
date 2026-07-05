@@ -519,9 +519,10 @@ public class AuthorizationManagerTest {
             Assertions.fail( "Failed save: " + e.getLocalizedMessage() );
         }
         Assertions.assertEquals( new WikiPrincipal( "authmanagertest",  WikiPrincipal.LOGIN_NAME ), m_auth.resolvePrincipal( "authmanagertest" ) );
-        // Resolution by full/wiki name requires the 2.x ACL logic (jspwiki.use2XAclLogic), which is off by default in 3.0:
+        Assertions.assertEquals( new WikiPrincipal( "AuthorizationManagerTestUser", WikiPrincipal.WIKI_NAME ), m_auth.resolvePrincipal( "AuthorizationManagerTestUser" ) );
+        // Resolution by full name additionally requires the legacy page-access-control logic
+        // (jspwiki.security.useOldPageAccessControlLogic), which is off by default:
         //Assertions.assertEquals( new WikiPrincipal( "AuthorizationManagerTest User", WikiPrincipal.FULL_NAME ), m_auth.resolvePrincipal( "AuthorizationManagerTest User" ) );
-        //Assertions.assertEquals( new WikiPrincipal( "AuthorizationManagerTestUser", WikiPrincipal.WIKI_NAME ), m_auth.resolvePrincipal( "AuthorizationManagerTestUser" ) );
         try
         {
             m_engine.getManager( UserManager.class ).getUserDatabase().deleteByLoginName( "authmanagertest" );
