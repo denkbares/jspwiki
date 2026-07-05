@@ -542,7 +542,7 @@ var Wiki = {
     cleanPageName: function( pagename ){
 
         //\w is short for [A-Z_a-z0-9_]
-        return pagename.clean().replace(/[^\w\u00C0-\u1FFF\u2800-\uFFFD()&+,\-=.$ ]/g, "");
+        return pagename.clean().replace(/[^\w\u00C0-\u1FFF\u2800-\uFFFD()&+,\-=.$/ ]/g, "");
 
     },
 
@@ -675,7 +675,8 @@ var Wiki = {
             new Request({
                 url: wiki.XHRHtml2Markup,
                 data: {
-                    htmlPageText: getContent()
+                    htmlPageText: getContent(),
+                    'X-XSRF-TOKEN': wiki.CsrfProtection
                 },
                 onSuccess: function(responseText){
                     preview( responseText.trim() );
@@ -837,7 +838,7 @@ var Wiki = {
                     throw new Error("Wiki rpc error: " + error);
                 }
 
-            }).send( "params=" + params );
+            }).send( "X-XSRF-TOKEN=" + this.CsrfProtection + "&params=" + params );
 
         }
 

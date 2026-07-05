@@ -245,40 +245,48 @@ Element.implement({
         var self = this,
             modal = self.getElement(selector);
 
-        function doSelfEvent(event){
-
-            modal.addClass( "active" );
-            document.body.addClass( "show-modal" );
-            event.preventDefault(); //postpone the click event
+        function onClick(event){
+            event.preventDefault();
+            modal.openModal( function(){
+                self.removeEvent("click", onClick).click();
+            });
         }
 
-        function doModalEvent(){
+        if( modal ){ self.addEvent( "click" , onClick); }
 
-            modal.removeClass( "active" );
-            document.body.removeClass( "show-modal" );
+    },
+    openModal: function( callback ){
 
-            if( this.match(".btn-success") ){
-                self.removeEvent( "click" , doSelfEvent ).click();
-            }
+        var modal = this,
+            init = "modal-initialized";
+
+        function clickModal(event){
+
+            modal.ifClass(!event, "active");
+            document.body.ifClass(!event, "show-modal");
+            if( event && this.matches(".btn-success") ){ callback(); }
+
         }
 
-        if( modal ){
-
-            //build a pretty modal dialog
-            if( !modal.getElement("> modal-footer") ){
-                modal.grab([
-                    "div.modal-footer", [
-                        "button.btn.btn-success", { text: "Confirm" },  //FIXME: i18n
-                        "button.btn.btn-danger", { text: "Cancel" }
+        if( !modal.getElement(".btn.btn-success") ){
+            //add buttons at the bottom of the modal dialog
+            modal.appendChild([
+                "div.modal-footer", [
+                    "button.btn.btn-success", { text: "dialog.confirm".localize() },
+                    "button.btn.btn-danger", { text: "dialog.cancel".localize() }
                     ]
                 ].slick());
-            }
+        }
+
+        if( !modal.hasClass(init) ){
+
             //move it just before the backdrop element for easy css styling
             modal.inject( document.getBackdrop(), "before" )
-                 .addEvent( "click:relay(.btn)",  doModalEvent );
-
-            self.addEvent( "click" , doSelfEvent );
+                 .addClass( init )
+                 .addEvent("click:relay(.btn)",  clickModal);
         }
+
+        clickModal(false); //and now show the modal
     },
 
     /*

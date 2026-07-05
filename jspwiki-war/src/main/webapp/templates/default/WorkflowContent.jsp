@@ -51,6 +51,7 @@
 					<thead><%-- 5/45/15/15/20--%>
 					<th scope="col"><fmt:message key="workflow.id"/></th>
 					<th scope="col"><fmt:message key="workflow.item"/></th>
+					<th scope="col"><fmt:message key="workflow.requester"/></th>
 					<th scope="col"><fmt:message key="workflow.startTime"/></th>
 					<th scope="col"><fmt:message key="workflow.actions"/></th>
 					</thead>
@@ -66,6 +67,9 @@
 								New user profile
 							</td>
 
+								<%-- Requester --%>
+							<td>${activeWorkflows[decision.workflowId].owner.name}</td>
+
 								<%-- When did the actor start this step? --%>
 							<td>
 								<fmt:formatDate value="${decision.startTime}" pattern="${prefs.DateFormat}"
@@ -77,6 +81,7 @@
 								<form action="<wiki:Link jsp='Workflow.jsp' format='url'/>"
 									  id="decision.${decision.id}"
 									  method="POST" accept-charset="UTF-8">
+									<wiki:CsrfProtection/>
 									<input type="hidden" name="action" value="decide"/>
 									<input type="hidden" name="id" value="${decision.id}"/>
 									<c:forEach var="outcome" items="${decision.availableOutcomes}">
@@ -158,6 +163,7 @@
 								<form id="workflow.${workflow.id}"
 									  action="<wiki:Link jsp='Workflow.jsp' format='url'/>"
 									  method="POST" accept-charset="UTF-8">
+									<wiki:CsrfProtection/>
 									<input class="btn btn-danger btn-xs" type="submit" name="submit"
 										   value="<fmt:message key="outcome.step.abort" />"/>
 									<input type="hidden" name="action" value="abort"/>
