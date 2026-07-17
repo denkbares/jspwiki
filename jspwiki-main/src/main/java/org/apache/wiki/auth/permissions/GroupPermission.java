@@ -19,15 +19,11 @@
 package org.apache.wiki.auth.permissions;
 
 import java.io.Serializable;
-import java.security.AccessControlContext;
-import java.security.AccessController;
-import java.security.DomainCombiner;
 import java.security.Permission;
 import java.util.Arrays;
 import java.util.Set;
 
 import javax.security.auth.Subject;
-import javax.security.auth.SubjectDomainCombiner;
 
 import org.apache.wiki.auth.GroupPrincipal;
 
@@ -388,18 +384,18 @@ public final class GroupPermission extends Permission implements Serializable
      * "TestGroup" only if the Subject is a member of TestGroup.
      * </p>
      * <p>
-     * We make this determination by obtaining the current {@link Thread}&#8217;s
-     * {@link java.security.AccessControlContext} and requesting the
-     * {@link javax.security.auth.SubjectDomainCombiner}. If the combiner is
-     * not <code>null</code>, then we know that the access check was
+     * We make this determination by obtaining the current thread&#8217;s Subject
+     * via {@link javax.security.auth.Subject#current()}. If it is not
+     * <code>null</code>, then we know that the access check was
      * requested using a {@link javax.security.auth.Subject}; that is, that an
-     * upstream caller caused a Subject to be associated with the Thread&#8217;s
-     * ProtectionDomain by executing a
+     * upstream caller caused a Subject to be bound to the current thread by
+     * executing a
      * {@link javax.security.auth.Subject#doAs(Subject, java.security.PrivilegedAction)}
+     * or {@link javax.security.auth.Subject#callAs(Subject, java.util.concurrent.Callable)}
      * operation.
      * </p>
      * <p>
-     * If a SubjectDomainCombiner exists, determining group membership is
+     * If such a Subject exists, determining group membership is
      * simple: just iterate through the Subject&#8217;s Principal set and look for all
      * Principals of type {@link org.apache.wiki.auth.GroupPrincipal}. If the
      * name of any Principal matches the value of the implied Permission&#8217;s
@@ -477,15 +473,15 @@ public final class GroupPermission extends Permission implements Serializable
             return false;
         }
 
-        // For the current thread, retrieve the SubjectDomainCombiner
-        // (if one was used to create current AccessControlContext )
-        final AccessControlContext acc = AccessController.getContext();
-        final DomainCombiner dc = acc.getDomainCombiner();
-        if ( dc != null && dc instanceof SubjectDomainCombiner )
+        // Retrieve the Subject bound to the current thread by Subject.doAs/callAs.
+        // Subject.current() covers all JVMs >= 18: before JDK 23 it resolves the Subject
+        // from the AccessControlContext's SubjectDomainCombiner internally, since JDK 23
+        // (Security Manager removal, JEP 486) from the scoped value bound by doAs/callAs.
+        final Subject subject = Subject.current();
+        if ( subject != null )
         {
             // <member> implies permission if subject possesses
             // GroupPrincipal with same name as target
-            final Subject subject = ( (SubjectDomainCombiner) dc ).getSubject();
             final Set<GroupPrincipal> principals = subject.getPrincipals( GroupPrincipal.class );
             return principals.stream().anyMatch(principal -> principal.getName().equals(gp.m_group));
         }
