@@ -115,7 +115,7 @@ public class VersioningFileProvider extends AbstractFileProvider {
 	 * {@link #ensureCreationDateProperties(Page, Properties)} for how it is applied.
 	 */
 	public static final String RESTORE_CREATION_DATES_FILE = "restore-creation-dates.properties";
-	private CachedProperties m_cachedProperties;
+	private volatile CachedProperties m_cachedProperties;
 
 	/**
 	 * {@inheritDoc}
@@ -1018,9 +1018,9 @@ public class VersioningFileProvider extends AbstractFileProvider {
 	 * gain over simply keeping the last one requested.
 	 */
 	private static class CachedProperties {
-		String m_page;
-		Properties m_props;
-		long m_lastModified;
+		final String m_page;
+		final Properties m_props;
+		final long m_lastModified;
 
 		/**
 		 * Because a Constructor is inherently synchronised, there is no need to synchronise the arguments.
