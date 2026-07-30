@@ -27,7 +27,8 @@ public class SubWikiInit {
 		assert folders != null;
 		Collection<File> filteredFolders = Arrays.stream(folders).filter(file ->
 				file.isDirectory()
-						&& !file.getAbsolutePath().equals(".git")
+						// skips .git and any other hidden directory, these are never sub-wikis
+						&& !file.getName().startsWith(".")
 						&& !file.getAbsolutePath().equals(m_pageDirectory)
 						&& !file.getName().equals("OLD")
 						&& !file.getParentFile().getName().equals("OLD")
