@@ -74,11 +74,12 @@ public class EhcacheCachingManager implements CachingManager, Initializable {
 			final URL location = this.getClass().getResource(confLocation);
 			LOG.info("Reading ehcache configuration file from classpath on /{}", location);
 			if (engine != null) {
-				// Distinct engines get distinct CacheManagers, named by application name, so their
-				// caches do not collide (required for the multi-wiki / multi-instance case).
+				// One CacheManager per engine instance: ehcache hands back an existing CacheManager when
+				// the configured name is already in use, so the name must identify the engine, not just
+				// the application.
 				final Configuration configuration = ConfigurationFactory.parseConfiguration(location);
 				if (configuration.getName() == null) {
-					configuration.name(engine.getApplicationName());
+					configuration.name(engine.getApplicationName() + "-" + System.identityHashCode(engine));
 				}
 				cacheManager = CacheManager.newInstance(configuration);
 			}
