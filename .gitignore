@@ -10,3 +10,13 @@ nb-configuration.xml
 .checkstyle
 **/node_modules/*
 .vscode
+
+# maven-release-plugin / versions-maven-plugin working files
+pom.xml.tag
+pom.xml.next
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+release.properties
+
+# JRebel descriptors are generated per developer
+rebel.xml
