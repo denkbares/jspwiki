@@ -32,7 +32,10 @@ public class WikiPageUtils {
 						+ " || DIAG existing=[" + existingPage.getName() + "] ver=" + existingPage.getVersion()
 						+ " wiki=" + existingPage.getWiki()
 						+ " allPages=" + engine.getManager(PageManager.class).getAllPages().stream().map(Page::getName).sorted().toList()
-						+ " providerPages=" + engine.getManager(PageManager.class).getProvider().getAllPages().stream().map(Page::getName).sorted().toList());
+						+ " providerPages=" + engine.getManager(PageManager.class).getProvider().getAllPages().stream().map(Page::getName).sorted().toList()
+						+ " engineId=" + System.identityHashCode(engine)
+						+ " pageDir=[" + engine.getWikiProperties().getProperty("jspwiki.fileSystemProvider.pageDir") + "]"
+						+ " providerInfo=[" + engine.getManager(PageManager.class).getProvider().getProviderInfo() + "]");
 			}
 		}
 	}
