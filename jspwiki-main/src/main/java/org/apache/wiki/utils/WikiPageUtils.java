@@ -28,7 +28,11 @@ public class WikiPageUtils {
 
 		for (Page existingPage : engine.getManager(PageManager.class).getAllPages()) {
 			if (existingPage.getName().equalsIgnoreCase(pageName)) {
-				throw new ProviderException("Page already exists (case insensitive): " + pageName);
+				throw new ProviderException("Page already exists (case insensitive): " + pageName
+						+ " || DIAG existing=[" + existingPage.getName() + "] ver=" + existingPage.getVersion()
+						+ " wiki=" + existingPage.getWiki()
+						+ " allPages=" + engine.getManager(PageManager.class).getAllPages().stream().map(Page::getName).sorted().toList()
+						+ " providerPages=" + engine.getManager(PageManager.class).getProvider().getAllPages().stream().map(Page::getName).sorted().toList());
 			}
 		}
 	}
