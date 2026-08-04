@@ -27,6 +27,7 @@ import org.apache.wiki.api.core.ContextEnum;
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.core.Page;
 import org.apache.wiki.api.core.Session;
+import org.apache.wiki.WikiContext;
 import org.apache.wiki.api.exceptions.NoRequiredPropertyException;
 import org.apache.wiki.api.exceptions.WikiException;
 import org.apache.wiki.auth.acl.AclManager;
@@ -198,7 +199,13 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
     /** {@inheritDoc} */
     @Override
     public boolean hasAccess( final Context context, final HttpServletResponse response, final boolean redirect ) throws IOException {
-        final boolean allowed = checkPermission( context.getWikiSession(), context.requiredPermission() );
+        final Permission required = context.requiredPermission();
+
+        // Commands that require no permission at all (Search.jsp, Message.jsp, Workflow.jsp, ...) are marked with
+        // WikiContext.DUMMY_PERMISSION. That marker used to pass checkStaticPermission() because the JVM's default policy grants it to
+        // everyone; since JDK 24 (JEP 486) AccessController.checkPermission() always throws, so the check would fall through to
+        // jspwiki.policy and deny everybody except administrators. Treat the marker as "no permission required" instead.
+        final boolean allowed = WikiContext.DUMMY_PERMISSION.equals( required ) || checkPermission( context.getWikiSession(), required );
 
         // Stash the wiki context
         if ( context.getHttpRequest() != null && context.getHttpRequest().getAttribute( Context.ATTR_CONTEXT ) == null ) {
