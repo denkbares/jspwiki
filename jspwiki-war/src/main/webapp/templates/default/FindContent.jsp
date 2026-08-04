@@ -41,7 +41,7 @@
     placeholder="<fmt:message key="find.input" />"
       autofocus="autofocus"
            size="32" />
-    <wiki:CsrfProtection/>
+    <%-- no wiki:CsrfProtection here: this is a GET form, the token would only end up in the URL --%>
 
     <div class="form-inline form-group">
 

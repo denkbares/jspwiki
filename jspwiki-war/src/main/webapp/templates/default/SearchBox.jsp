@@ -28,7 +28,7 @@
   id="searchForm" tabindex="0" role="search"
   accept-charset="<wiki:ContentEncoding />">
 
-  <wiki:CsrfProtection/>
+  <%-- no wiki:CsrfProtection here: this is a GET form, the token would only end up in the URL --%>
   <%-- FFS <div onclick="" class="btn">
     the onclick="" is needed for hover effect on ipad https://www.codehaven.co.uk/fix-css-hover-on-iphone-ipad/ --%>
   <a href="#" aria-label="<fmt:message key='sbox.search.button'/>" class="btn" data-click-parent=".searchbox">
