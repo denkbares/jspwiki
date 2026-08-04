@@ -159,7 +159,12 @@ public class WikiContext implements Context, Command {
 
     private static final Logger LOG = LoggerFactory.getLogger( WikiContext.class );
 
-    private static final Permission DUMMY_PERMISSION = new PropertyPermission( "os.name", "read" );
+    /**
+     *  Marker permission returned by {@link #requiredPermission()} for commands that do not require any permission at all. It is not
+     *  meant to be checked against a security policy - see {@code DefaultAuthorizationManager#hasAccess(Context, HttpServletResponse,
+     *  boolean)}, which treats it as "access granted".
+     */
+    public static final Permission DUMMY_PERMISSION = new PropertyPermission( "os.name", "read" );
 
     /**
      *  Create a new WikiContext for the given WikiPage. Delegates to {@link #WikiContext(Engine, HttpServletRequest, Page)}.
