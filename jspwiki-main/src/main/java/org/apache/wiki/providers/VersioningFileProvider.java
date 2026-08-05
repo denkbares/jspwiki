@@ -327,8 +327,8 @@ public class VersioningFileProvider extends AbstractFileProvider {
 
 	/**
 	 * The top-level heritage {@code .properties} file (written by the {@link FileSystemProvider}) for the given
-	 * page. Base layout: {@code <pageDir>/<mangledPage>.properties}. Overridden for multi-wiki, where the file
-	 * lives in the page's sub-wiki folder under the <em>local</em> page name (mirroring the multi-wiki write path).
+	 * page. Layout: {@code <pageDir>/<mangledPage>.properties}. Overridable for providers with a different
+	 * file layout.
 	 */
 	protected File heritagePropertiesFile(final String page) {
 		return new File(getPageDirectory(), mangleName(page) + FileSystemProvider.PROP_EXT);
