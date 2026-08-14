@@ -521,6 +521,21 @@ public class Workflow implements Serializable {
     }
 
     /**
+     * Makes sure the ids handed out to new Workflows stay clear of an id that is already taken.
+     * <p>
+     * The counter lives in the JVM, the ids of workflows waiting for a decision live on disk
+     * ({@link DefaultWorkflowManager#unserializeFromDisk(java.io.File)}). Without this, the first
+     * workflow created after a restart re-uses the id of a restored one - and since a decision is
+     * resolved through the id of its workflow, deciding then silently picks the wrong workflow.
+     *
+     * @param id an id that has already been handed out
+     */
+    static void reserveId( final int id )
+    {
+        idsCounter.accumulateAndGet( id + 1, Math::max );
+    }
+
+    /**
      * Starts the Workflow and sets the state to {@link #RUNNING}. If the Workflow has already been started (or previously aborted), this
      * method returns an {@linkplain IllegalStateException}. If any of the Steps in this Workflow throw a WikiException, the Workflow will
      * abort and propagate the exception to callers.
