@@ -288,12 +288,44 @@ public class AttachmentServlet extends HttpServlet {
     String getContentDisposition( final Attachment att ) {
         // We use 'inline' instead of 'attachment' so that user agents can try to automatically open the file,
         // except those cases in which we want to enforce the file download.
-        String contentDisposition = "inline; filename=\"";
-        if( m_engine.getManager( AttachmentManager.class ).forceDownload( att.getFileName() ) ) {
-            contentDisposition = "attachment; filename=\"";
+        final String type = m_engine.getManager( AttachmentManager.class ).forceDownload( att.getFileName() )
+                ? "attachment" : "inline";
+
+        // The name must never be concatenated unsanitized: a quote or a control character in it would terminate
+        // the quoted string early and allow to inject further header parameters, e.g. a filename* taking
+        // precedence over the actual name.
+        final String fileName = att.getFileName() == null ? "" : att.getFileName();
+        final String safeName = fileName.replaceAll( "[\\p{Cntrl}\\\\\"]+", "_" ).trim();
+        final String asciiName = safeName.replaceAll( "[^\\x20-\\x7E]", "_" );
+
+        final StringBuilder contentDisposition = new StringBuilder( type ).append( "; filename=\"" )
+                .append( asciiName.isEmpty() ? "attachment" : asciiName ).append( '"' );
+        if( !asciiName.equals( safeName ) ) {
+            // header values are latin-1 only, so additionally provide the original name utf-8 encoded (RFC 5987)
+            contentDisposition.append( "; filename*=UTF-8''" ).append( encodeHeaderParameter( safeName ) );
         }
-        contentDisposition += att.getFileName() + "\";";
-        return contentDisposition;
+        return contentDisposition.toString();
+    }
+
+    /**
+     *  Percent-encodes the given text for use as an extended header parameter value, as of RFC 5987.
+     *
+     *  @param text the text to encode
+     *  @return the encoded text, containing attr-chars and percent-encoded UTF-8 octets only
+     */
+    private static String encodeHeaderParameter( final String text ) {
+        final StringBuilder result = new StringBuilder();
+        for( final byte encoded : text.getBytes( StandardCharsets.UTF_8 ) ) {
+            final int value = encoded & 0xFF;
+            final char c = ( char ) value;
+            if( value < 128 && ( Character.isLetterOrDigit( c ) || "!#$&+-.^_`|~".indexOf( c ) >= 0 ) ) {
+                result.append( c );
+            }
+            else {
+                result.append( '%' ).append( String.format( "%02X", value ) );
+            }
+        }
+        return result.toString();
     }
 
     void sendError( final HttpServletResponse res, final String message ) throws IOException {
