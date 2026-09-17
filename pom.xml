@@ -29,7 +29,7 @@
 	<artifactId>jspwiki-knowwe-builder</artifactId>
 	<modelVersion>4.0.0</modelVersion>
 	<name>Apache JSPWiki</name>
-	<version>2.12.7-SNAPSHOT</version>
+	<version>2.12.9-SNAPSHOT</version>
 	<packaging>pom</packaging>
 	<description>Apache JSPWiki is a leading open source WikiWiki engine, feature-rich
 		and built around standard JEE components (Java, servlets, JSP).
@@ -75,7 +75,7 @@
 		<junit.version>5.10.2</junit.version>
 		<log4j2.version>2.23.0</log4j2.version>
 		<lucene.version>10.4.0</lucene.version>
-		<mockito.version>5.12.0</mockito.version>
+		<mockito.version>5.23.0</mockito.version> <!-- 5.23.0 -> byte-buddy 1.17.x, Java-25-fähig -->
 		<nekohtml.version>2.1.2</nekohtml.version>
 		<oro.version>2.0.8</oro.version>
 		<sandler.version>0.5</sandler.version>
@@ -148,7 +148,6 @@
 		<module>jspwiki-portable</module>
 		<module>jspwiki-it-tests</module><!-- IT tests are launched only if -Pintegration-tests is given -->
 		<module>jspwiki-bom</module>
-		<module>jspwiki-multiwiki</module>
 	</modules>
 
 	<dependencyManagement> <!-- defines what configuration is going to be used if, and only if, the dependency is used -->
