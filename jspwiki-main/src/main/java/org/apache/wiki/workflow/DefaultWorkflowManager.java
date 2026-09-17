@@ -154,6 +154,14 @@ public class DefaultWorkflowManager implements WorkflowManager, Serializable {
                 m_queue      = ( DecisionQueue )in.readObject();
                 m_completed = new CircularFifoQueue<>( retainCompleted );
                 m_completed.addAll( ( Collection< Workflow > )in.readObject() );
+
+                // the ids of the restored workflows are taken; the counter handing out new ones is
+                // a plain JVM counter and would start over at 1 after the restart
+                m_workflows.forEach( w -> Workflow.reserveId( w.getId() ) );
+                m_completed.forEach( w -> Workflow.reserveId( w.getId() ) );
+
+                dropCompletedDecisions();
+
                 LOG.debug( "Read serialized data successfully in " + sw );
             }
         } catch( final IOException | ClassNotFoundException e ) {
@@ -162,6 +170,25 @@ public class DefaultWorkflowManager implements WorkflowManager, Serializable {
         sw.stop();
 
         return saved;
+    }
+
+    /**
+     * Throws away restored decisions that have already been decided.
+     * <p>
+     * A decided decision has no business in the queue: {@link Decision#decide(Outcome, Context)} marks it complete
+     * <em>before</em> it asks for the removal from the queue, so a removal that did not happen leaves the queue with a
+     * completed decision - and that state gets serialized. Offering such a decision again ends in
+     * {@code IllegalStateException: Step has already been marked complete}. Their workflows are kept, they show up as
+     * active workflows and can be aborted.
+     */
+    private void dropCompletedDecisions() {
+        for( final Decision decision : m_queue.decisions() ) {
+            if( decision.isCompleted() ) {
+                LOG.warn( "Dropping decision #{} of workflow #{} from the restored queue, it has already been decided ({})",
+                          decision.getId(), decision.getWorkflowId(), decision.getOutcome().getMessageKey() );
+                m_queue.remove( decision );
+            }
+        }
     }
 
     /**
@@ -339,20 +366,28 @@ public class DefaultWorkflowManager implements WorkflowManager, Serializable {
     }
 
     protected void removeFromDecisionQueue( final Decision decision, final Context context ) {
-        // If current workflow is waiting for input, restart it and remove Decision from DecisionQueue
+        // If current workflow is waiting for input, restart it and remove Decision from DecisionQueue.
+        // The workflow is the one waiting at exactly this decision - looking it up by id alone is not
+        // enough, ids used to collide after restoring workflows from disk (see Workflow#reserveId).
         final int workflowId = decision.getWorkflowId();
-        final Optional< Workflow > optw = m_workflows.stream().filter( w -> w.getId() == workflowId ).findAny();
-        if( optw.isPresent() ) {
-            final Workflow w = optw.get();
-            if( w.getCurrentState() == Workflow.WAITING && decision.equals( w.getCurrentStep() ) ) {
-                getDecisionQueue().remove( decision );
-                // Restart workflow
-                try {
-                    w.restart( context );
-                } catch( final WikiException e ) {
-                    LOG.error( "restarting workflow #" + w.getId() + " caused " + e.getMessage(), e );
-                }
-            }
+        final Optional< Workflow > optw = m_workflows.stream()
+                                                     .filter( w -> w.getId() == workflowId
+                                                                   && w.getCurrentState() == Workflow.WAITING
+                                                                   && decision.equals( w.getCurrentStep() ) )
+                                                     .findAny();
+        if( optw.isEmpty() ) {
+            LOG.warn( "No workflow waiting for decision #{} of workflow #{}, decision stays in the queue",
+                      decision.getId(), workflowId );
+            return;
+        }
+
+        final Workflow w = optw.get();
+        getDecisionQueue().remove( decision );
+        // Restart workflow
+        try {
+            w.restart( context );
+        } catch( final WikiException e ) {
+            LOG.error( "restarting workflow #" + w.getId() + " caused " + e.getMessage(), e );
         }
     }
 

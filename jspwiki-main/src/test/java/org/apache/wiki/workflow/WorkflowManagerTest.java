@@ -131,6 +131,64 @@ public class WorkflowManagerTest {
         Assertions.assertEquals( 1, wm.m_completed.size() );
     }
 
+    /**
+     * The ids of workflows restored from disk are taken; new workflows have to stay clear of them.
+     * Otherwise the first registration after a restart shares its id with a restored workflow, and
+     * deciding resolves the wrong one - which silently does nothing.
+     */
+    @Test
+    public void testIdsStayClearOfRestoredWorkflows() {
+        final Workflow restored = new Workflow( "workflow.key", new WikiPrincipal( "Owner1" ) );
+        restored.setId( 4711 );
+        wm.m_workflows.add( restored );
+
+        final File file = new File( "./target/test-classes", "restored-" + DefaultWorkflowManager.SERIALIZATION_FILE );
+        wm.serializeToDisk( file );
+        wm.unserializeFromDisk( file ); // as after a restart
+
+        Assertions.assertTrue( new Workflow( "workflow.key", new WikiPrincipal( "Owner2" ) ).getId() > 4711 );
+    }
+
+    /**
+     * A decision belongs to the workflow that is actually waiting for it, even if another workflow
+     * carries the same id.
+     */
+    @Test
+    public void testDecisionIsResolvedAgainstItsOwnWorkflow() throws WikiException {
+        w.start( null ); // runs the first task and waits at the decision
+        final Decision decision = ( Decision )w.getCurrentStep();
+        Assertions.assertEquals( 1, wm.m_queue.decisions().length );
+
+        final Workflow sameId = new Workflow( "workflow.key", new WikiPrincipal( "Owner2" ) );
+        sameId.setId( w.getId() );
+        wm.m_workflows.add( sameId );
+
+        decision.decide( Outcome.DECISION_APPROVE, null );
+
+        Assertions.assertEquals( Workflow.COMPLETED, w.getCurrentState(),
+                                 "the workflow should have continued after its decision" );
+        Assertions.assertEquals( 0, wm.m_queue.decisions().length );
+    }
+
+    /**
+     * A decision that has already been decided must not come back from disk: deciding it a second time ends in
+     * "Step has already been marked complete". Such entries are debris of a queue removal that silently failed.
+     */
+    @Test
+    public void testAlreadyDecidedDecisionsAreNotRestored() throws WikiException {
+        w.start( null ); // runs the first task and waits at the decision
+        final Decision decision = ( Decision )w.getCurrentStep();
+        decision.setOutcome( Outcome.DECISION_APPROVE ); // decided, but left in the queue
+        Assertions.assertEquals( 1, wm.m_queue.decisions().length );
+
+        final File file = new File( "./target/test-classes", "decided-" + DefaultWorkflowManager.SERIALIZATION_FILE );
+        wm.serializeToDisk( file );
+        wm.unserializeFromDisk( file ); // as after a restart
+
+        Assertions.assertEquals( 0, wm.m_queue.decisions().length, "the decided decision should have been dropped" );
+        Assertions.assertEquals( 1, wm.m_workflows.size(), "its workflow is kept, so it can still be aborted" );
+    }
+
     @Test
     public void testShouldSerializeOnlyForDecisionQueueChanges() {
         final Decision d = new SimpleDecision( w.getId(), w.getAttributes(), "decision.editWikiApproval", new WikiPrincipal( "Actor1" ) );
