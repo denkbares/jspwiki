@@ -187,6 +187,25 @@ public class BasicAttachmentProviderTest {
 
 
     /**
+     *  Deleting the last attachment of a page also removes the directory of the page, deleting one of several keeps it.
+     */
+    @Test
+    public void testDeleteLastAttachmentRemovesPageDir() throws Exception {
+        final File in = makeAttachmentFile();
+        final Attachment att = Wiki.contents().attachment( m_engine, NAME1, "test1.txt" );
+        m_provider.putAttachmentData( att, Files.newInputStream( in.toPath() ) );
+        final Attachment att2 = Wiki.contents().attachment( m_engine, NAME1, "test2.txt" );
+        m_provider.putAttachmentData( att2, Files.newInputStream( in.toPath() ) );
+        final File pageDir = m_provider.findPageDir( NAME1 );
+
+        m_provider.deleteAttachment( att );
+        Assertions.assertTrue( pageDir.exists(), "the other attachment is still there" );
+
+        m_provider.deleteAttachment( att2 );
+        Assertions.assertFalse( pageDir.exists(), "no attachment left, so the directory of the page is gone" );
+    }
+
+    /**
      *  Check that the system does not Assertions.fail if there are extra files in the directory.
      */
     @Test
