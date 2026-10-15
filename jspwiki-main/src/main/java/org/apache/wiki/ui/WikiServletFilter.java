@@ -118,7 +118,6 @@ public class WikiServletFilter implements Filter {
             out.print("<p>We apologize for the inconvenience.  No, really, we do.  We're trying to ");
             out.print("JSPWiki as easy as we can, but there is only so much we have time to test ");
             out.print("platforms.</p>");
-            out.print( "<p>Please go to the <a href='Install.jsp'>installer</a> to continue.</p>" );
             out.print("</body></html>");
             return;
         }   
