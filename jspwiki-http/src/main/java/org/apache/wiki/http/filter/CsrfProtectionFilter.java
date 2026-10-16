@@ -64,7 +64,7 @@ public class CsrfProtectionFilter implements Filter {
                 LOG.error( "Incorrect {} param with value '{}' received for {}",
                            ANTICSRF_PARAM, request.getParameter( ANTICSRF_PARAM ), ( ( HttpServletRequest ) request ).getPathInfo() );
                 ( ( HttpServletResponse ) response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
-                ( ( HttpServletResponse ) response ).sendRedirect( "/error/Forbidden.html" );
+                ( ( HttpServletResponse ) response ).sendRedirect( ( ( HttpServletRequest ) request ).getContextPath() + "/error/Forbidden.html" );
                 return;
             }
         }

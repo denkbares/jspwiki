@@ -583,7 +583,9 @@ public class AttachmentServlet extends HttpServlet {
 
             throw e;
         } finally {
-            m_engine.getManager( ProgressManager.class ).stopProgress( progressId );
+            if( progressId != null ) {
+                m_engine.getManager( ProgressManager.class ).stopProgress( progressId );
+            }
             // FIXME: In case of exceptions should absolutely remove the uploaded file.
         }
 

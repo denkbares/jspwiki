@@ -91,7 +91,7 @@ public class DefaultPageManager implements PageManager {
     private final PageProvider m_provider;
     private final Engine m_engine;
     private final int m_expiryTime;
-    protected ConcurrentHashMap< String, PageLock > m_pageLocks = new ConcurrentHashMap<>();
+    protected final ConcurrentHashMap< String, PageLock > m_pageLocks = new ConcurrentHashMap<>();
     private final PageSorter pageSorter = new PageSorter();
     private LockReaper m_reaper;
 

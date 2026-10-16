@@ -57,14 +57,14 @@
 
     String action = request.getParameter( "action" );
     if( ( "decide".equals( action ) || "abort".equals( action ) ) && !CsrfProtectionFilter.isCsrfProtectedPost( request ) ) {
-        response.sendRedirect( "/error/Forbidden.html" );
+        response.sendRedirect( request.getContextPath() + "/error/Forbidden.html" );
         return;
     }
 
     if( "decide".equals(request.getParameter("action")) )
     {
         if( !CsrfProtectionFilter.isCsrfProtectedPost( request ) ) {
-            response.sendRedirect( "/error/Forbidden.html" );
+            response.sendRedirect( request.getContextPath() + "/error/Forbidden.html" );
             return;
         }
         try
@@ -91,7 +91,7 @@
     if( "abort".equals(request.getParameter("action")) )
     {
         if( !CsrfProtectionFilter.isCsrfProtectedPost( request ) ) {
-            response.sendRedirect( "/error/Forbidden.html" );
+            response.sendRedirect( request.getContextPath() + "/error/Forbidden.html" );
             return;
         }
         try

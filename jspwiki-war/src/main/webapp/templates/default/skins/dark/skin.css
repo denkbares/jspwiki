@@ -285,7 +285,7 @@ mark, .highlight {
   color:var(--text-color-highlight);
 }
 
-span.text-white, div.text-white, .bg.dark + .bg-overlay { color:var(--text-color-normal;); }
+span.text-white, div.text-white, .bg.dark + .bg-overlay { color:var(--text-color-normal); }
 /*span.text-black, div.text-black, .bg.light + .bg-overlay { color:(var(--text-???); } */
 
 .text-primary { color: var(--context-primary); }

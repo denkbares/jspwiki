@@ -85,8 +85,6 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 
@@ -100,7 +98,6 @@ public class LuceneSearchProvider implements SearchProvider {
     protected static final Logger LOG = LoggerFactory.getLogger( LuceneSearchProvider.class );
 
     protected Engine m_engine;
-    private Executor searchExecutor;
 
     // Lucene properties.
 
@@ -139,7 +136,7 @@ public class LuceneSearchProvider implements SearchProvider {
     @Override
     public void initialize( final Engine engine, final Properties props ) throws NoRequiredPropertyException, IOException {
         m_engine = engine;
-        searchExecutor = Executors.newCachedThreadPool();
+        // no executor: an unbounded cached thread pool per engine is never shut down and does not pay off for wiki-sized indexes
 
         m_luceneDirectory = engine.getWorkDir() + File.separator + LUCENE_DIR + File.separator + getIndexId() + File.separator + Paths.get(props.getProperty("var.basedir", "unknown-wiki")).getFileName();
 
@@ -217,6 +214,7 @@ public class LuceneSearchProvider implements SearchProvider {
 
                 final Directory luceneDir = FSDirectory.open( dir.toPath() );
                 try( final IndexWriter writer = getIndexWriter( luceneDir ) ) {
+                    final long pagesStart = System.currentTimeMillis();
                     long pagesIndexed = 0L;
                     final Collection< Page > allPages = m_engine.getManager( PageManager.class ).getAllPages();
                     for( final Page page : allPages ) {
@@ -228,8 +226,9 @@ public class LuceneSearchProvider implements SearchProvider {
                             LOG.warn( "Unable to index page {}, continuing to next ", page.getName(), e );
                         }
                     }
-                    LOG.info( "Indexed {} pages", pagesIndexed );
+                    LOG.info( "Indexed {} pages in {}ms", pagesIndexed, System.currentTimeMillis() - pagesStart );
 
+                    final long attachmentStart = System.currentTimeMillis();
                     long attachmentsIndexed = 0L;
                     final Collection< Attachment > allAttachments = m_engine.getManager( AttachmentManager.class ).getAllAttachments();
                     for( final Attachment att : allAttachments ) {
@@ -241,7 +240,7 @@ public class LuceneSearchProvider implements SearchProvider {
                             LOG.warn( "Unable to index attachment {}, continuing to next", att.getName(), e );
                         }
                     }
-                    LOG.info( "Indexed {} attachments", attachmentsIndexed );
+                    LOG.info( "Indexed {} attachments in {}ms", attachmentsIndexed, System.currentTimeMillis() - attachmentStart );
                 }
 
                 final Date end = new Date();
@@ -483,7 +482,7 @@ public class LuceneSearchProvider implements SearchProvider {
             final QueryParser qp = new MultiFieldQueryParser( queryfields, getLuceneAnalyzer() );
             qp.setAllowLeadingWildcard(true);
             final Query luceneQuery = qp.parse( query );
-            final IndexSearcher searcher = new IndexSearcher( reader, searchExecutor );
+            final IndexSearcher searcher = new IndexSearcher( reader );
 
             if( ( flags & FLAG_CONTEXTS ) != 0 ) {
                 highlighter = new Highlighter( new SimpleHTMLFormatter( "<span class=\"searchmatch\">", "</span>" ),

@@ -36,13 +36,13 @@
         <adminBean>org.apache.wiki.ui.admin.beans.PlainEditorAdminBean</adminBean>
     </editor>
     <!--
-        Experimental wysiwyg editor, based on mooeditable
-    -->
+        Experimental wysiwyg editor, based on mooeditable, disabled in the KnowWE fork
     <editor name="wysiwyg">
         <author>MooEditable</author>
         <path>editors/wysiwyg.jsp</path>
         <minVersion>2.10</minVersion>
     </editor>
+    -->
 
     <plugin class="org.apache.wiki.plugin.IfPlugin">
         <author>Janne Jalkanen</author>

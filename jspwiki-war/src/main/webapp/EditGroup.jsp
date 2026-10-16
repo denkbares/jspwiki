@@ -58,7 +58,7 @@
     // Are we saving the group?
     if( "save".equals( request.getParameter( "action" ) ) ) {
         if( !CsrfProtectionFilter.isCsrfProtectedPost( request ) ) {
-            response.sendRedirect( "/error/Forbidden.html" );
+            response.sendRedirect( request.getContextPath() + "/error/Forbidden.html" );
             return;
         }
         // Validate the group

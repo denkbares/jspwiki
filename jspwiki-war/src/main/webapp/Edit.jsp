@@ -120,7 +120,7 @@
 
     if( ok != null || captcha != null ) {
         if( !CsrfProtectionFilter.isCsrfProtectedPost( request ) ) {
-            response.sendRedirect( "/error/Forbidden.html" );
+            response.sendRedirect( request.getContextPath() + "/error/Forbidden.html" );
             return;
         }
         log.info("Saving page "+pagereq+". User="+user+", host="+HttpUtil.getRemoteAddress(request) );

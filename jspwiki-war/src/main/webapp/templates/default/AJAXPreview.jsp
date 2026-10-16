@@ -43,7 +43,7 @@
     }
     if( !CsrfProtectionFilter.isCsrfProtectedPost( request ) ) {
         //no token, return redirect.
-        response.sendRedirect( "/error/Forbidden.html" );
+        response.sendRedirect( request.getContextPath() + "/error/Forbidden.html" );
         return;
     }
   // Copied from a top-level jsp -- which would be a better place to put this 

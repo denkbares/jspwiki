@@ -68,7 +68,7 @@
     // Are we saving the profile?
     if( "saveProfile".equals( request.getParameter( "action" ) ) ) {
         if( !CsrfProtectionFilter.isCsrfProtectedPost( request ) ) {
-            response.sendRedirect( "/error/Forbidden.html" );
+            response.sendRedirect( request.getContextPath() + "/error/Forbidden.html" );
             return;
         }
         UserProfile profile = userMgr.parseProfile( wikiContext );

@@ -182,5 +182,17 @@ public class HttpUtilTest {
         assertEquals(expected, actual);
     }
 
+    @Test
+    public void testGetRemoteAddress() {
+        final HttpServletRequest request = mock( HttpServletRequest.class );
+        when( request.getRemoteAddr() ).thenReturn( "10.0.0.1" );
+        assertEquals( "10.0.0.1", HttpUtil.getRemoteAddress( request ) );
+
+        when( request.getHeader( "X-Forwarded-For" ) ).thenReturn( "192.168.1.5" );
+        assertEquals( "192.168.1.5", HttpUtil.getRemoteAddress( request ) );
+
+        when( request.getHeader( "X-Forwarded-For" ) ).thenReturn( "192.168.1.5, 10.0.0.2, 10.0.0.3" );
+        assertEquals( "192.168.1.5", HttpUtil.getRemoteAddress( request ) );
+    }
 
 }

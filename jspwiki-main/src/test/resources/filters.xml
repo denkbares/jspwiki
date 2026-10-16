@@ -24,13 +24,6 @@
       <class>org.apache.wiki.filters.ProfanityFilter</class>
    </filter>
 
-
-   <filter>
-      <!-- This entry is necessary to allow to boot up KnowWE Environments including KnowWEPlugin in JUnit test settings. REMOVING IT WILL BREAK TESTS! -->
-      <class>de.knowwe.jspwiki.KnowWEPlugin</class>
-   </filter>
-
-
    <filter>
       <class>org.apache.wiki.filters.TestFilter</class>
 

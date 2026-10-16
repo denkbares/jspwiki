@@ -31,6 +31,7 @@ import org.apache.wiki.api.exceptions.WikiException;
 import org.apache.wiki.attachment.AttachmentManager;
 import org.apache.wiki.event.WikiEventManager;
 import org.apache.wiki.event.WikiPageRenameEvent;
+import org.apache.wiki.security.EventUtil;
 import org.apache.wiki.pages.PageManager;
 import org.apache.wiki.parser.MarkupParser;
 import org.apache.wiki.references.ReferenceManager;
@@ -149,7 +150,7 @@ public class DefaultPageRenamer implements PageRenamer {
 			engine.getManager(SearchManager.class).reindexPage(att);
 		}
 
-		firePageRenameEvent(renameFrom, renameToClean);
+		firePageRenameEvent(renameFrom, renameToClean, context);
 
 		//  Done, return the new name.
 		return renameToClean;
@@ -164,9 +165,9 @@ public class DefaultPageRenamer implements PageRenamer {
 	 * @param newName the new page name
 	 */
 	@Override
-	public void firePageRenameEvent(final String oldName, final String newName) {
+	public void firePageRenameEvent(final String oldName, final String newName, final Context context) {
 		if (WikiEventManager.isListening(this)) {
-			WikiEventManager.fireEvent(this, new WikiPageRenameEvent(this, oldName, newName));
+			WikiEventManager.fireEvent(this, EventUtil.applyFrom(new WikiPageRenameEvent(this, oldName, newName), context));
 		}
 	}
 

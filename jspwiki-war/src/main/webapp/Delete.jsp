@@ -42,7 +42,7 @@
 
 <%
     if( !CsrfProtectionFilter.isCsrfProtectedPost( request ) ) {
-        response.sendRedirect( "/error/Forbidden.html" );
+        response.sendRedirect( request.getContextPath() + "/error/Forbidden.html" );
         return;
     }
     Engine wiki = Wiki.engine().find( getServletConfig() );
@@ -62,7 +62,7 @@
     String deleteall = request.getParameter( "delete-all" );
 
     if( ( delete != null || deleteall != null ) && !CsrfProtectionFilter.isCsrfProtectedPost( request ) ) {
-        response.sendRedirect( "/error/Forbidden.html" );
+        response.sendRedirect( request.getContextPath() + "/error/Forbidden.html" );
         return;
     }
 

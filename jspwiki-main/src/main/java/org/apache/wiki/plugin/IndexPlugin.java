@@ -38,7 +38,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -66,6 +68,12 @@ public class IndexPlugin extends AbstractReferralPlugin implements Plugin {
 	private static final Logger LOG = LoggerFactory.getLogger(IndexPlugin.class);
 
 	private final Namespace xmlns_XHTML = Namespace.getNamespace("http://www.w3.org/1999/xhtml");
+
+	@Override
+	public String getDisplayName(final Locale locale) {
+		final ResourceBundle rb = ResourceBundle.getBundle(PluginManager.PLUGIN_I18N_RESOURCE, locale);
+		return rb.getString(this.getClass().getSimpleName());
+	}
 
 	/**
 	 * {@inheritDoc}

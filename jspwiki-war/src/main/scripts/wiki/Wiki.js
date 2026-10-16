@@ -233,8 +233,14 @@ var Wiki = {
     > wiki.prefs("")                        //erase user-preference cookie
     */
     prefs: function(key, value){
-
-        return $.cookie.json({name:"JSPWikiUserPrefs", path:this.BaseUrl, expiry:20}, key, value);
+        var secure = window.location.href.startsWith("https://");
+        return $.cookie.json({
+            name:"JSPWikiUserPrefs",
+            path:this.BaseUrl,
+            sameSite: secure ? "strict" : "none",
+            secure: secure,
+            expiry:400
+            }, key, value);
     },
 
     /*

@@ -33,7 +33,7 @@
 
    <!-- Resource bundle default location -->
    <context-param>
-     <param-name>javax.servlet.jsp.jstl.fmt.localizationContext</param-name>
+     <param-name>jakarta.servlet.jsp.jstl.fmt.localizationContext</param-name>
      <param-value>templates.default</param-value>
    </context-param>
 

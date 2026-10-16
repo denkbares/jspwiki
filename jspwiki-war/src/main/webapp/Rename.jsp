@@ -44,7 +44,7 @@
 
 <%
     if( !CsrfProtectionFilter.isCsrfProtectedPost( request ) ) {
-        response.sendRedirect( "/error/Forbidden.html" );
+        response.sendRedirect( request.getContextPath() + "/error/Forbidden.html" );
         return;
     }
     Engine wiki = Wiki.engine().find( getServletConfig() );
@@ -57,7 +57,7 @@
     }
 
     if( !CsrfProtectionFilter.isCsrfProtectedPost( request ) ) {
-        response.sendRedirect( "/error/Forbidden.html" );
+        response.sendRedirect( request.getContextPath() + "/error/Forbidden.html" );
         return;
     }
 

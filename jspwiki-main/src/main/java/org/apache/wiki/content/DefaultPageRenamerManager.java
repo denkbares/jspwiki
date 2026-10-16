@@ -13,6 +13,7 @@ import org.apache.wiki.api.engine.Initializable;
 import org.apache.wiki.api.exceptions.WikiException;
 import org.apache.wiki.event.WikiEventManager;
 import org.apache.wiki.event.WikiPageRenameEvent;
+import org.apache.wiki.security.EventUtil;
 import org.apache.wiki.pages.DefaultPageNameResolver;
 import org.apache.wiki.pages.DefaultPageNameResolverManager;
 import org.apache.wiki.util.ClassUtil;
@@ -51,14 +52,14 @@ public class DefaultPageRenamerManager implements PageRenamer, Initializable {
 	@Override
 	public String renamePage(Context context, String renameFrom, String renameTo, boolean changeReferrers) throws WikiException {
 		String cleanedNewPageName = delegate.renamePage(context, renameFrom, renameTo, changeReferrers);
-		firePageRenameEvent(renameFrom, cleanedNewPageName);
+		firePageRenameEvent(renameFrom, cleanedNewPageName, context);
 		return cleanedNewPageName;
 	}
 
 	@Override
-	public void firePageRenameEvent(String oldName, String newName) {
+	public void firePageRenameEvent(final String oldName, final String newName, final Context context) {
 		if (WikiEventManager.isListening(this)) {
-			WikiEventManager.fireEvent(this, new WikiPageRenameEvent(this, oldName, newName));
+			WikiEventManager.fireEvent(this, EventUtil.applyFrom(new WikiPageRenameEvent(this, oldName, newName), context));
 		}
 	}
 }
