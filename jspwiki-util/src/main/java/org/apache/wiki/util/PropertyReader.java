@@ -470,7 +470,7 @@ public final class PropertyReader {
             properties.setProperty("jspwiki.workDir", defaultTmpDir);
             LOG.info(" Setting jspwiki.workDir to system's temporary directory: {}", defaultTmpDir);
         } else {
-            LOG.info("jspwiki.workDir is already set to: {}", workDir);
+            LOG.debug("jspwiki.workDir is already set to: {}", workDir);
         }
     }
 

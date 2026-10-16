@@ -16,12 +16,106 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-**2025-03-14 Alex O'Ree (alexoree AT apache DOT org)**
+
+**2026-09-16 Juan Pablo Santos (juanpablo AT apache DOT org)**
+
+* _3.0.1-git-02_
+
+* Fix for [JSPWIKI-1240](https://issues.apache.org/jira/browse/JSPWIKI-1240): Inconsistent test failures with RSSGenerator not finding the XML user database on CI builds - synchronize `DefaultUserManager#getUserDatabase()` so that other threads accesing it (such as `RssThread`) when it is fully initialized
+    * On the same topic, `HttpMockFactory#createHttpSession` no longer creates mock sessions with a fixed id; this was making some tests, under some circunstances, to reuse incorrect sessions, failing the build dependending on the tests execution order  
+
+* Fix regex pattern in `linkPart3` when editing a link tag (closes [PR#531](https://github.com/apache/jspwiki/pull/531/files)), by Ulf Dittmer, thanks!
+
+* Dependency Updates
+    * commons-codec to 1.22.1
+    * commons-collections to 4.6.0
+    * commons-validator to 1.11.0
+    * Jackson to 3.2.2
+    * JUnit to 6.1.3
+    * Log4J to 2.26.1
+    * Selenide to 7.18.1
+    * Tika to 3.3.2
+    * Tomcat to 10.1.60
+    * Maven plugins: umldoclet to 2.3.2, compiler to 3.16.0, install to 3.2.0, jar to 3.5.1, surefire/failsafe to 3.6.0, cargo to 1.10.28, cyclonedx 2.9.3
+
+**2026-09-01  Alex O'ree (alexoree AT apache DOT org)**
+
+* _3.0.1-git-01_
+
+* Fix for [JSPWIKI-1240](https://issues.apache.org/jira/browse/JSPWIKI-1240): Inconsistent test failures with RSSGenerator not finding the XML user database on CI builds: reduces the logging a bit for routine messages that pollute the stdout
+
+* Fix for [JSPWIKI-1277](https://issues.apache.org/jira/browse/JSPWIKI-1277)
+
+* Fix for [JSPWIKI-1278](https://issues.apache.org/jira/browse/JSPWIKI-1278)
+
+* Fix for [JSPWIKI-1279](https://issues.apache.org/jira/browse/JSPWIKI-1279)
+
+* Fix for [JSPWIKI-1285](https://issues.apache.org/jira/browse/JSPWIKI-1285)
+
+* Fix for [JSPWIKI-1291](https://issues.apache.org/jira/browse/JSPWIKI-1291)
+
+* Fix for [JSPWIKI-1303](https://issues.apache.org/jira/browse/JSPWIKI-1303)
+
+
+**2026-08-10  Alex O'ree (alexoree AT apache DOT org)**
+
+* Prepare for release of 3.0.0 RC2
+
+* Fix for [JSPWIKI-1275](https://issues.apache.org/jira/browse/JSPWIKI-1275)
+
+* Fix for [JSPWIKI-1274](https://issues.apache.org/jira/browse/JSPWIKI-1274)
+
+* Fix for [JSPWIKI-1273](https://issues.apache.org/jira/browse/JSPWIKI-1273)
+
+**2026-07-12 Juan Pablo Santos (juanpablo AT apache DOT org)**
+
+* _3.0.0-git-24_
+
+* Rework OWASP filters so that they can be configured also through wiki properties under `jspwiki.http.filters` namespace. See source code for specific property names
+
+* Move OWASP filter configurations to web-fragment.xml at jspwiki-http
+
+* jspwiki-war defaults to http again, which allows Dockerfile builds to be used. Full https war is provided through `jspwiki-https-enabler` and `jspwiki-war-https` modules
+
+* Remove compilations on GH Actions for JDK-18 and JDK-19 due to a [JDK bug](https://jspwiki-wiki.apache.org/Wiki.jsp?page=Common%20problems%20when%20building%20JSPWiki#section-Common+problems+when+building+JSPWiki-UnableToBuildUsingJDK18UnderSomeConditions)
+
+* Dependency Updates
+    * parent to 39
+    * aws-java-sdk-kendra to 1.12.797
+    * JUnit to 6.1.2
+    * Log4J to 2.26.1
+    * Selenide to 7.17.0
+    * Tomcat to 10.1.57
+    * Maven plugins: umldoclet to 2.3.1
+
+**2026-05-28 Juan Pablo Santos (juanpablo AT apache DOT org)**
 
 * _3.0.0-git-23_
 
-* [JSPWIKI-1270](https://issues.apache.org/jira/browse/JSPWIKI-1270) see jira for details
-* [JSPWIKI-1271](https://issues.apache.org/jira/browse/JSPWIKI-1271) see jira for details
+* Sanitize `link` parameter in `Image` plugin
+
+* Set up default rulesets for default and release branches (closes [PR #495](https://github.com/apache/jspwiki/pull/495), thanks to Apache Infra Team)
+
+* Dependency Updates
+    * parent to 38
+    * Commons Codec to 1.22.0
+    * Commons File Upload to 2.0.0-M5
+    * Commons IO to 2.22.0
+    * Commons Net to 3.13.0
+    * Commons Text to 1.15.0
+    * JUnit to 6.1.0
+    * Log4J to 2.25.4
+    * Selenide to 7.16.2
+    * SLF4J to 2.0.18
+    * Tika to 3.3.1
+    * Tomcat to 10.1.55
+    * maven plugins: assembly to 3.8.0, compiler to 3.15.0, dependency to 3.11.0, enforcer to 3.6.3, release to 3.3.1, resources to 3.5.0, surefire to 3.5.6, war to 3.5.1 and umldoclet to 2.3.0
+
+* Removed cobertura-maven-plugin as this causes `mvn dependency:go-offline` errors on Docker builds and is not used by the build. See
+    * https://github.com/mojohaus/cobertura-maven-plugin/issues/67
+	* https://stackoverflow.com/a/64700109
+
+* In the same vein, lifecycle-mapping is moved to a m2e environment dedicated profile, to allow Docker builds to proceed.
 
 **2025-12-16 Alex O'Ree (alexoree AT apache DOT org)**
 
@@ -143,7 +237,7 @@ under the License.
 * _3.0.0-git-10_
 
 * [JSPWIKI-1205](https://issues.apache.org/jira/browse/JSPWIKI-1205) -  adjusts the handling for too large file attachments. 
-* [JSPWIKI-1198(https://issues.apache.org/jira/browse/JSPWIKI-1198) -  fixes the ajax service for plugin suggestions. adds tests
+* [JSPWIKI-1198](https://issues.apache.org/jira/browse/JSPWIKI-1198) -  fixes the ajax service for plugin suggestions. adds tests
 * [JSPWIKI-1245](https://issues.apache.org/jira/browse/JSPWIKI-1245) -  run security validation checks at start up and log it.
 * [JSPWIKI-1228](https://issues.apache.org/jira/browse/JSPWIKI-1228) -  audit logging capability with optional email based alert
 
@@ -177,7 +271,7 @@ under the License.
 	* commons-validator (added) at 1.10.0
 	
 * [JSPWIKI-1239](https://issues.apache.org/jira/browse/JSPWIKI-1239) New user signup says the email is optional, but does not accept blank since it's already in use by the admin account
-* [JSPWIKI-1243](https://issues.apache.org/jira/browse/JSPWIKI-1243 Email validation rouine is incorrect (unicode symbols and more)
+* [JSPWIKI-1243](https://issues.apache.org/jira/browse/JSPWIKI-1243) Email validation rouine is incorrect (unicode symbols and more)
 * NOJIRA disables and removes the ClearSiteData Servlet Filter which broke CSRF token checks
 	
 
@@ -201,8 +295,6 @@ under the License.
 * [JSPWIKI-1224](https://issues.apache.org/jira/browse/JSPWIKI-1224)  rss.jsp now sets the filename for download 
 
 
-
-
 **2025-11-08 Alex O'Ree (alexoree AT apache DOT org)**
 
 * _3.0.0-git-04_
@@ -213,7 +305,7 @@ under the License.
 
 * [JSPWIKI-1219](https://issues.apache.org/jira/browse/JSPWIKI-1219) SpamFilter removal of asirra.com due to service shutdown 10 years ago
 * [JSPWIKI-1218](https://issues.apache.org/jira/browse/JSPWIKI-1218) Removal of commons-http-client v2 
-* [JSPWIKI-1179](https://issues.apache.org/jira/browse/JSPWIKI-1179) Github Actions CI builders
+* [JSPWIKI-1179](https://issues.apache.org/jira/browse/JSPWIKI-1179) GitHub Actions CI builders
 
 
 **2025-11-07 Alex O'Ree (alexoree AT apache DOT org)**

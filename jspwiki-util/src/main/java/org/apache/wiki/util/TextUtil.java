@@ -19,6 +19,7 @@
 package org.apache.wiki.util;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 
@@ -355,7 +356,7 @@ public final class TextUtil {
      *  @return The property value as an integer (or defVal).
      */
     public static int getIntegerProperty( final Properties props, final String key, final int defVal ) {
-        String val = System.getProperties().getProperty( key, System.getenv( StringUtils.replace( key,".","_" ) ) );
+        String val = System.getProperties().getProperty( key, System.getenv( Strings.CS.replace( key,".","_" ) ) );
         if( val == null ) {
             val = props.getProperty( key );
         }
@@ -380,7 +381,7 @@ public final class TextUtil {
      *  @since 2.0.11
      */
     public static boolean getBooleanProperty( final Properties props, final String key, final boolean defval ) {
-        String val = System.getProperties().getProperty( key, System.getenv( StringUtils.replace( key,".","_" ) ) );
+        String val = System.getProperties().getProperty( key, System.getenv( Strings.CS.replace( key,".","_" ) ) );
         if( val == null ) {
             val = props.getProperty( key );
         }
@@ -406,7 +407,7 @@ public final class TextUtil {
      * @since 2.1.151
      */
     public static String getStringProperty( final Properties props, final String key, final String defval ) {
-        String val = System.getProperties().getProperty( key, System.getenv( StringUtils.replace( key,".","_" ) ) );
+        String val = System.getProperties().getProperty( key, System.getenv( Strings.CS.replace( key,".","_" ) ) );
         if( val == null ) {
             val = props.getProperty( key );
         }
@@ -488,7 +489,7 @@ public final class TextUtil {
      *  @since 2.10.1
      */
     public static String getCanonicalFilePathProperty( final Properties props, final String key, final String defval ) {
-        String val = System.getProperties().getProperty( key, System.getenv( StringUtils.replace( key,".","_" ) ) );
+        String val = System.getProperties().getProperty( key, System.getenv( Strings.CS.replace( key,".","_" ) ) );
         if( val == null ) {
             val = props.getProperty( key );
         }

@@ -103,7 +103,15 @@ public class Image implements Plugin {
         return  "Image src='{image.jpg}'";
     }
     
-   
+    private boolean needsSanitization(String link) {
+        String testVal = link.toLowerCase().replaceAll("\\s+", "").trim();
+        if (testVal.startsWith("data")
+                || testVal.startsWith("javascript")
+                || testVal.startsWith("vbscript")) {
+            return true;
+        }
+        return false;
+    }
 
     /**
      *  {@inheritDoc}
@@ -117,7 +125,7 @@ public class Image implements Plugin {
         final String wt      = getCleanParameter( params, PARAM_WIDTH );
         final String alt     = getCleanParameter( params, PARAM_ALT );
         final String caption = getCleanParameter( params, PARAM_CAPTION );
-        final String link    = getCleanParameter( params, PARAM_LINK );
+        String link          = getCleanParameter( params, PARAM_LINK );
         String target        = getCleanParameter( params, PARAM_TARGET );
         final String style   = getCleanParameter( params, PARAM_STYLE );
         final String cssclass= getCleanParameter( params, PARAM_CLASS );
@@ -188,6 +196,11 @@ public class Image implements Plugin {
         result.append( ">" );
 
         if( link != null ) {
+            if( !context.getBooleanWikiProperty( MarkupParser.PROP_ALLOWHTML, false ) ) {
+                if (needsSanitization(link)) {
+                    link = "http://invalid_url" + link;
+                }
+            }
             result.append( "<a href=\"" ).append( link ).append( "\"" );
             if( target != null ) {
                 result.append( " target=\"" ).append( target ).append( "\"" );
@@ -195,8 +208,8 @@ public class Image implements Plugin {
             result.append(">");
         }
 
-        if( !context.getBooleanWikiProperty( MarkupParser.PROP_ALLOWHTML, false ) ) {
-            if( src.startsWith( "data:" ) || src.startsWith( "javascript:" ) ) {
+        if(!context.getBooleanWikiProperty(MarkupParser.PROP_ALLOWHTML, false)) {
+            if (needsSanitization(src)) {
                 src = "http://invalid_url" + src;
             }
         }

@@ -891,7 +891,7 @@ public class JSPWikiMarkupParser extends MarkupParser {
 
 	protected Element handleAccessRule(String ruleLine) {
 		if (m_wysiwygEditorMode) {
-			m_currentElement.addContent("[" + ruleLine + "]");
+			m_currentElement.addContent("[" + TextUtil.escapeHTMLEntities(ruleLine) + "]");
 		}
 		if (!m_parseAccessRules) {
 			return m_currentElement;
@@ -926,7 +926,7 @@ public class JSPWikiMarkupParser extends MarkupParser {
 	 */
 	protected Element handleMetadata(final String link) {
 		if (m_wysiwygEditorMode) {
-			m_currentElement.addContent("[" + link + "]");
+			m_currentElement.addContent("[" + TextUtil.escapeHTMLEntities(link) + "]");
 		}
 
 		try {
