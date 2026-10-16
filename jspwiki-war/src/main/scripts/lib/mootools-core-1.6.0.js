@@ -147,9 +147,9 @@ String.convert = function(item){
 	return item + '';
 };
 
-/*<1.5compat>*/
-Array.from = Array.convert;
-/*</1.5compat>*/
+// The 1.5 compat alias Array.from = Array.convert is left out on purpose. It wraps strings and iterables
+// without a length into a single element array, which breaks modern libraries that rely on the native
+// Array.from, for example CodeMirror. All JSPWiki callers pass array-like values and work with the native one.
 
 
 Function.from = Function.convert;

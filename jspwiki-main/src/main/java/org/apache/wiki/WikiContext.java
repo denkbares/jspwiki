@@ -28,14 +28,10 @@ import org.apache.wiki.api.core.Page;
 import org.apache.wiki.api.core.Session;
 import org.apache.wiki.api.spi.Wiki;
 import org.apache.wiki.auth.AuthorizationManager;
-import org.apache.wiki.auth.NoSuchPrincipalException;
-import org.apache.wiki.auth.UserManager;
 import org.apache.wiki.auth.WikiPrincipal;
 import org.apache.wiki.auth.permissions.AllPermission;
-import org.apache.wiki.auth.user.UserDatabase;
 import org.apache.wiki.pages.PageManager;
 import org.apache.wiki.ui.CommandResolver;
-import org.apache.wiki.ui.Installer;
 import org.apache.wiki.ui.PageCommand;
 import org.apache.wiki.ui.WikiCommand;
 import org.apache.wiki.util.TextUtil;
@@ -159,7 +155,12 @@ public class WikiContext implements Context, Command {
 
     private static final Logger LOG = LoggerFactory.getLogger( WikiContext.class );
 
-    private static final Permission DUMMY_PERMISSION = new PropertyPermission( "os.name", "read" );
+    /**
+     *  Marker permission returned by {@link #requiredPermission()} for commands that do not require any permission at all. It is not
+     *  meant to be checked against a security policy - see {@code DefaultAuthorizationManager#hasAccess(Context, HttpServletResponse,
+     *  boolean)}, which treats it as "access granted".
+     */
+    public static final Permission DUMMY_PERMISSION = new PropertyPermission( "os.name", "read" );
 
     /**
      *  Note: it is preferred to use the DSL API for creating a wiki context. 
@@ -713,16 +714,10 @@ public class WikiContext implements Context, Command {
      */
     @Override
     public Permission requiredPermission() {
-        // This is a filthy rotten hack -- absolutely putrid
+        // Installing always requires administrative rights. Upstream lets anybody in while the user database has no
+        // "admin" account, which is the normal state of wikis that authenticate via the container (e.g. CAS), so
+        // anonymous visitors could create that account. The KnowWE fork ships no Install.jsp anymore.
         if ( WikiCommand.INSTALL.equals( m_command ) ) {
-            // See if admin users exists
-            try {
-                final UserManager userMgr = m_engine.getManager( UserManager.class );
-                final UserDatabase userDb = userMgr.getUserDatabase();
-                userDb.findByLoginName( Installer.ADMIN_ID );
-            } catch ( final NoSuchPrincipalException e ) {
-                return DUMMY_PERMISSION;
-            }
             return new AllPermission( m_engine.getApplicationName() );
         }
 

@@ -41,6 +41,10 @@ wiki.add("textarea#editorarea", function( main ){
 
     function getFormElem( selector ){  return form.getElement( selector );  }
 
+    // the plain editor has no htmlPageText textarea, so the key must also be set here,
+    // otherwise the page text is stored under the key "undefined"
+    LocalCache = "wiki" + wiki.PageName;
+
     onbeforeunload( window, main );
 
     if(( snipe = getFormElem("textarea.snipeable") )){

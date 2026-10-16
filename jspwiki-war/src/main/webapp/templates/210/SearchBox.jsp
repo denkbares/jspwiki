@@ -35,7 +35,7 @@
            name="query" id="query"
            size="20" 
       accesskey="f" />
-  <wiki:CsrfProtection/>
+  <%-- no wiki:CsrfProtection here: this is a GET form, the token would only end up in the URL --%>
   <button type="submit"
   		 name="searchSubmit" id="searchSubmit"
   		value="<fmt:message key='find.submit.go'/>"

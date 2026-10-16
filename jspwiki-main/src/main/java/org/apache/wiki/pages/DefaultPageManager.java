@@ -514,6 +514,11 @@ public class DefaultPageManager implements PageManager {
      */
     @Override
     public boolean wikiPageExists( final String page ) {
+        // e.g. Login.jsp without redirect parameter, as after a container (CAS) login; the attachment lookup below
+        // would fail on it
+        if( page == null || page.isEmpty() ) {
+            return false;
+        }
         if( m_engine.getManager( CommandResolver.class ).getSpecialPageReference( page ) != null ) {
             return true;
         }

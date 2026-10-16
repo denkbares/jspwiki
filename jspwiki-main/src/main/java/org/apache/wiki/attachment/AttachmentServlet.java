@@ -305,12 +305,44 @@ public class AttachmentServlet extends HttpServlet {
         // are served inline, so that user agents can try to automatically open them.  Everything
         // else - including anything the container resolves to an actively rendering type such as
         // text/html, application/xhtml+xml or image/svg+xml - is forced to download.
-        String contentDisposition = "attachment; filename=\"";
-        if( isInlineRenderSafe( mimetype ) && !m_engine.getManager( AttachmentManager.class ).forceDownload( att.getFileName() ) ) {
-            contentDisposition = "inline; filename=\"";
+        final String type = isInlineRenderSafe( mimetype ) && !m_engine.getManager( AttachmentManager.class ).forceDownload( att.getFileName() )
+                ? "inline" : "attachment";
+
+        // The name must never be concatenated unsanitized: a quote or a control character in it would terminate
+        // the quoted string early and allow to inject further header parameters, e.g. a filename* taking
+        // precedence over the actual name.
+        final String fileName = att.getFileName() == null ? "" : att.getFileName();
+        final String safeName = fileName.replaceAll( "[\\p{Cntrl}\\\\\"]+", "_" ).trim();
+        final String asciiName = safeName.replaceAll( "[^\\x20-\\x7E]", "_" );
+
+        final StringBuilder contentDisposition = new StringBuilder( type ).append( "; filename=\"" )
+                .append( asciiName.isEmpty() ? "attachment" : asciiName ).append( '"' );
+        if( !asciiName.equals( safeName ) ) {
+            // header values are latin-1 only, so additionally provide the original name utf-8 encoded (RFC 5987)
+            contentDisposition.append( "; filename*=UTF-8''" ).append( encodeHeaderParameter( safeName ) );
         }
-        contentDisposition += att.getFileName() + "\";";
-        return contentDisposition;
+        return contentDisposition.toString();
+    }
+
+    /**
+     *  Percent-encodes the given text for use as an extended header parameter value, as of RFC 5987.
+     *
+     *  @param text the text to encode
+     *  @return the encoded text, containing attr-chars and percent-encoded UTF-8 octets only
+     */
+    private static String encodeHeaderParameter( final String text ) {
+        final StringBuilder result = new StringBuilder();
+        for( final byte encoded : text.getBytes( StandardCharsets.UTF_8 ) ) {
+            final int value = encoded & 0xFF;
+            final char c = ( char ) value;
+            if( value < 128 && ( Character.isLetterOrDigit( c ) || "!#$&+-.^_`|~".indexOf( c ) >= 0 ) ) {
+                result.append( c );
+            }
+            else {
+                result.append( '%' ).append( String.format( "%02X", value ) );
+            }
+        }
+        return result.toString();
     }
 
     /**
