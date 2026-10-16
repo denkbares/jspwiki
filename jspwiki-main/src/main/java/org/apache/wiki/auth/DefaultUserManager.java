@@ -155,11 +155,19 @@ public class DefaultUserManager implements UserManager {
         // If user is authenticated, figure out if this is an existing profile
         if ( session.isAuthenticated() ) {
             user = session.getUserPrincipal();
+            // the user principal usually is the login name (the full name only with the 2.x ACL logic), so look up by
+            // the authenticated login principal first; never via find(), which would also match other users' full names
+            final Principal login = session.getLoginPrincipal();
             try {
-                profile = getUserDatabase().findByWikiName( user.getName());
+                profile = login != null ? getUserDatabase().findByLoginName( login.getName() ) : getUserDatabase().findByWikiName( user.getName() );
                 newProfile = false;
-            } catch( final NoSuchPrincipalException e ) { 
-                LOG.debug(e.getMessage(), e);
+            } catch( final NoSuchPrincipalException e ) {
+                try {
+                    profile = getUserDatabase().findByWikiName( user.getName() );
+                    newProfile = false;
+                } catch( final NoSuchPrincipalException e2 ) {
+                    LOG.debug( e2.getMessage(), e2 );
+                }
             }
         }
 

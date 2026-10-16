@@ -27,7 +27,7 @@
 
     <modelVersion>4.0.0</modelVersion>
     <artifactId>jspwiki-knowwe-war</artifactId>
-    <name>Apache JSPWiki Main War</name>
+    <name>Apache JSPWiki Main War for KnowWE</name>
     <packaging>war</packaging>
 
     <dependencies>

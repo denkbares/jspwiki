@@ -125,6 +125,18 @@ class UserManagerTest {
         m_db = m_mgr.getUserDatabase();
     }
 
+    @Test
+    void testGetUserProfileOfAuthenticatedUser() throws Exception {
+        // janne's login name differs from both her wiki name and her full name
+        final Session session = WikiSessionTest.authenticatedSession( m_engine, Users.JANNE, Users.JANNE_PASS );
+        Assertions.assertTrue( session.isAuthenticated() );
+        final UserProfile profile = m_mgr.getUserProfile( session );
+        Assertions.assertFalse( profile.isNew() );
+        Assertions.assertEquals( "janne", profile.getLoginName() );
+        Assertions.assertEquals( "JanneJalkanen", profile.getWikiName() );
+        Assertions.assertEquals( "janne@ecyrd.com", profile.getEmail() );
+    }
+
     //@Test
     void testSetRenamedUserProfile() throws Exception {
         // First, count the number of users, groups, and pages
