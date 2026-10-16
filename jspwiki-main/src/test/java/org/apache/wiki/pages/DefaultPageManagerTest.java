@@ -253,6 +253,12 @@ public class DefaultPageManagerTest {
     }
 
     @Test
+    public void testNoPageNameExistsNot() {
+        Assertions.assertFalse( engine.getManager( PageManager.class ).wikiPageExists( ( String )null ), "no name, no page" );
+        Assertions.assertFalse( engine.getManager( PageManager.class ).wikiPageExists( "" ), "no name, no page" );
+    }
+
+    @Test
     public void testCreateEmptyPage() throws Exception {
         final String text = "";
         final String name = "mrmxyzptlk";
