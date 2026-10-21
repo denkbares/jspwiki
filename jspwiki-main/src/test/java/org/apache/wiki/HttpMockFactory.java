@@ -30,6 +30,9 @@ import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 
 import java.net.MalformedURLException;
+import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -68,6 +71,21 @@ public class HttpMockFactory {
         Mockito.doReturn( 0 ).when( sc ).getMinorVersion();
         Mockito.doReturn( "/" + contextName ).when( sc ).getContextPath();
         Mockito.doReturn( contextName ).when( sc ).getServletContextName();
+        // a real context keeps its attributes; components that publish themselves there (e.g. KnowWE's Environment)
+        // must find themselves again
+        final Map< String, Object > attributes = new ConcurrentHashMap<>();
+        Mockito.doAnswer( i -> attributes.get( i.< String >getArgument( 0 ) ) ).when( sc ).getAttribute( Mockito.anyString() );
+        Mockito.doAnswer( i -> {
+            final Object value = i.getArgument( 1 );
+            if( value == null ) {
+                attributes.remove( i.< String >getArgument( 0 ) );
+            } else {
+                attributes.put( i.getArgument( 0 ), value );
+            }
+            return null;
+        } ).when( sc ).setAttribute( Mockito.anyString(), Mockito.any() );
+        Mockito.doAnswer( i -> attributes.remove( i.< String >getArgument( 0 ) ) ).when( sc ).removeAttribute( Mockito.anyString() );
+        Mockito.doAnswer( i -> Collections.enumeration( attributes.keySet() ) ).when( sc ).getAttributeNames();
         Mockito.doAnswer( ( Answer< ServletContext > ) invocationOnMock -> {
             final String uriPath = invocationOnMock.getArgument( 0 );
             if( uriPath.startsWith( contextName ) ) {
