@@ -103,14 +103,24 @@ public final class AuditLogger implements WikiEventListener {
     @Override
     public void actionPerformed(WikiEvent event) {
         try {
-            LOG.info(String.format(
-                    "Class=%s, Description=%s, At=%d, AsString=%s, Name=%s, HttpsBits=%s",
-                    event.getClass().getSimpleName(),
-                    event.getTypeDescription(),
-                    event.getWhen(),
-                    event.toString(),
-                    event.eventName(),
-                    gson.toJson(event.getAttributes())));
+            // only security events belong to the audit trail, everything else (page translation, rendering, ...) fires
+            // several times per request and is logged on debug level only
+            final boolean securityEvent = event instanceof WikiSecurityEvent;
+            if (securityEvent || LOG.isDebugEnabled()) {
+                final String message = String.format(
+                        "Class=%s, Description=%s, At=%d, AsString=%s, Name=%s, HttpsBits=%s",
+                        event.getClass().getSimpleName(),
+                        event.getTypeDescription(),
+                        event.getWhen(),
+                        event.toString(),
+                        event.eventName(),
+                        gson.toJson(event.getAttributes()));
+                if (securityEvent) {
+                    LOG.info(message);
+                } else {
+                    LOG.debug(message);
+                }
+            }
             if (event instanceof WikiSecurityEvent wse) {
                 String filters = engine.getWikiProperties().getProperty("audit.alert.filter", "41,42,43,46,47,52");
                 String[] alertsWeCareAbout = filters.split("\\,");
