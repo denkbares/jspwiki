@@ -186,6 +186,8 @@
         <dependency>
             <groupId>xmlrpc</groupId>
             <artifactId>xmlrpc</artifactId>
+            <!-- javax.servlet based, only needed by PingWeblogsComFilter: add it to the webapp to use that filter -->
+            <optional>true</optional>
         </dependency>
 
         <dependency>
