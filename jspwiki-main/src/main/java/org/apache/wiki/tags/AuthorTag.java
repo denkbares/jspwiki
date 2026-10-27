@@ -20,6 +20,7 @@ package org.apache.wiki.tags;
 
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.core.Page;
+import org.apache.wiki.auth.UserManager;
 import org.apache.wiki.i18n.InternationalizationManager;
 import org.apache.wiki.pages.PageManager;
 import org.apache.wiki.parser.MarkupParser;
@@ -52,7 +53,7 @@ public class AuthorTag extends WikiTagBase {
     public final int doWikiStartTag() throws IOException {
         final Engine engine = m_wikiContext.getEngine();
         final Page page = m_wikiContext.getPage();
-        String author = page.getAuthor();
+        String author = engine.getManager( UserManager.class ).getDisplayName( page.getAuthor() );
 
         if( author != null && !author.isEmpty() ) {
             author = TextUtil.replaceEntities(author);

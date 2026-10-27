@@ -59,9 +59,10 @@
   }
 %>
 <%
-  String cleanedUserName = c.getCurrentUser().getName();
+  String loginName = c.getCurrentUser().getName();
+  String cleanedUserName = mgr.getDisplayName(loginName);
   int i = cleanedUserName.indexOf(".");
-  if (i > 0) {
+  if (cleanedUserName.equals(loginName) && i > 0) {
     cleanedUserName = capitalize(cleanedUserName.substring(0, i)) + " " + capitalize(cleanedUserName.substring(i + 1));
   }
 %>

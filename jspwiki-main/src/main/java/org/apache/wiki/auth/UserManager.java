@@ -56,6 +56,25 @@ public interface UserManager extends Initializable {
     UserDatabase getUserDatabase();
 
     /**
+     * Returns the name to show for a user, e.g. a page author. This is the full name of the user whose login name is given, or the
+     * given name itself if no such user is known, which includes names recorded as full names in the first place.
+     *
+     * @param userName the login name or another name of the user, may be <code>null</code>
+     * @return the full name of the user or the given name
+     */
+    default String getDisplayName( final String userName ) {
+        if( userName == null || userName.isEmpty() ) {
+            return userName;
+        }
+        try {
+            final String fullName = getUserDatabase().findByLoginName( userName ).getFullname();
+            return fullName == null || fullName.isEmpty() ? userName : fullName;
+        } catch( final NoSuchPrincipalException e ) {
+            return userName;
+        }
+    }
+
+    /**
      * <p>Retrieves the {@link org.apache.wiki.auth.user.UserProfile} for the user in a session. If the user is authenticated, the
      * UserProfile returned will be the one stored in the user database; if one does not exist, a new one will be initialized and returned.
      * If the user is anonymous or asserted, the UserProfile will <i>always</i> be newly initialized to prevent spoofing of identities.
