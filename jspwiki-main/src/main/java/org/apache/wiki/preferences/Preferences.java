@@ -30,8 +30,8 @@ import org.apache.wiki.util.HttpUtil;
 import org.apache.wiki.util.PropertyReader;
 import org.apache.wiki.util.TextUtil;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.jsp.PageContext;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.jsp.PageContext;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -105,7 +105,7 @@ public class Preferences extends HashMap< String,String > {
         prefs.put("Layout", TextUtil.getStringProperty( props, "jspwiki.defaultprefs.template.layout", "fluid" ) );
         prefs.put("Language", TextUtil.getStringProperty( props, "jspwiki.defaultprefs.template.language", getLocale( ctx ).toString() ) );
         prefs.put("SectionEditing", TextUtil.getStringProperty( props, "jspwiki.defaultprefs.template.sectionediting", "true" ) );
-        prefs.put("Appearance", TextUtil.getStringProperty( props, "jspwiki.defaultprefs.template.appearance", "true" ) );
+        //prefs.put("Appearance", TextUtil.getStringProperty( props, "jspwiki.defaultprefs.template.appearance", "true" ) );
 
         //editor cookies
         prefs.put("autosuggest", TextUtil.getStringProperty( props, "jspwiki.defaultprefs.template.autosuggest", "true" ) );
@@ -168,7 +168,6 @@ public class Preferences extends HashMap< String,String > {
 
     /**
      *  Returns a preference value programmatically.
-     *  FIXME
      *
      *  @param pageContext
      *  @param name
@@ -218,10 +217,14 @@ public class Preferences extends HashMap< String,String > {
         // see if default locale is set server side
         if( loc == null ) {
             final String locale = context.getEngine().getWikiProperties().getProperty( "jspwiki.preferences.default-locale" );
-            try {
-                loc = LocaleUtils.toLocale( locale );
-            } catch( final IllegalArgumentException iae ) {
-                LOG.error( iae.getMessage() );
+            if (locale != null) {
+                //this can be null under unit test/mock contexts but normally is
+                //not null under normal operating circumstances.
+                try {
+                    loc = LocaleUtils.toLocale( locale );
+                } catch( final IllegalArgumentException iae ) {
+                    LOG.error( iae.getMessage() );
+                }
             }
         }
 
@@ -229,6 +232,9 @@ public class Preferences extends HashMap< String,String > {
         if( loc == null ) {
             final HttpServletRequest request = context.getHttpRequest();
             loc = ( request != null ) ? request.getLocale() : Locale.getDefault();
+        }
+        if ( loc == null) {
+            loc = Locale.getDefault();
         }
 
         LOG.debug( "using locale " + loc );
@@ -300,6 +306,7 @@ public class Preferences extends HashMap< String,String > {
 
             return fmt;
         } catch( final Exception e ) {
+            LOG.debug(e.getMessage(), e);
             return null;
         }
     }

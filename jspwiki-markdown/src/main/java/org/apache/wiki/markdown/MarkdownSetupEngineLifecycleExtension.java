@@ -18,11 +18,11 @@
  */
 package org.apache.wiki.markdown;
 
-import java.util.Properties;
-
-import org.apache.wiki.api.engine.EngineLifecycleExtension;
-import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
+import org.apache.wiki.api.engine.EngineLifecycleExtension;
+
+import java.util.Properties;
 
 
 /**

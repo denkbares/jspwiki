@@ -44,7 +44,7 @@ Function: snippets
 */
 
 Wiki.Snips = {
-
+    ready: false,
     // Snipe predefined commands
     find: { },
     undo: { event: "undo" },
@@ -397,9 +397,12 @@ Wiki.Snips = {
 
 
     linkPart3:{
+        // Dialog must open after the second "|" even when "]" is not typed yet.
+        // Prefer matching up to "]" when present (attributes may contain spaces);
+        // otherwise only match non-whitespace so prose after the caret is not swallowed.
         suggest: {
-        lback: "\\[(?:[^\\|\\]]+\\|[^\\|\\]]+\\|)([^\\|\\[\\]\\n\\r]*)$",
-        match: "^[^\\|\\]\\n\\r]*"
+            lback: "\\[(?:[^\\|\\]]+\\|[^\\|\\]]+\\|)([^\\|\\[\\]\\n\\r]*)$",
+            match: "^(?:[^\\|\\[\\]\\n\\r]*(?=\\])|[^\\|\\[\\]\\n\\r\\s]*)"
         },
         linkPart3: [ Dialog.Selection, {
 
@@ -473,7 +476,7 @@ Wiki.Snips = {
 
             new Request({
             url: Wiki.XHRPreview,
-            data: { page: Wiki.PageName, wikimarkup: "[{Groups}]()", 'X-XSRF-TOKEN': wiki.CsrfProtection },
+            data: { page: Wiki.PageName, wikimarkup: "[{Groups}]()", 'X-XSRF-TOKEN': Wiki.CsrfProtection },
             onSuccess: function(responseText){
 
                 var body = "Anonymous|Asserted|Authenticated|All";
@@ -628,5 +631,32 @@ Wiki.Snips = {
 
         }
         }]
+    },
+    
+    loadPlugins: function(){
+        const pluginDiscoveryRequest2 = new XMLHttpRequest();
+        pluginDiscoveryRequest2.open('GET', 'ajax/plugins/plugins', true); // true for asynchronous
+        pluginDiscoveryRequest2.onload = function() {
+          if (pluginDiscoveryRequest2.status >= 200 && pluginDiscoveryRequest2.status < 300) {
+            var data = JSON.parse(pluginDiscoveryRequest2.responseText);
+            //Wiki.Snips.pluginDlg["TableOfContents "] = "Table Of Contents ";
+            for (var i=0; i < data.length; i++) {
+                Wiki.Snips.pluginDlg.pluginDlg[1].body[data[i].snip] = data[i].displayName;
+            }
+            Wiki.Snips.ready = true;
+          } else {
+            console.error('Request failed.  Returned status of ' + pluginDiscoveryRequest2.status);
+            Wiki.Snips.ready = true;
+          }
+        };
+        pluginDiscoveryRequest2.onerror = function() {
+          console.error('Network error occurred');
+          Wiki.Snips.ready = true;
+        };
+        pluginDiscoveryRequest2.send();
     }
-}
+};
+
+window.addEventListener("load", function() {
+  Wiki.Snips.loadPlugins();
+});

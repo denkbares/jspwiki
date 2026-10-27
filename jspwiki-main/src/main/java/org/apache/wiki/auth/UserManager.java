@@ -30,6 +30,7 @@ import org.apache.wiki.event.WikiEventManager;
 import org.apache.wiki.event.WikiSecurityEvent;
 
 import java.security.Principal;
+import org.apache.wiki.security.EventUtil;
 
 
 /**
@@ -55,6 +56,25 @@ public interface UserManager extends Initializable {
     UserDatabase getUserDatabase();
 
     /**
+     * Returns the name to show for a user, e.g. a page author. This is the full name of the user whose login name is given, or the
+     * given name itself if no such user is known, which includes names recorded as full names in the first place.
+     *
+     * @param userName the login name or another name of the user, may be <code>null</code>
+     * @return the full name of the user or the given name
+     */
+    default String getDisplayName( final String userName ) {
+        if( userName == null || userName.isEmpty() ) {
+            return userName;
+        }
+        try {
+            final String fullName = getUserDatabase().findByLoginName( userName ).getFullname();
+            return fullName == null || fullName.isEmpty() ? userName : fullName;
+        } catch( final NoSuchPrincipalException e ) {
+            return userName;
+        }
+    }
+
+    /**
      * <p>Retrieves the {@link org.apache.wiki.auth.user.UserProfile} for the user in a session. If the user is authenticated, the
      * UserProfile returned will be the one stored in the user database; if one does not exist, a new one will be initialized and returned.
      * If the user is anonymous or asserted, the UserProfile will <i>always</i> be newly initialized to prevent spoofing of identities.
@@ -73,9 +93,9 @@ public interface UserManager extends Initializable {
 
     /**
      * <p>
-     * Saves the {@link org.apache.wiki.auth.user.UserProfile} for the user in a wiki session. This method verifies that a user profile to
-     * be saved doesn't collide with existing profiles; that is, the login name or full name is already used by another profile. If the
-     * profile collides, a <code>DuplicateUserException</code> is thrown. After saving the profile, the user database changes are committed,
+     * Saves the {@link org.apache.wiki.auth.user.UserProfile} for the user in a wiki session.This method verifies that a user profile to
+ be saved doesn't collide with existing profiles; that is, the login name or full name is already used by another profile. If the
+ profile collides, a <code>DuplicateUserException</code> is thrown. After saving the profile, the user database changes are committed,
      * and the user's credential set is refreshed; if custom authentication is used, this means the user will be automatically be logged in.
      * </p>
      * <p>
@@ -170,7 +190,8 @@ public interface UserManager extends Initializable {
      */
     default void fireEvent( final int type, final Session session, final Object profile ) {
         if( WikiEventManager.isListening( this ) ) {
-            WikiEventManager.fireEvent( this, new WikiSecurityEvent( session, type, profile ) );
+            WikiEventManager.fireEvent( this, 
+                    EventUtil.applyFrom(new WikiSecurityEvent( session, type, profile )) );
         }
     }
 

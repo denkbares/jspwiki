@@ -48,13 +48,15 @@ public abstract class AbstractUserDatabase implements UserDatabase {
     protected static final String SHA_PREFIX = "{SHA}";
     protected static final String SSHA_PREFIX = "{SSHA}";
     protected static final String SHA256_PREFIX = "{SHA-256}";
-
+    protected Engine m_engine;
     /**
      * Looks up and returns the first {@link UserProfile} in the user database that whose login name, full name, or wiki name matches the
      * supplied string. This method provides a "forgiving" search algorithm for resolving principal names when the exact profile attribute
      * that supplied the name is unknown.
      *
      * @param index the login name, full name, or wiki name
+     * @return non null
+     * @throws org.apache.wiki.auth.NoSuchPrincipalException
      * @see org.apache.wiki.auth.user.UserDatabase#find(java.lang.String)
      */
     @Override
@@ -65,6 +67,7 @@ public abstract class AbstractUserDatabase implements UserDatabase {
         try {
             profile = findByFullName( index );
         } catch( final NoSuchPrincipalException e ) {
+            LOG.debug(e.getMessage(), e);
         }
         if( profile != null ) {
             return profile;
@@ -74,6 +77,7 @@ public abstract class AbstractUserDatabase implements UserDatabase {
         try {
             profile = findByWikiName( index );
         } catch( final NoSuchPrincipalException e ) {
+            LOG.debug(e.getMessage(), e);
         }
         if( profile != null ) {
             return profile;
@@ -83,6 +87,7 @@ public abstract class AbstractUserDatabase implements UserDatabase {
         try {
             profile = findByLoginName( index );
         } catch( final NoSuchPrincipalException e ) {
+            LOG.debug(e.getMessage(), e);
         }
         if( profile != null ) {
             return profile;
@@ -141,9 +146,13 @@ public abstract class AbstractUserDatabase implements UserDatabase {
         if( profile.getLoginName() != null && !profile.getLoginName().isEmpty() ) {
             principals.add( new WikiPrincipal( profile.getLoginName(), WikiPrincipal.LOGIN_NAME ) );
         }
-        if( profile.getFullname() != null && !profile.getFullname().isEmpty() ) {
-            principals.add( new WikiPrincipal( profile.getFullname(), WikiPrincipal.FULL_NAME ) );
+        if ("true".equalsIgnoreCase(m_engine.getWikiProperties().getProperty(Engine.PROP_USE_2_X_ACL_LOGIC, "false"))) {
+            if( profile.getFullname() != null && !profile.getFullname().isEmpty() ) {
+                principals.add( new WikiPrincipal( profile.getFullname(), WikiPrincipal.FULL_NAME ) );
+            }
         }
+        
+        
         if( profile.getWikiName() != null && !profile.getWikiName().isEmpty() ) {
             principals.add( new WikiPrincipal( profile.getWikiName(), WikiPrincipal.WIKI_NAME ) );
         }
@@ -156,7 +165,9 @@ public abstract class AbstractUserDatabase implements UserDatabase {
      * @see org.apache.wiki.auth.user.UserDatabase#initialize(org.apache.wiki.api.core.Engine, java.util.Properties)
      */
     @Override
-    public abstract void initialize( Engine engine, Properties props ) throws NoRequiredPropertyException, WikiSecurityException;
+    public void initialize( Engine engine, Properties props ) throws NoRequiredPropertyException, WikiSecurityException {
+        this.m_engine = engine;
+    }
 
     /**
      * Factory method that instantiates a new DefaultUserProfile with a new, distinct unique identifier.
@@ -189,38 +200,80 @@ public abstract class AbstractUserDatabase implements UserDatabase {
      */
     @Override
     public boolean validatePassword( final String loginName, final String password ) {
-        final String hashedPassword;
         try {
             final UserProfile profile = findByLoginName( loginName );
-            String storedPassword = profile.getPassword();
+            final String storedPassword = profile.getPassword();
             boolean verified = false;
 
-            // If the password is stored as SHA-256 or SSHA, verify the hash
-            if( storedPassword.startsWith( SHA256_PREFIX ) || storedPassword.startsWith( SSHA_PREFIX ) ) {
+            if( storedPassword.startsWith( CryptoUtil.PBKDF2_PREFIX ) ) {
+                // current format: iterated, salted PBKDF2-HMAC-SHA256
+                verified = CryptoUtil.verifyPbkdf2SaltedPassword( password.getBytes( StandardCharsets.UTF_8 ), storedPassword );
+            } else if( storedPassword.startsWith( SHA256_PREFIX ) || storedPassword.startsWith( SSHA_PREFIX ) ) {
+                // legacy salted, single-iteration digests
                 verified = CryptoUtil.verifySaltedPassword( password.getBytes( StandardCharsets.UTF_8 ), storedPassword );
+            } else if( storedPassword.startsWith( SHA_PREFIX ) ) {
+                // legacy unsalted SHA-1; compare in constant time while this format survives
+                final String hashedPassword = getShaHash( password );
+                verified = MessageDigest.isEqual( hashedPassword.getBytes( StandardCharsets.UTF_8 ),
+                                                  storedPassword.substring( SHA_PREFIX.length() ).getBytes( StandardCharsets.UTF_8 ) );
             }
 
-            // Use older verification algorithm if password is stored as SHA
-            if( storedPassword.startsWith( SHA_PREFIX ) ) {
-                storedPassword = storedPassword.substring( SHA_PREFIX.length() );
-                hashedPassword = getShaHash( password );
-                verified = hashedPassword.equals( storedPassword );
-            }
-
-            // If in the old format and password verified, upgrade the hash to SSHA
-            if( verified && !storedPassword.startsWith( SHA256_PREFIX ) ) {
+            // If verified against anything but the current KDF, upgrade the stored hash on this successful login
+            if( verified && !storedPassword.startsWith( CryptoUtil.PBKDF2_PREFIX ) ) {
                 profile.setPassword( password );
                 save( profile );
             }
 
             return verified;
         } catch( final NoSuchPrincipalException e ) {
+            LOG.debug(e.getMessage(), e);
         } catch( final NoSuchAlgorithmException e ) {
             LOG.error( "Unsupported algorithm: " + e.getMessage() );
         } catch( final WikiSecurityException e ) {
             LOG.error( "Could not upgrade SHA password to SSHA because profile could not be saved. Reason: " + e.getMessage(), e );
         }
         return false;
+    }
+    
+    @Override
+    public boolean validatePasswordReuse( final String loginName, final String password ) {
+        try {
+            final UserProfile profile = findByLoginName( loginName );
+
+            // If the password is stored as SHA-256 or SSHA, verify the hash
+            
+             for (String storedPassword : profile.getPreviousHashedCredentials()) {
+                if (storedPassword.startsWith(CryptoUtil.PBKDF2_PREFIX)) {
+                    boolean match = CryptoUtil.verifyPbkdf2SaltedPassword(password.getBytes(StandardCharsets.UTF_8), storedPassword);
+                    if (match) {
+                        return false;
+                    }
+                }
+                if (storedPassword.startsWith(SHA256_PREFIX) || storedPassword.startsWith(SSHA_PREFIX)) {
+                    boolean match = CryptoUtil.verifySaltedPassword(password.getBytes(StandardCharsets.UTF_8), storedPassword);
+                    if (match) {
+                        return false;
+                    }
+                }
+                if (storedPassword.startsWith(SHA_PREFIX)) {
+                    String fragment  = storedPassword.substring(SHA_PREFIX.length());
+                    String hashedPassword = getShaHash(password);
+                    boolean match  = hashedPassword.equals(fragment);
+                     if (match) {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        } catch( final NoSuchPrincipalException e ) {
+            LOG.debug(e.getMessage(), e);
+        } catch( final NoSuchAlgorithmException e ) {
+            LOG.error( "Unsupported algorithm: " + e.getMessage() );
+        } catch( final WikiSecurityException e ) {
+            LOG.error( "Could not upgrade SHA password to SSHA because profile could not be saved. Reason: " + e.getMessage(), e );
+        }
+        return true;
     }
 
     /**
@@ -240,6 +293,7 @@ public abstract class AbstractUserDatabase implements UserDatabase {
             try {
                 db.findByUid( uid );
             } catch ( final NoSuchPrincipalException e ) {
+                LOG.debug(e.getMessage(), e);
                 collision = false;
             }
         } 
@@ -256,7 +310,7 @@ public abstract class AbstractUserDatabase implements UserDatabase {
      */
     protected String getHash( final String text ) {
         try {
-            return CryptoUtil.getSaltedPassword( text.getBytes(StandardCharsets.UTF_8), SHA256_PREFIX );
+            return CryptoUtil.getPbkdf2SaltedPassword( text.getBytes( StandardCharsets.UTF_8 ) );
         } catch( final NoSuchAlgorithmException e ) {
             LOG.error( "Error creating salted password hash: {}", e.getMessage() );
             return text;

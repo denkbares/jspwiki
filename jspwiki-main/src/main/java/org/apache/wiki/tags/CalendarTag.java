@@ -27,8 +27,8 @@ import org.apache.wiki.pages.PageManager;
 import org.apache.wiki.util.HttpUtil;
 import org.apache.wiki.util.TextUtil;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.jsp.JspWriter;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.jsp.JspWriter;
 import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -57,7 +57,7 @@ public class CalendarTag extends WikiTagBase {
     private static final long serialVersionUID = 0L;
     private static final Logger LOG = LoggerFactory.getLogger( CalendarTag.class );
     private static final int NUM_PAGES_TO_CHECK = 3;
-
+    
     private SimpleDateFormat m_pageFormat;
     private SimpleDateFormat m_urlFormat;
     private SimpleDateFormat m_monthUrlFormat;
@@ -162,7 +162,7 @@ public class CalendarTag extends WikiTagBase {
 
             var somePageExistsOnThisDay = false;
             if (m_addIndex) {
-                // Look at up to 3 pages for whether the page exists. This avoids an issue
+                // Look at up to 3 pages for whether the page exists. This avoids an issue 
                 // with the WeblogPlugin when the first blog post(s) of a day gets deleted.
 		    for (int pageIdx = 1; pageIdx <= NUM_PAGES_TO_CHECK; pageIdx++) {
                         if( engine.getManager( PageManager.class ).wikiPageExists( pagename+pageIdx ) ) {

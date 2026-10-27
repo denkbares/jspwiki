@@ -20,38 +20,32 @@ package org.apache.wiki.bootstrap;
 
 import java.util.Properties;
 
-import javax.servlet.ServletContextEvent;
-import javax.servlet.ServletContextListener;
-
 import org.apache.wiki.api.spi.Wiki;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import jakarta.servlet.ServletContextEvent;
+import jakarta.servlet.ServletContextListener;
+
 
 public class WikiBootstrapServletContextListener implements ServletContextListener {
 
-	private static final Logger LOG = LoggerFactory.getLogger(WikiBootstrapServletContextListener.class);
+    /** {@inheritDoc} */
+    @Override
+    public void contextInitialized( final ServletContextEvent sce ) {
+        initWikiSPIs( sce );
+    }
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void contextInitialized(final ServletContextEvent sce) {
-	}
+    /**
+     * Locate and init JSPWiki SPIs' implementations
+     *
+     * @param sce associated servlet context.
+     * @return JSPWiki configuration properties.
+     */
+    Properties initWikiSPIs( final ServletContextEvent sce ) {
+        return Wiki.init( sce.getServletContext() );
+    }
 
-	/**
-	 * Locate and init JSPWiki SPIs' implementations
-	 *
-	 * @param sce associated servlet context.
-	 * @return JSPWiki configuration properties.
-	 */
-	Properties initWikiSPIs(final ServletContextEvent sce) {
-		return Wiki.init(sce.getServletContext());
-	}
-
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void contextDestroyed(final ServletContextEvent sce) {
-	}
+    /** {@inheritDoc} */
+    @Override
+    public void contextDestroyed( final ServletContextEvent sce ) {
+    }
 }

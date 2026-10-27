@@ -88,13 +88,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DefaultPageManager implements PageManager {
 
     private static final Logger LOG = LoggerFactory.getLogger( DefaultPageManager.class );
-
     private final PageProvider m_provider;
     private final Engine m_engine;
-
-    protected final ConcurrentHashMap< String, PageLock > m_pageLocks = new ConcurrentHashMap<>();
-
     private final int m_expiryTime;
+    protected final ConcurrentHashMap< String, PageLock > m_pageLocks = new ConcurrentHashMap<>();
     private final PageSorter pageSorter = new PageSorter();
     private LockReaper m_reaper;
 

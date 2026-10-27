@@ -233,8 +233,14 @@ var Wiki = {
     > wiki.prefs("")                        //erase user-preference cookie
     */
     prefs: function(key, value){
-
-        return $.cookie.json({name:"JSPWikiUserPrefs", path:this.BaseUrl, expiry:20}, key, value);
+        var secure = window.location.href.startsWith("https://");
+        return $.cookie.json({
+            name:"JSPWikiUserPrefs",
+            path:this.BaseUrl,
+            sameSite: secure ? "strict" : "none",
+            secure: secure,
+            expiry:400
+            }, key, value);
     },
 
     /*
@@ -534,14 +540,16 @@ var Wiki = {
     },
 
     /*
-      Property: cleanPageName
-          Remove all not-allowed chars from a pagename.
-          Trim all whitespace, allow letters, digits and punctuation chars: ()&+, -=._$/ (Note: '/' is now allowed)
-          Mirror of org.apache.wiki.parser.MarkupParser.cleanPageName()
-  */
-    cleanPageName: function(pagename) {
+    Property: cleanPageName
+        Remove all not-allowed chars from a pagename.
+        Trim all whitespace, allow letters, digits and punctuation chars: ()&+, -=._$
+        Mirror of org.apache.wiki.parser.MarkupParser.cleanPageName()
+    */
+    cleanPageName: function( pagename ){
+
         //\w is short for [A-Z_a-z0-9_]
         return pagename.clean().replace(/[^\w\u00C0-\u1FFF\u2800-\uFFFD()&+,\-=.$/ ]/g, "");
+
     },
 
     /*

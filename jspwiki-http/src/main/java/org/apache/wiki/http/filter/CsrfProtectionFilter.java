@@ -18,23 +18,24 @@
  */
 package org.apache.wiki.http.filter;
 
-import java.io.IOException;
-
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.core.Session;
 import org.apache.wiki.api.spi.Wiki;
 import org.apache.wiki.util.CsrfProtectionAllowList;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.Locale;
+
 
 /**
  * CSRF protection Filter which uses the synchronizer token pattern – an anti-CSRF token is created and stored in the
@@ -43,60 +44,74 @@ import org.slf4j.LoggerFactory;
  */
 public class CsrfProtectionFilter implements Filter {
 
-	private static final Logger LOG = LoggerFactory.getLogger(CsrfProtectionFilter.class);
+    private static final Logger LOG = LoggerFactory.getLogger( CsrfProtectionFilter.class );
 
-	public static final String ANTICSRF_PARAM = "X-XSRF-TOKEN";
+    public static final String ANTICSRF_PARAM = "X-XSRF-TOKEN";
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void init(final FilterConfig filterConfig) {
-	}
+    /** {@inheritDoc} */
+    @Override
+    public void init( final FilterConfig filterConfig ) {
+    }
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void doFilter(final ServletRequest request, final ServletResponse response, final FilterChain chain) throws IOException, ServletException {
-		if (isPost((HttpServletRequest) request) && !CsrfProtectionAllowList.isAllowListed((HttpServletRequest) request)) {
-			final Engine engine = Wiki.engine().find(request.getServletContext(), null);
-			final Session session = Wiki.session().find(engine, (HttpServletRequest) request);
-			if (!requestContainsValidCsrfToken(request, session)) {
-				LOG.error("Incorrect {} param with value '{}' received for {}",
-						ANTICSRF_PARAM, request.getParameter(ANTICSRF_PARAM), ((HttpServletRequest) request).getPathInfo());
-				((HttpServletResponse) response).setStatus(HttpServletResponse.SC_FORBIDDEN);
-				((HttpServletResponse) response).sendRedirect("/error/Forbidden.html");
-				return;
-			}
-		}
-		chain.doFilter(request, response);
-	}
+    /** {@inheritDoc} */
+    @Override
+    public void doFilter( final ServletRequest request, final ServletResponse response, final FilterChain chain ) throws IOException, ServletException {
+        if( isPost( ( HttpServletRequest ) request ) && !CsrfProtectionAllowList.isAllowListed( ( HttpServletRequest ) request )
+            && !isMultipartAttachmentUpload( ( HttpServletRequest ) request ) ) {
+            final Engine engine = Wiki.engine().find( request.getServletContext(), null );
+            final Session session = Wiki.session().find( engine, ( HttpServletRequest ) request );
+            if( !requestContainsValidCsrfToken( request, session ) ) {
+                LOG.error( "Incorrect {} param with value '{}' received for {}",
+                           ANTICSRF_PARAM, request.getParameter( ANTICSRF_PARAM ), ( ( HttpServletRequest ) request ).getPathInfo() );
+                ( ( HttpServletResponse ) response ).setStatus( HttpServletResponse.SC_FORBIDDEN );
+                ( ( HttpServletResponse ) response ).sendRedirect( ( ( HttpServletRequest ) request ).getContextPath() + "/error/Forbidden.html" );
+                return;
+            }
+        }
+        chain.doFilter( request, response );
+    }
 
-	public static boolean isCsrfProtectedPost(final HttpServletRequest request) {
-		if (isPost(request)) {
-			if (CsrfProtectionAllowList.isAllowListed(request)) {
-				return true;
-			}
-			final Engine engine = Wiki.engine().find(request.getServletContext(), null);
-			final Session session = Wiki.session().find(engine, request);
-			return requestContainsValidCsrfToken(request, session);
-		}
-		return false;
-	}
+    public static boolean isCsrfProtectedPost( final HttpServletRequest request ) {
+        if( isPost( request ) ) {
+            if( CsrfProtectionAllowList.isAllowListed( request ) ) {
+                return true;
+            }
+            final Engine engine = Wiki.engine().find( request.getServletContext(), null );
+            final Session session = Wiki.session().find( engine, request );
+            return requestContainsValidCsrfToken( request, session );
+        }
+        return false;
+    }
 
-	private static boolean requestContainsValidCsrfToken(final ServletRequest request, final Session session) {
-		return session.antiCsrfToken().equals(request.getParameter(ANTICSRF_PARAM));
-	}
+    private static boolean requestContainsValidCsrfToken( final ServletRequest request, final Session session ) {
+        return session.antiCsrfToken().equals( request.getParameter( ANTICSRF_PARAM ) );
+    }
 
-	static boolean isPost(final HttpServletRequest request) {
-		return "POST".equalsIgnoreCase(request.getMethod());
-	}
+    static boolean isPost( final HttpServletRequest request ) {
+        return "POST".equalsIgnoreCase( request.getMethod() );
+    }
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public void destroy() {
-	}
+    /**
+     * Multipart uploads carry their anti-CSRF token in the request body, which {@code getParameter()} cannot read
+     * without consuming the stream. Requiring the token as a request parameter would force it into the URL query
+     * string, where it leaks into access logs, proxies and browser history. For the attachment servlet - the only
+     * multipart consumer, which parses the body itself and performs the same token check before acting on the
+     * request - the check is therefore delegated instead of applied here. Multipart POSTs to any other path keep
+     * being validated by this filter, so the body trick cannot be used to smuggle query-string parameters past it.
+     *
+     * @param request the inbound request
+     * @return true if this is a multipart POST for the attachment servlet
+     */
+    private static boolean isMultipartAttachmentUpload( final HttpServletRequest request ) {
+        final String contentType = request.getContentType();
+        return "/attach".equals( request.getServletPath() )
+                && contentType != null
+                && contentType.toLowerCase( Locale.ENGLISH ).startsWith( "multipart/" );
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public void destroy() {
+    }
+
 }

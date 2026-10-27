@@ -20,9 +20,10 @@ package org.apache.wiki.util;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.jdom2.Element;
-import org.slf4j.Logger;
+import org.apache.commons.lang3.Strings;
 import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
+import org.jdom2.Element;
 
 import java.io.File;
 import java.io.IOException;
@@ -55,7 +56,7 @@ public final class ClassUtil {
     public static final String CUSTOM_MAPPINGS = "jspwiki.custom.classmapping";
     /**
      *  The location of the classmappings.xml document. It will be searched for
-     *  in the classpath.  Its default value is "ini/classmappings.xml", but may be overwritten with
+     *  in the classpath.  It's default value is "ini/classmappings.xml", but may be overwritten with
      *  the system property "{@value CUSTOM_MAPPINGS}".
      */
     public static final String MAPPINGS = System.getProperty(CUSTOM_MAPPINGS, "ini/classmappings.xml");
@@ -116,11 +117,13 @@ public final class ClassUtil {
         try {
             return ( Class< T > )loader.loadClass( className );
         } catch( final ClassNotFoundException e ) {
+            LOG.debug(e.getMessage(), e);
             for( final String packageName : packages ) {
                 try {
                     return ( Class< T > )loader.loadClass( packageName + "." + className );
                 } catch( final ClassNotFoundException ex ) {
                     // This is okay, we go to the next package.
+                    LOG.debug(e.getMessage(), e);
                 }
             }
 
@@ -156,7 +159,7 @@ public final class ClassUtil {
         }
         
         if( i == 0 ) {
-            LOG.error( "all external jars threw an exception while setting up classloaders for them, continuing with standard classloading. " +
+            LOG.error( "all external jars threw an exception while setting up classloaders for them, continuing with standard classloading. " + 
                        "See https://jspwiki-wiki.apache.org/Wiki.jsp?page=InstallingPlugins for help on how to install custom plugins." );
             return ClassUtil.class.getClassLoader();
         }
@@ -230,7 +233,7 @@ public final class ClassUtil {
             while( files.hasNext() ) {
                 final File subfile = files.next();
                 // store an entry similar to the jarSearch(..) below ones
-                final String entry = StringUtils.replace( subfile.getAbsolutePath(), file.getAbsolutePath() + File.separatorChar, StringUtils.EMPTY );
+                final String entry = Strings.CS.replace( subfile.getAbsolutePath(), file.getAbsolutePath() + File.separatorChar, StringUtils.EMPTY );
                 results.add( rootPackage + "/" + entry );
             }
         } else {
@@ -352,6 +355,7 @@ public final class ClassUtil {
             Class.forName( className, false, ClassUtil.class.getClassLoader() );
             return true;
         } catch( final ClassNotFoundException e ) {
+            LOG.debug(e.getMessage(), e);
             return false;
         }
     }
@@ -431,5 +435,5 @@ public final class ClassUtil {
         //  No arguments, so we can just call a default constructor and ignore the arguments.
         return from.getDeclaredConstructor().newInstance();
     }
-
+    
 }

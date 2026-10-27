@@ -24,8 +24,8 @@
 <%@ page import="org.apache.wiki.preferences.Preferences" %>
 <%@ page import="java.util.*" %>
 <%@ page import="org.apache.wiki.utils.WikiPageUtils" %>
-<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
-<%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
+<%@ taglib prefix="c" uri="jakarta.tags.core" %>
+<%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
 <fmt:setLocale value="${prefs.Language}" />
 <fmt:setBundle basename="templates.default"/>
 <%--
@@ -75,10 +75,6 @@ String.I18N.PREFIX = "javascript.";
 <link rel="stylesheet" type="text/css" media="screen, projection, print" id="main-stylesheet"
      href="<wiki:Link format='url' templatefile='haddock.css'/>" />
 
-<c:if test="${prefs.Appearance }">
-<link rel="stylesheet" type="text/css" media="screen, projection, print" id="main-stylesheet"
-     href="<wiki:Link format='url' templatefile='haddock-dark.css'/>"/>
-</c:if>
 
 <wiki:IncludeResources type="stylesheet"/>
 <wiki:IncludeResources type="inlinecss" />
@@ -153,9 +149,9 @@ String.I18N.PREFIX = "javascript.";
 <%-- SKINS : extra stylesheets, extra javascript --%>
 <c:if test='${(!empty prefs.SkinName) && (prefs.SkinName!="PlainVanilla") }'>
 <link rel="stylesheet" type="text/css" media="screen, projection, print"
-     href="<wiki:Link format='url' templatefile='skins/' /><c:out value='${prefs.SkinName}/skin.css' /><%= "?version=" + WikiPageUtils.getJarVersion()  %>" />
+     href="<wiki:Link format='url' templatefile='skins/' /><c:out value='${prefs.SkinName}/skin.css' /><%= "?version=" + WikiPageUtils.getJarVersion() %>" />
 <script type="text/javascript"
-         src="<wiki:Link format='url' templatefile='skins/' /><c:out value='${prefs.SkinName}/skin.js' /><%= "?version=" + WikiPageUtils.getJarVersion()  %>" ></script>
+         src="<wiki:Link format='url' templatefile='skins/' /><c:out value='${prefs.SkinName}/skin.js' /><%= "?version=" + WikiPageUtils.getJarVersion() %>" ></script>
 </c:if>
 
 <wiki:Include page="localheader.jsp"/>

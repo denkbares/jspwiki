@@ -34,8 +34,8 @@ import org.apache.wiki.modules.InternalModule;
 import org.apache.wiki.pages.PageManager;
 import org.apache.wiki.preferences.Preferences;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import java.lang.reflect.Method;
 import java.security.Principal;
 import java.util.Date;
@@ -158,8 +158,16 @@ public class DefaultVariableManager implements VariableManager {
             if( name.equals( value ) ) {
                 return ""; // FIXME: Should this be something different?
             }
-        }
+            if ("jspwiki.frontpage".equals(name)) continue;
+            if ("jspwiki.runfilters".equals(name) ) continue;
+            
+            if ( name.startsWith( "jspwiki" ) ) {
+                LOG.warn("variable manager is denying access to '" + name + "'");
+                return "";
+            }
 
+        }
+        
         try {
             //
             //  Using reflection to get system variables adding a new system variable

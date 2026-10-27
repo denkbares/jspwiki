@@ -19,23 +19,9 @@
 
 package org.apache.wiki;
 
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.StringReader;
-import java.util.AbstractMap;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Properties;
-
-import javax.servlet.ServletContext;
-import javax.servlet.http.HttpServletRequest;
-
-import net.sourceforge.stripes.mock.MockHttpServletRequest;
-import net.sourceforge.stripes.mock.MockHttpSession;
-import net.sourceforge.stripes.mock.MockServletContext;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.wiki.api.Release;
 import org.apache.wiki.api.core.Attachment;
 import org.apache.wiki.api.core.Context;
@@ -61,8 +47,18 @@ import org.apache.wiki.render.RenderingManager;
 import org.apache.wiki.util.FileUtil;
 import org.apache.wiki.util.PropertyReader;
 import org.apache.wiki.util.TextUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.http.HttpServletRequest;
+
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.StringReader;
+import java.util.AbstractMap;
+import java.util.Map;
+import java.util.Properties;
 
 /**
  *  Simple test engine that always assumes pages are found.
@@ -86,7 +82,7 @@ public class TestEngine extends WikiEngine {
     public Session adminSession() throws WikiSecurityException {
         if ( m_adminWikiSession == null ) {
             // Set up long-running admin session
-            final HttpServletRequest request = newHttpRequest();
+            final HttpServletRequest request = HttpMockFactory.createHttpRequest();
             m_adminWikiSession = WikiSession.getWikiSession( this, request );
             this.getManager( AuthenticationManager.class ).login( m_adminWikiSession, request, Users.ADMIN, Users.ADMIN_PASS );
         }
@@ -101,7 +97,7 @@ public class TestEngine extends WikiEngine {
     public Session guestSession() {
         if ( m_guestWikiSession == null ) {
             // Set up guest session
-            final HttpServletRequest request = newHttpRequest();
+            final HttpServletRequest request = HttpMockFactory.createHttpRequest();
             m_guestWikiSession = WikiSession.getWikiSession( this, request );
         }
         return m_guestWikiSession;
@@ -116,7 +112,7 @@ public class TestEngine extends WikiEngine {
     public Session janneSession() throws WikiSecurityException {
         if ( m_janneWikiSession == null ) {
             // Set up a test Janne session
-            final HttpServletRequest request = newHttpRequest();
+            final HttpServletRequest request = HttpMockFactory.createHttpRequest();
             m_janneWikiSession = WikiSession.getWikiSession( this, request );
             this.getManager( AuthenticationManager.class ).login( m_janneWikiSession, request, Users.JANNE, Users.JANNE_PASS );
         }
@@ -168,6 +164,7 @@ public class TestEngine extends WikiEngine {
         try {
             return new TestEngine( props );
         } catch( final WikiException we ) {
+            LOG.error( "Failed to initialize TestEngine with properties: {}", props, we );
             throw new UnsupportedOperationException( "Unable to build TestEngine: " + we.getMessage(), we );
         }
     }
@@ -177,58 +174,16 @@ public class TestEngine extends WikiEngine {
     }
 
     public TestEngine( final Properties props ) throws WikiException {
-        super( createServletContext( "test" ), "test" );
+        super( HttpMockFactory.createServletContext( "test" ), "test" );
         try {
             start( cleanTestProps( props ) );
         } catch( final Exception e ) {
-            throw new WikiException(Release.APPNAME + ": Unable to load and setup properties from jspwiki.properties. " + e.getMessage(), e );
+            throw new WikiException( Release.APPNAME + ": Unable to load and setup properties from jspwiki.properties. " + e.getMessage(), e );
         }
 
         // Stash the WikiEngine in the servlet context
         final ServletContext servletContext = this.getServletContext();
         servletContext.setAttribute( "org.apache.wiki.WikiEngine", this );
-    }
-
-    public static MockServletContext createServletContext( final String contextName ) {
-        return new MockServletContext( contextName ) {
-
-            @Override
-            public int getMajorVersion() {
-                return 3;
-            }
-
-            @Override
-            public int getMinorVersion() {
-                return 1;
-            }
-        };
-    }
-
-    /**
-     * Creates a correctly-instantiated mock HttpServletRequest with an associated
-     * HttpSession.
-     * @return the new request
-     */
-    public MockHttpServletRequest newHttpRequest() {
-        return newHttpRequest( "/Wiki.jsp" );
-    }
-
-    /**
-     * Creates a correctly-instantiated mock HttpServletRequest with an associated
-     * HttpSession and path.
-     * @param path the path relative to the wiki context, for example "/Wiki.jsp"
-     * @return the new request
-     */
-    public MockHttpServletRequest newHttpRequest( final String path ) {
-        final MockHttpServletRequest request = new MockHttpServletRequest( "/JSPWiki", path ) {
-            @Override
-            public ServletContext getServletContext() { // stripes mock returns null
-                return createServletContext( "/JSPWiki" );
-            }
-        };
-        request.setSession( new MockHttpSession( this.getServletContext() ) );
-        request.addLocale( new Locale( "" ) );
-        return request;
     }
 
     /** {@inheritDoc} */
@@ -408,7 +363,7 @@ public class TestEngine extends WikiEngine {
      */
     public void saveText( final String pageName, final String content ) throws WikiException {
         // Build new request and associate our admin session
-        final MockHttpServletRequest request = newHttpRequest();
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest();
         final Session wikiSession = SessionMonitor.getInstance( this ).find( request.getSession() );
         this.getManager( AuthenticationManager.class ).login( wikiSession, request, Users.ADMIN, Users.ADMIN_PASS );
 
@@ -420,7 +375,7 @@ public class TestEngine extends WikiEngine {
 
     public void saveTextAsJanne( final String pageName, final String content ) throws WikiException {
         // Build new request and associate our Janne session
-        final MockHttpServletRequest request = newHttpRequest();
+        final HttpServletRequest request = HttpMockFactory.createHttpRequest();
         final Session wikiSession = SessionMonitor.getInstance( this ).find( request.getSession() );
         this.getManager( AuthenticationManager.class ).login( wikiSession, request, Users.JANNE, Users.JANNE_PASS );
 
@@ -440,7 +395,7 @@ public class TestEngine extends WikiEngine {
      */
     public String getI18nHTML( final String pagename ) {
         final Page page = getManager( PageManager.class ).getPage( pagename, PageProvider.LATEST_VERSION );
-        final Context context = Wiki.context().create( this, newHttpRequest(), page );
+        final Context context = Wiki.context().create( this, HttpMockFactory.createHttpRequest(), page );
         context.setRequestContext( ContextEnum.PAGE_NONE.getRequestContext() );
         return getManager( RenderingManager.class ).getHTML( context, page );
     }

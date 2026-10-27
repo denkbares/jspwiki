@@ -22,16 +22,20 @@ import org.apache.wiki.api.core.Context;
 import org.apache.wiki.parser.WikiDocument;
 import org.apache.wiki.render.RenderingManager;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *  This class is still experimental.
  *
  */
 public abstract class WikiFormAdminBean implements AdminBean {
+    
+    private static final Logger LOG = LoggerFactory.getLogger(WikiFormAdminBean.class);
 
     public abstract String getForm( Context context );
     
@@ -47,8 +51,7 @@ public abstract class WikiFormAdminBean implements AdminBean {
             doc = mgr.getParser( context, wikiMarkup ).parse();
             result = mgr.getHTML( context, doc );
         } catch( final IOException e ) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            LOG.error(e.getMessage(), e);
         }
         
         return result;

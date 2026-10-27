@@ -19,6 +19,7 @@
 package org.apache.wiki.auth.user;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.exceptions.NoRequiredPropertyException;
 import org.apache.wiki.auth.NoSuchPrincipalException;
@@ -44,6 +45,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import org.apache.wiki.WikiEngine;
 
 /**
  * <p>
@@ -191,6 +193,8 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
     private static final String NOTHING = "";
 
     public static final String DEFAULT_DB_ATTRIBUTES = "attributes";
+    
+    public static final String DEFAULT_DB_OLD_HASHES = "oldhashes";
 
     public static final String DEFAULT_DB_CREATED = "created";
 
@@ -219,6 +223,8 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
     public static final String DEFAULT_DB_WIKI_NAME = "wiki_name";
 
     public static final String PROP_DB_ATTRIBUTES = "jspwiki.userdatabase.attributes";
+    
+    public static final String PROP_DB_OLD_HASHES = "jspwiki.userdatabase.oldhashes";
 
     public static final String PROP_DB_CREATED = "jspwiki.userdatabase.created";
 
@@ -297,6 +303,10 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
     private String m_modified;
 
     private boolean m_supportsCommits;
+    
+    private String m_oldPasswords;
+    
+    private int m_passwordReusedCount = 0;
 
     /**
      * Looks up and deletes the first {@link UserProfile} in the user database
@@ -414,6 +424,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
      */
     @Override
     public void initialize( final Engine engine, final Properties props ) throws NoRequiredPropertyException, WikiSecurityException {
+        m_engine = engine;
         final String jndiName = props.getProperty( PROP_DB_DATASOURCE, DEFAULT_DB_JNDI_NAME );
         try {
             final Context initCtx = new InitialContext();
@@ -432,6 +443,8 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
             m_created = props.getProperty( PROP_DB_CREATED, DEFAULT_DB_CREATED );
             m_modified = props.getProperty( PROP_DB_MODIFIED, DEFAULT_DB_MODIFIED );
             m_attributes = props.getProperty( PROP_DB_ATTRIBUTES, DEFAULT_DB_ATTRIBUTES );
+            m_oldPasswords = props.getProperty( PROP_DB_OLD_HASHES, DEFAULT_DB_OLD_HASHES );
+            m_passwordReusedCount = Integer.parseInt(props.getProperty("jspwiki.credentials.reuseCount", "-1"));
 
             m_findAll = "SELECT * FROM " + userTable;
             m_findByEmail = "SELECT * FROM " + userTable + " WHERE " + m_email + "=?";
@@ -450,8 +463,9 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
                               + m_modified + ","
                               + m_loginName + ","
                               + m_attributes + ","
-                              + m_created
-                              + ") VALUES (?,?,?,?,?,?,?,?,?)";
+                              + m_created + "," 
+                              + m_oldPasswords
+                              + ") VALUES (?,?,?,?,?,?,?,?,?,?)";
             
             // The user update SQL prepared statement
             m_updateProfile = "UPDATE " + userTable + " SET "
@@ -463,7 +477,8 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
                               + m_modified + "=?,"
                               + m_loginName + "=?,"
                               + m_attributes + "=?,"
-                              + m_lockExpiry + "=? "
+                              + m_lockExpiry + "=?,"
+                              + m_oldPasswords + "=? "
                               + "WHERE " + m_loginName + "=?";
 
             // Prepare the role insert SQL
@@ -523,6 +538,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
                 throw new DuplicateUserException( "security.error.cannot.rename", newName );
             }
         } catch( final NoSuchPrincipalException e ) {
+            LOG.debug(e.getMessage(), e);
             // Good! That means it's safe to save using the new name
         }
 
@@ -561,6 +577,8 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
     }
 
     /**
+     * @param profile
+     * @throws org.apache.wiki.auth.WikiSecurityException
      * @see org.apache.wiki.auth.user.UserDatabase#save(org.apache.wiki.auth.user.UserProfile)
      */
     @Override
@@ -574,6 +592,7 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
         try {
             existingProfile = findByLoginName( loginName );
         } catch( final NoSuchPrincipalException e ) {
+            LOG.debug(e.getMessage(), e);
             // Existing profile will be null
         }
 
@@ -589,8 +608,15 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
         }
 
         // If password changed, hash it before we save
-        if( !StringUtils.equals( password, existingPassword ) ) {
+        if( !Strings.CS.equals( password, existingPassword ) ) {
             password = getHash( password );
+            //add the hashed password
+            profile.getPreviousHashedCredentials().add(password);
+            while (!profile.getPreviousHashedCredentials().isEmpty() && 
+                    profile.getPreviousHashedCredentials().size() > m_passwordReusedCount) {
+                profile.getPreviousHashedCredentials().remove(0);
+            }
+
         }
 
         try( final Connection conn = m_ds.getConnection();
@@ -619,7 +645,9 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
                 } catch ( final IOException e ) {
                     throw new WikiSecurityException( "Could not save user profile attribute. Reason: " + e.getMessage(), e );
                 }
+                
                 ps1.setTimestamp( 9, ts );
+                ps1.setString(10, StringUtils.join(profile.getPreviousHashedCredentials(), "|"));
                 ps1.execute();
 
                 // Insert new role record
@@ -654,7 +682,9 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
                     throw new WikiSecurityException( "Could not save user profile attribute. Reason: " + e.getMessage(), e );
                 }
                 ps4.setDate( 9, lockExpiry );
-                ps4.setString( 10, profile.getLoginName() );
+                ps4.setString(10, StringUtils.join(profile.getPreviousHashedCredentials(), "|"));
+                ps4.setString( 11, profile.getLoginName() );
+                
                 ps4.execute();
             }
             // Set the profile mod time
@@ -728,6 +758,13 @@ public class JDBCUserDatabase extends AbstractUserDatabase {
                             profile.getAttributes().putAll( attributes );
                         } catch ( final IOException e ) {
                             LOG.error( "Could not parse user profile attributes!", e );
+                        }
+                    }
+                    String oldhashes = rs.getString(m_oldPasswords);
+                    if (oldhashes != null && oldhashes.length() > 0) {
+                        String[] parts = oldhashes.split("\\|");
+                        for (String s : parts) {
+                            profile.getPreviousHashedCredentials().add(s);
                         }
                     }
                     found = true;

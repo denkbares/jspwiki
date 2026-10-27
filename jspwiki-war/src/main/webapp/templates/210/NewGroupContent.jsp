@@ -27,8 +27,8 @@
 <%@ page import="org.apache.wiki.util.TextUtil" %>
 <%@ page import="org.apache.wiki.util.comparators.PrincipalComparator" %>
 <%@ page errorPage="/Error.jsp" %>
-<%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
-<%@ page import="javax.servlet.jsp.jstl.fmt.*" %>
+<%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
+<%@ page import="jakarta.servlet.jsp.jstl.fmt.*" %>
 <fmt:setLocale value="${prefs.Language}" />
 <fmt:setBundle basename="templates.default"/>
 <%
@@ -72,7 +72,7 @@
     <!-- Name -->
     <tr>
       <th scope="row"><label><fmt:message key="newgroup.name"/></label></th>
-      <td><input type="text" name="group" size="30" value="<%=name%>" />
+      <td><input type="text" name="group" size="30" value="<%=TextUtil.replaceEntities(name)%>" />
       <div class="formhelp">
         <fmt:message key="newgroup.name.description"/>
       </div>

@@ -18,17 +18,26 @@
  */
 package org.apache.wiki.util;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.AbstractMap;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Properties;
+import java.util.stream.Collectors;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
-import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 
-import javax.servlet.ServletContext;
-import java.io.*;
-import java.nio.file.Paths;
-import java.util.*;
-import java.util.stream.Collectors;
-import java.nio.file.Files;
+import jakarta.servlet.ServletContext;
 
 
 /**
@@ -42,7 +51,7 @@ import java.nio.file.Files;
  */
 public final class PropertyReader {
 
-	private static final Logger LOG = LoggerFactory.getLogger( PropertyReader.class );
+    private static final Logger LOG = LoggerFactory.getLogger( PropertyReader.class );
 
     /**
      * Path to the base property file, {@value}, usually overridden by values provided in
@@ -190,7 +199,7 @@ public final class PropertyReader {
             //  Use the custom property file at the default location
             propertyStream =  locateClassPathResource(context, CUSTOM_JSPWIKI_CONFIG);
         } else {
-		    LOG.info( PARAM_CUSTOMCONFIG + " defined, using " + propertyFile + " as the custom properties file." );
+            LOG.info( PARAM_CUSTOMCONFIG + " defined, using " + propertyFile + " as the custom properties file." );
             propertyStream = Files.newInputStream( new File(propertyFile).toPath() );
         }
         return propertyStream;
@@ -445,7 +454,7 @@ public final class PropertyReader {
     /**
      * This method sets the JSPWiki working directory (jspwiki.workDir). It first checks if this property
      * is already set. If it isn't, it attempts to use the servlet container's temporary directory
-     * (javax.servlet.context.tempdir). If that is also unavailable, it defaults to the system's temporary
+     * (jakarta.servlet.context.tempdir). If that is also unavailable, it defaults to the system's temporary
      * directory (java.io.tmpdir).
      * <p>
      * This method is package-private to allow for unit testing.
@@ -461,7 +470,7 @@ public final class PropertyReader {
             properties.setProperty("jspwiki.workDir", defaultTmpDir);
             LOG.info(" Setting jspwiki.workDir to system's temporary directory: {}", defaultTmpDir);
         } else {
-            LOG.info("jspwiki.workDir is already set to: {}", workDir);
+            LOG.debug("jspwiki.workDir is already set to: {}", workDir);
         }
     }
 

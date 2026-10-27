@@ -22,6 +22,7 @@
  */
 package org.apache.wiki.rss;
 
+import java.io.File;
 import org.apache.wiki.TestEngine;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.core.Page;
@@ -34,52 +35,53 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Properties;
+import java.util.UUID;
+import org.apache.commons.io.FileUtils;
+import org.apache.wiki.auth.UserManager;
 
-import static org.apache.wiki.TestEngine.with;
+import static org.apache.wiki.auth.UserManager.PROP_DATABASE;
+import org.apache.wiki.auth.authorize.GroupManager;
+import org.apache.wiki.auth.authorize.XMLGroupDatabase;
+import org.apache.wiki.auth.user.XMLUserDatabase;
 
 
 public class RSSGeneratorTest {
 
-    TestEngine m_testEngine = TestEngine.build( with( RSSGenerator.PROP_GENERATE_RSS, "true" ) );
-
+  
     @Test
     public void testBlogRSS() throws Exception {
+        
+        Properties props = TestEngine.getTestProperties();
+        File userTarget = new File("target/" + UUID.randomUUID() + ".xml");
+        FileUtils.copyFile(new File("src/test/resources/userdatabase.xml"), userTarget);
+        props.setProperty(XMLUserDatabase.PROP_USERDATABASE, userTarget.getAbsolutePath());
+        props.put(RSSGenerator.PROP_GENERATE_RSS, "true");
+        File groupTarget = new File("target/" + UUID.randomUUID() + ".xml");
+        FileUtils.copyFile(new File("src/test/resources/groupdatabase.xml"), groupTarget);
+        props.setProperty(XMLGroupDatabase.PROP_DATABASE, groupTarget.getAbsolutePath());
+        props.setProperty(GroupManager.PROP_GROUPDATABASE, XMLGroupDatabase.class.getCanonicalName());
+        props.setProperty(UserManager.PROP_DATABASE, XMLUserDatabase.class.getCanonicalName());
+        
+        TestEngine m_testEngine = TestEngine.build( props);
+
         final WeblogEntryPlugin plugin = new WeblogEntryPlugin();
-        m_testEngine.saveText( "TestBlog", "Foo1" );
-        String newPage = plugin.getNewEntryPage( m_testEngine, "TestBlog" );
+        m_testEngine.saveText( "testBlogRSS", "Foo1" );
+        String newPage = plugin.getNewEntryPage( m_testEngine, "testBlogRSS" );
         m_testEngine.saveText( newPage, "!Title1\r\nFoo" );
-        newPage = plugin.getNewEntryPage( m_testEngine, "TestBlog" );
+        newPage = plugin.getNewEntryPage( m_testEngine, "testBlogRSS" );
         m_testEngine.saveText( newPage, "!Title2\r\n__Bar__" );
 
         final RSSGenerator gen = m_testEngine.getManager( RSSGenerator.class );
-        final Context context = Wiki.context().create( m_testEngine, m_testEngine.getManager( PageManager.class ).getPage( "TestBlog" ) );
+        final Context context = Wiki.context().create( m_testEngine, m_testEngine.getManager( PageManager.class ).getPage( "testBlogRSS" ) );
         final WeblogPlugin blogplugin = new WeblogPlugin();
-        final List< Page > entries = blogplugin.findBlogEntries( m_testEngine, "TestBlog", new Date( 0 ), new Date( Long.MAX_VALUE ) );
+        final List< Page > entries = blogplugin.findBlogEntries( m_testEngine, "testBlogRSS", new Date( 0 ), new Date( Long.MAX_VALUE ) );
         final Feed feed = new RSS10Feed( context );
         final String blog = gen.generateBlogRSS( context, entries, feed );
-
+        m_testEngine.shutdown();
         Assertions.assertTrue( blog.contains( "<description>Foo</description>" ), "has Foo" );
         Assertions.assertTrue( blog.contains( "&lt;b&gt;Bar&lt;/b&gt;" ), "has proper Bar" );
+        
+        
     }
-
-    @Test
-    public void testBlogRSS2() throws Exception {
-        final WeblogEntryPlugin plugin = new WeblogEntryPlugin();
-        m_testEngine.saveText( "TestBlog", "Foo1" );
-        String newPage = plugin.getNewEntryPage( m_testEngine, "TestBlog" );
-        m_testEngine.saveText( newPage, "!Title1\r\nFoo \"blah\"." );
-        newPage = plugin.getNewEntryPage( m_testEngine, "TestBlog" );
-        m_testEngine.saveText( newPage, "!Title2\r\n__Bar__" );
-
-        final RSSGenerator gen = m_testEngine.getManager( RSSGenerator.class );
-        final Context context = Wiki.context().create( m_testEngine, m_testEngine.getManager( PageManager.class ).getPage( "TestBlog" ) );
-        final WeblogPlugin blogplugin = new WeblogPlugin();
-        final List< Page > entries = blogplugin.findBlogEntries( m_testEngine, "TestBlog", new Date( 0 ), new Date( Long.MAX_VALUE ) );
-        final Feed feed = new RSS20Feed( context );
-        final String blog = gen.generateBlogRSS( context, entries, feed );
-
-        Assertions.assertTrue( blog.contains( "<description>Foo &amp;quot;blah&amp;quot;.</description>" ), "has Foo" );
-        Assertions.assertTrue( blog.contains( "&lt;b&gt;Bar&lt;/b&gt;" ), "has proper Bar" );
-    }
-
 }

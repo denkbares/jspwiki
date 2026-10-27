@@ -18,17 +18,17 @@
  */
 package org.apache.wiki.api.core;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.wiki.api.engine.EngineLifecycleExtension;
 import org.apache.wiki.api.events.CustomWikiEventListener;
-import org.slf4j.LoggerFactory;
-import org.slf4j.Logger;
 import org.apache.wiki.api.exceptions.ProviderException;
 import org.apache.wiki.api.exceptions.WikiException;
 import org.apache.wiki.event.WikiEventListener;
 import org.apache.wiki.event.WikiEventManager;
 import org.apache.wiki.util.TextUtil;
 
-import javax.servlet.ServletContext;
+import jakarta.servlet.ServletContext;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -56,7 +56,12 @@ import java.util.ServiceLoader;
  *  {@code Context#getEngine()} method or through {@code Wiki.engine().find(..)} DSL methods.
  */
 public interface Engine {
-
+    /**
+     * see JSPWIKI-130
+     * @since 3.0.0
+     */
+    String PROP_USE_2_X_ACL_LOGIC = "jspwiki.security.useOldPageAccessControlLogic";
+    
     /** The default inlining pattern.  Currently "*.png" */
     String DEFAULT_INLINEPATTERN = "*.png";
 
@@ -248,7 +253,7 @@ public interface Engine {
      * @return the URL to the file
      */
     default URL findConfigFile( final String name ) {
-        Logger log = LoggerFactory.getLogger(Engine.class);
+        final Logger log = LoggerFactory.getLogger( Engine.class );
         log.info( "looking for " + name + " inside WEB-INF " );
         // Try creating an absolute path first
         File defaultFile = null;

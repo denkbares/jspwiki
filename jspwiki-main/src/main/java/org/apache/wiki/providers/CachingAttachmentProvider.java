@@ -72,7 +72,7 @@ public class CachingAttachmentProvider implements AttachmentProvider {
     public void initialize( final Engine engine, final Properties properties ) throws NoRequiredPropertyException, IOException {
         LOG.info( "Initing CachingAttachmentProvider" );
 		cachingManager = engine.getManager( CachingManager.class );
-        cachingManager.registerListener(  CachingManager.CACHE_PAGES, new CacheEventListenerAdapter() {
+        cachingManager.registerListener( CachingManager.CACHE_ATTACHMENTS, new CacheEventListenerAdapter() {
             @Override
             public void notifyElementExpired(Ehcache cache, Element element) {
                 allRequested = false; // signal that the cache no longer contains all elements...

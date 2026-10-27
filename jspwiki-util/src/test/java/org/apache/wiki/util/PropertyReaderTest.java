@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
-import javax.servlet.ServletContext;
+import jakarta.servlet.ServletContext;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
@@ -132,7 +132,7 @@ class PropertyReaderTest {
         final Properties properties = new Properties();
         final ServletContext servletContext = mock(ServletContext.class);
         final File tmp = new File( "/tmp" );
-        Mockito.when(servletContext.getAttribute( "javax.servlet.context.tempdir" ) ).thenReturn( tmp );
+        Mockito.when(servletContext.getAttribute( "jakarta.servlet.context.tempdir" ) ).thenReturn( tmp );
 
         // servlet's temp dir will no longer be used -> comment out
 //        PropertyReader.setWorkDir( servletContext, properties );
@@ -148,7 +148,7 @@ class PropertyReaderTest {
         Assertions.assertEquals( "/custom/dir", workDir );
 
         // Test when the servlet's temporary directory is null, it should get set to system's temporary directory
-        Mockito.when( servletContext.getAttribute( "javax.servlet.context.tempdir" ) ).thenReturn( null );
+        Mockito.when( servletContext.getAttribute( "jakarta.servlet.context.tempdir" ) ).thenReturn( null );
         properties.remove( "jspwiki.workDir" );
         PropertyReader.setWorkDir( servletContext, properties );
         workDir = properties.getProperty( "jspwiki.workDir" );

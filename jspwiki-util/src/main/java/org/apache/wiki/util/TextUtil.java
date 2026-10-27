@@ -19,8 +19,9 @@
 package org.apache.wiki.util;
 
 import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
+import org.apache.commons.lang3.Strings;
 import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
@@ -333,7 +334,9 @@ public final class TextUtil {
         if (value == null) return defvalue;
         try {
             return Integer.parseInt( value.trim() );
-        } catch( final Exception ignore ) {}
+        } catch( final Exception e ) {
+            LOG.debug(e.getMessage(), e);
+        }
 
         return defvalue;
     }
@@ -353,7 +356,7 @@ public final class TextUtil {
      *  @return The property value as an integer (or defVal).
      */
     public static int getIntegerProperty( final Properties props, final String key, final int defVal ) {
-        String val = System.getProperties().getProperty( key, System.getenv( StringUtils.replace( key,".","_" ) ) );
+        String val = System.getProperties().getProperty( key, System.getenv( Strings.CS.replace( key,".","_" ) ) );
         if( val == null ) {
             val = props.getProperty( key );
         }
@@ -378,7 +381,7 @@ public final class TextUtil {
      *  @since 2.0.11
      */
     public static boolean getBooleanProperty( final Properties props, final String key, final boolean defval ) {
-        String val = System.getProperties().getProperty( key, System.getenv( StringUtils.replace( key,".","_" ) ) );
+        String val = System.getProperties().getProperty( key, System.getenv( Strings.CS.replace( key,".","_" ) ) );
         if( val == null ) {
             val = props.getProperty( key );
         }
@@ -404,7 +407,7 @@ public final class TextUtil {
      * @since 2.1.151
      */
     public static String getStringProperty( final Properties props, final String key, final String defval ) {
-        String val = System.getProperties().getProperty( key, System.getenv( StringUtils.replace( key,".","_" ) ) );
+        String val = System.getProperties().getProperty( key, System.getenv( Strings.CS.replace( key,".","_" ) ) );
         if( val == null ) {
             val = props.getProperty( key );
         }
@@ -486,7 +489,7 @@ public final class TextUtil {
      *  @since 2.10.1
      */
     public static String getCanonicalFilePathProperty( final Properties props, final String key, final String defval ) {
-        String val = System.getProperties().getProperty( key, System.getenv( StringUtils.replace( key,".","_" ) ) );
+        String val = System.getProperties().getProperty( key, System.getenv( Strings.CS.replace( key,".","_" ) ) );
         if( val == null ) {
             val = props.getProperty( key );
         }
@@ -499,6 +502,7 @@ public final class TextUtil {
         try {
             result = new File( new File( val.trim() ).getCanonicalPath() ).getAbsolutePath();
         } catch( final IOException e ) {
+            LOG.debug(e.getMessage(), e);
             result = val.trim();
         }
         return result;
@@ -704,6 +708,56 @@ public final class TextUtil {
     }
 
     /**
+     *  Escapes XML entities in an HTML-compatible way (i.e. does not escape entities that are already escaped).
+     *
+     *  @param buf String to be escaped.
+     *  @return An escaped string.
+     */
+    public static String escapeHTMLEntities( final String buf ) {
+        final StringBuilder tmpBuf = new StringBuilder( buf.length() + 20 );
+        for( int i = 0; i < buf.length(); i++ ) {
+            final char ch = buf.charAt(i);
+            if( ch == '<' ) {
+                tmpBuf.append("&lt;");
+            } else if( ch == '>' ) {
+                tmpBuf.append("&gt;");
+            } else if( ch == '\"' ) {
+                tmpBuf.append("&quot;");
+            } else if( ch == '&' ) {
+                // If the following is an XML entity reference (&#.*;) we'll leave it as it is; otherwise we'll replace it with an &amp;
+                boolean isEntity = false;
+                final StringBuilder entityBuf = new StringBuilder();
+                if( i < buf.length() -1 ) {
+                    for( int j = i; j < buf.length(); j++ ) {
+                        final char ch2 = buf.charAt( j );
+                        if( Character.isLetterOrDigit( ch2 ) || (ch2 == '#' && j == i+1) || ch2 == ';' || ch2 == '&' ) {
+                            entityBuf.append(ch2);
+                            if( ch2 == ';' ) {
+                                isEntity = true;
+                                break;
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                }
+
+                if( isEntity ) {
+                    tmpBuf.append( entityBuf );
+                    i = i + entityBuf.length() - 1;
+                } else {
+                    tmpBuf.append( "&amp;" );
+                }
+
+            } else {
+                tmpBuf.append( ch );
+            }
+        }
+
+        return tmpBuf.toString();
+    }
+
+    /**
      *  Creates a Properties object based on an array which contains alternatively a key and a value.  It is useful
      *  for generating default mappings. For example:
      *  <pre>
@@ -797,7 +851,6 @@ public final class TextUtil {
      *  @since 2.1.98.
      */
     public static String repeatString( final String what, final int times ) {
-
         return IntStream.range(0, times).mapToObj(i -> what).collect(Collectors.joining());
     }
 

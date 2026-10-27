@@ -32,19 +32,23 @@ import org.jdom2.Namespace;
 import org.jdom2.output.Format;
 import org.jdom2.output.XMLOutputter;
 
-import javax.servlet.ServletContext;
+import jakarta.servlet.ServletContext;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 
 /**
  *  Provides an Atom 1.0 standard feed, with enclosures.
  *
  */
 public class AtomFeed extends Feed {
+    
+    private static final Logger LOG = LoggerFactory.getLogger( AtomFeed.class );
 
     private final Namespace m_atomNameSpace = Namespace.getNamespace("http://www.w3.org/2005/Atom");
 
@@ -95,6 +99,7 @@ public class AtomFeed extends Feed {
 
             //  Optional elements
             entryEl.addContent( getElement( "author" ).addContent( getElement( "name" ).setText( e.getAuthor() ) ) );
+            //FIXME this needs to be an absolute url, not a relative one
             entryEl.addContent( getElement( "link" ).setAttribute( "rel", "alternate" ).setAttribute( "href", e.getURL() ) );
             entryEl.addContent( getElement( "content" ).setAttribute( "type", "html" ).setText( e.getContent() ) );
 
@@ -112,7 +117,7 @@ public class AtomFeed extends Feed {
                         entryEl.addContent( attEl );
                     }
                 } catch( final ProviderException ex ) {
-                    // FIXME: LOG.info("Can't get attachment data",ex);
+                    LOG.info("Can't get attachment data",ex);
                 }
             }
 
@@ -169,6 +174,7 @@ public class AtomFeed extends Feed {
 
             return res.toString();
         } catch( final IOException e ) {
+            LOG.debug(e.getMessage(), e);
             return null;
         }
     }

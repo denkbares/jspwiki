@@ -30,8 +30,8 @@ import java.util.Set;
 import java.util.TimeZone;
 import java.util.Vector;
 
-import javax.servlet.jsp.PageContext;
-import javax.servlet.jsp.jstl.fmt.LocaleSupport;
+import jakarta.servlet.jsp.PageContext;
+import jakarta.servlet.jsp.jstl.fmt.LocaleSupport;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.LoggerFactory;

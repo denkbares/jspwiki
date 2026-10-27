@@ -22,9 +22,9 @@
 <%@ page import="org.apache.wiki.pages.PageManager" %>
 <%@ page import="org.apache.wiki.util.TextUtil" %>
 <%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
-<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
-<%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
-<%@ taglib uri="http://java.sun.com/jsp/jstl/functions" prefix="fn" %>
+<%@ taglib prefix="c" uri="jakarta.tags.core" %>
+<%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
+<%@ taglib prefix="fn" uri="jakarta.tags.functions" %>
 
 <fmt:setLocale value="${prefs.Language}" />
 <fmt:setBundle basename="templates.default"/>
@@ -47,7 +47,7 @@
   <form action="<wiki:Link format='url' jsp='Wiki.jsp'/>"
         method="get"  accept-charset='UTF-8'>
 
-    <input type="hidden" name="page" value="${param.page}" />
+    <input type="hidden" name="page" value="${fn:escapeXml(param.page)}" />
     <wiki:CsrfProtection/>
     <div class="error center">
       <label>

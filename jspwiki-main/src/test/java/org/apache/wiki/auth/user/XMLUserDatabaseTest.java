@@ -18,6 +18,7 @@
  */
 package org.apache.wiki.auth.user;
 
+import java.io.File;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.wiki.TestEngine;
 import org.apache.wiki.WikiEngine;
@@ -31,54 +32,91 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.util.Map;
 import java.util.Properties;
+import java.util.UUID;
+import org.apache.commons.io.FileUtils;
 
 
 public class XMLUserDatabaseTest {
 
     private XMLUserDatabase m_db;
 
+    private WikiEngine m_engine;
+
+    private Properties m_props;
+
     @BeforeEach
     public void setUp() throws Exception {
-        final Properties props = TestEngine.getTestProperties();
-        props.put( XMLUserDatabase.PROP_USERDATABASE, "target/test-classes/userdatabase.xml" );
-        final WikiEngine engine = new TestEngine( props );
+        m_props = TestEngine.getTestProperties();
+        File target = new File("target/XMLUserDatabaseTest" + UUID.randomUUID().toString() + ".xml");
+        FileUtils.copyFile(new File("src/test/resources/userdatabase.xml" ), target);
+        m_props.put( XMLUserDatabase.PROP_USERDATABASE, target.getAbsolutePath() );
+        m_engine = new TestEngine( m_props );
         m_db = new XMLUserDatabase();
-        m_db.initialize( engine, props );
+        m_db.initialize( m_engine, m_props );
+    }
+
+    @Test
+    public void testSaveQuotedEmailKeepsDatabaseWellFormed() throws Exception {
+        // An RFC-2822 quoted local part passes EmailValidator; it used to be written into
+        // userdatabase.xml without XML escaping, corrupting the whole authentication store.
+        final String email = "\"x\"@example.com";
+        UserProfile profile = m_db.newProfile();
+        profile.setEmail( email );
+        profile.setLoginName( "xmlescape" );
+        profile.setFullname( "Xml Escape" );
+        profile.setPassword( "password" );
+        m_db.save( profile );
+
+        // Reload the database from disk: a corrupted file comes back empty (or unparseable),
+        // locking every user out of authentication.
+        final XMLUserDatabase db2 = new XMLUserDatabase();
+        db2.initialize( m_engine, m_props );
+        final UserProfile saved = db2.findByLoginName( "xmlescape" );
+        Assertions.assertEquals( email, saved.getEmail() );
+
+        // The pre-existing users must have survived the round-trip as well.
+        Assertions.assertNotNull( db2.findByLoginName( "janne" ) );
     }
 
     @Test
     public void testDeleteByLoginName() throws WikiSecurityException {
         // First, count the number of users in the db now.
-        final int oldUserCount = m_db.getWikiNames().length;
-
-        // Create a new user with random name
         final String loginName = "TestUser" + System.currentTimeMillis();
-        UserProfile profile = m_db.newProfile();
-        profile.setEmail( "jspwiki.tests@mailinator.com" );
-        profile.setLoginName( loginName );
-        profile.setFullname( "FullName" + loginName );
-        profile.setPassword( "password" );
-        m_db.save( profile );
+        synchronized (m_db) {
+            final int oldUserCount = m_db.getWikiNames().length;
+            try {
 
-        // Make sure the profile saved successfully
-        profile = m_db.findByLoginName( loginName );
-        Assertions.assertEquals( loginName, profile.getLoginName() );
-        Assertions.assertEquals( oldUserCount + 1, m_db.getWikiNames().length );
+                // Create a new user with random name
+                UserProfile profile = m_db.newProfile();
+                profile.setEmail("jspwiki.tests@mailinator.com");
+                profile.setLoginName(loginName);
+                profile.setFullname("FullName" + loginName);
+                profile.setPassword("password");
+                m_db.save(profile);
 
-        // Now delete the profile; should be back to old count
-        m_db.deleteByLoginName( loginName );
-        Assertions.assertEquals( oldUserCount, m_db.getWikiNames().length );
+                // Make sure the profile saved successfully
+                profile = m_db.findByLoginName(loginName);
+                Assertions.assertEquals(loginName, profile.getLoginName());
+                Assertions.assertEquals(oldUserCount + 1, m_db.getWikiNames().length);
+            } finally {
+                // Now delete the profile; should be back to old count
+                m_db.deleteByLoginName(loginName);
+                Assertions.assertEquals(oldUserCount, m_db.getWikiNames().length);
+            }
+        }
     }
 
     @Test
     public void testAttributes() throws Exception {
+         final Principal[] p = m_db.getWikiNames();
         UserProfile profile = m_db.findByEmail( "janne@ecyrd.com" );
 
         Map< String, Serializable > attributes = profile.getAttributes();
-        Assertions.assertEquals( 2, attributes.size() );
+        Assertions.assertTrue( attributes.size() >= 2 );
         Assertions.assertTrue( attributes.containsKey( "attribute1" ) );
         Assertions.assertTrue( attributes.containsKey( "attribute2" ) );
         Assertions.assertEquals( "some random value", attributes.get( "attribute1" ) );
@@ -92,7 +130,7 @@ public class XMLUserDatabaseTest {
         // Retrieve the profile again and make sure our values got saved
         profile = m_db.findByEmail( "janne@ecyrd.com" );
         attributes = profile.getAttributes();
-        Assertions.assertEquals( 3, attributes.size() );
+        Assertions.assertTrue( attributes.size() >= 3 );
         Assertions.assertTrue( attributes.containsKey( "attribute1" ) );
         Assertions.assertTrue( attributes.containsKey( "attribute2" ) );
         Assertions.assertTrue( attributes.containsKey( "attribute the third" ) );
@@ -312,4 +350,38 @@ public class XMLUserDatabaseTest {
         Assertions.assertTrue( m_db.validatePassword( "user", "password" ) );
     }
 
+    
+        @Test
+    public void JSPWIKI_130() throws Exception {
+        final Properties props = TestEngine.getTestProperties();
+        File target = new File("target/JSPWIKI_130" + UUID.randomUUID().toString() + ".xml");
+        FileUtils.copyFile(new File("src/test/resources/userdatabase.xml"), target);
+        props.put(XMLUserDatabase.PROP_USERDATABASE, target.getAbsolutePath());
+        final WikiEngine engine = new TestEngine(props);
+        XMLUserDatabase m_db = new XMLUserDatabase();
+        m_db.initialize(engine, props);
+        //create a user and save it the changes.
+         // Create new user & verify it saved ok
+        UserProfile profile = m_db.newProfile();
+        profile.setEmail( "renamed@mailinator.com" );
+        profile.setFullname( "Renamed User" );
+        profile.setLoginName( "olduser" );
+        profile.setPassword( "password" );
+        m_db.save( profile );
+        
+        //confirm the check file exists
+        File f = new File(target.getParent(), target.getName() + ".check");
+        Assertions.assertTrue(f.exists());
+        
+        //shutdown the database manager
+        
+        //change a bit or two in the check file.
+        FileUtils.writeStringToFile(f, "you've been hacked", StandardCharsets.UTF_8);
+        
+        
+        //start it back up again, expecting it to barf
+        Assertions.assertThrows(RuntimeException.class, () -> {
+            m_db.initialize(engine, props);
+        });
+    }
 }

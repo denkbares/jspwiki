@@ -24,15 +24,19 @@ import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.exceptions.NoSuchVariableException;
 import org.apache.wiki.variables.VariableManager;
 
-import javax.servlet.ServletContext;
+import jakarta.servlet.ServletContext;
 import java.util.ArrayList;
 import java.util.List;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
+import org.apache.wiki.providers.BasicAttachmentProvider;
 
 /**
  * Represents an abstract feed.
  */
 public abstract class Feed {
     protected final List<Entry> m_entries = new ArrayList<>();
+    private static final Logger LOG = LoggerFactory.getLogger( Feed.class );
 
     protected String m_feedURL;
     protected String m_channelTitle;
@@ -62,6 +66,7 @@ public abstract class Feed {
         try {
             blogname = engine.getManager( VariableManager.class ).getValue(context, VAR_BLOGNAME);
         } catch( final NoSuchVariableException e ) {
+            LOG.debug(e.getMessage(), e);
         }
 
         if (blogname == null) {

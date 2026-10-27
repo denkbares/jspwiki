@@ -19,6 +19,7 @@
 package org.apache.wiki.providers;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 import org.apache.wiki.api.core.Engine;
@@ -145,10 +146,7 @@ public abstract class AbstractFileProvider implements PageProvider {
 
 		m_engine = engine;
 		m_encoding = properties.getProperty(Engine.PROP_ENCODING, DEFAULT_ENCODING);
-		final String os = System.getProperty("os.name").toLowerCase();
-		if (os.startsWith("windows") || os.equals("nt")) {
-			m_windowsHackNeeded = true;
-		}
+		m_windowsHackNeeded = SystemUtils.IS_OS_WINDOWS;
 
 		MAX_PROPLIMIT = TextUtil.getIntegerProperty(properties, PROP_CUSTOMPROP_MAXLIMIT, DEFAULT_MAX_PROPLIMIT);
 		MAX_PROPKEYLENGTH = TextUtil.getIntegerProperty(properties, PROP_CUSTOMPROP_MAXKEYLENGTH, DEFAULT_MAX_PROPKEYLENGTH);
@@ -281,7 +279,31 @@ public abstract class AbstractFileProvider implements PageProvider {
 			LOG.info("New page '" + page + "'");
 		}
 
-		return result;
+		return deobfuscate(result);
+	}
+
+	/**
+	 * An api hook to provide obfuscation of data before it's written to disk.
+	 * Useful for wiring in your own custom encryption mechanism if so desired.
+	 *
+	 * @param pageContent the page text to be written
+	 * @return the text to write to disk
+	 * @since 3.0.0
+	 */
+	public String obfuscate(final String pageContent) {
+		return pageContent;
+	}
+
+	/**
+	 * An api hook to provide deobfuscation of data after it has been read from disk.
+	 * Useful for wiring in your own custom decryption mechanism if so desired.
+	 *
+	 * @param pageContent the text read from disk
+	 * @return the page text
+	 * @since 3.0.0
+	 */
+	public String deobfuscate(final String pageContent) {
+		return pageContent;
 	}
 
 	/**
@@ -295,7 +317,7 @@ public abstract class AbstractFileProvider implements PageProvider {
 			parentFile.mkdirs();
 		}
 		try (final PrintWriter out = new PrintWriter(new OutputStreamWriter(Files.newOutputStream(file.toPath()), m_encoding))) {
-			out.print(text);
+			out.print(obfuscate(text));
 		}
 		catch (final IOException e) {
 			LOG.error("Saving failed", e);

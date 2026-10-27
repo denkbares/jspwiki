@@ -27,6 +27,7 @@ import org.apache.wiki.util.TextUtil;
 
 import java.text.MessageFormat;
 import java.util.Collection;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.ResourceBundle;
@@ -49,12 +50,18 @@ public class ReferringUndefinedPagesPlugin extends AbstractReferralPlugin {
     public static final String PARAM_EXTRAS = "extras";
 
     @Override
+    public String getDisplayName(Locale locale) {
+        final ResourceBundle rb = ResourceBundle.getBundle(PluginManager.PLUGIN_I18N_RESOURCE, locale);
+        return rb.getString(this.getClass().getSimpleName());
+    }
+    
+    @Override
     public String execute( final Context context, final Map<String, String> params) throws PluginException {
         final ResourceBundle rb = Preferences.getBundle(context, Plugin.CORE_PLUGINS_RESOURCEBUNDLE);
         final ReferenceManager referenceManager = context.getEngine().getManager( ReferenceManager.class );
 
         final int items = TextUtil.parseIntParameter(params.get(PARAM_MAX), ALL_ITEMS);
-        String extras = params.get(PARAM_EXTRAS);
+        String extras = TextUtil.replaceEntities( params.get( PARAM_EXTRAS ) );
         if (extras == null) {
             extras = rb.getString("referringundefinedpagesplugin.more");
         }

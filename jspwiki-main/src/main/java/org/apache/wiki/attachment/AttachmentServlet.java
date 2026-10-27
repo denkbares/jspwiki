@@ -29,20 +29,14 @@ import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
-import org.apache.commons.fileupload.FileItem;
-import org.apache.commons.fileupload.FileItemFactory;
-import org.apache.commons.fileupload.FileUploadException;
-import org.apache.commons.fileupload.ProgressListener;
-import org.apache.commons.fileupload.disk.DiskFileItemFactory;
-import org.apache.commons.fileupload.servlet.ServletFileUpload;
+import org.apache.commons.fileupload2.core.DiskFileItemFactory;
+import org.apache.commons.fileupload2.core.FileItem;
+import org.apache.commons.fileupload2.core.FileItemFactory;
+import org.apache.commons.fileupload2.core.FileUploadException;
+import org.apache.commons.fileupload2.core.ProgressListener;
+import org.apache.commons.fileupload2.jakarta.servlet6.JakartaServletFileUpload;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 import org.apache.wiki.api.core.Attachment;
@@ -58,12 +52,24 @@ import org.apache.wiki.api.providers.WikiProvider;
 import org.apache.wiki.api.spi.Wiki;
 import org.apache.wiki.auth.AuthorizationManager;
 import org.apache.wiki.auth.permissions.PermissionFactory;
+import org.apache.wiki.http.filter.CsrfProtectionFilter;
 import org.apache.wiki.i18n.InternationalizationManager;
 import org.apache.wiki.preferences.Preferences;
 import org.apache.wiki.ui.progress.ProgressItem;
 import org.apache.wiki.ui.progress.ProgressManager;
 import org.apache.wiki.util.HttpUtil;
 import org.apache.wiki.util.TextUtil;
+
+import jakarta.servlet.ServletConfig;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletInputStream;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.apache.commons.fileupload2.core.FileUploadByteCountLimitException;
+import java.util.ResourceBundle;
+import org.apache.wiki.tags.MaxUploadTag;
 
 
 /**
@@ -85,8 +91,13 @@ public class AttachmentServlet extends HttpServlet {
 
     private Engine m_engine;
     private static final Logger LOG = LoggerFactory.getLogger( AttachmentServlet.class );
-
     private static final String HDR_VERSION = "version";
+
+    /** Allowlist of passive content types which may be served inline; everything else forces a download. */
+    private static final Set< String > INLINE_SAFE_TYPES = Set.of(
+            "image/png", "image/jpeg", "image/gif", "image/webp", "image/bmp",
+            "image/avif", "image/tiff", "image/x-icon", "image/vnd.microsoft.icon",
+            "text/plain" );
 
     /** The maximum size that an attachment can be. */
     private int m_maxSize = Integer.MAX_VALUE;
@@ -103,6 +114,8 @@ public class AttachmentServlet extends HttpServlet {
 
     /**
      *  Initializes the servlet from Engine properties.
+     * @param config
+     * @throws jakarta.servlet.ServletException
      */
     @Override
     public void init( final ServletConfig config ) throws ServletException {
@@ -220,7 +233,7 @@ public class AttachmentServlet extends HttpServlet {
                 final String mimetype = getMimeType( context, att.getFileName() );
                 res.setContentType( mimetype );
 
-                final String contentDisposition = getContentDisposition( att );
+                final String contentDisposition = getContentDisposition( att, mimetype );
                 res.addHeader( "Content-Disposition", contentDisposition );
                 res.addDateHeader("Last-Modified",att.getLastModified().getTime());
 
@@ -259,12 +272,13 @@ public class AttachmentServlet extends HttpServlet {
                 res.sendError( HttpServletResponse.SC_NOT_FOUND, msg );
             }
         } catch( final ProviderException pe ) {
-            LOG.debug("Provider failed while reading", pe);
+            LOG.warn("Provider failed while reading", pe);
             //
             //  This might fail, if the response is already committed.  So in that
             //  case we just log it.
             //
-            sendError( res, "Provider error: "+ pe.getMessage() );
+            final ResourceBundle rb = ResourceBundle.getBundle( InternationalizationManager.CORE_BUNDLE, req.getLocale() );
+            sendError( res, rb.getString("operation.failed") );
         } catch( final NumberFormatException nfe ) {
             LOG.warn( "Invalid version number: " + version );
             res.sendError( HttpServletResponse.SC_BAD_REQUEST, "Invalid version number" );
@@ -281,15 +295,18 @@ public class AttachmentServlet extends HttpServlet {
             //  try to send an error and catch it quietly if it doesn't quite work.
             //
             LOG.debug( "I/O exception during download", ioe );
-            sendError( res, "Error: " + ioe.getMessage() );
+            final ResourceBundle rb = ResourceBundle.getBundle( InternationalizationManager.CORE_BUNDLE, req.getLocale() );
+            sendError( res, rb.getString("operation.failed") );
         }
     }
 
-    String getContentDisposition( final Attachment att ) {
-        // We use 'inline' instead of 'attachment' so that user agents can try to automatically open the file,
-        // except those cases in which we want to enforce the file download.
-        final String type = m_engine.getManager( AttachmentManager.class ).forceDownload( att.getFileName() )
-                ? "attachment" : "inline";
+    String getContentDisposition( final Attachment att, final String mimetype ) {
+        // Default-deny: only passive content types which cannot execute script on the wiki's origin
+        // are served inline, so that user agents can try to automatically open them.  Everything
+        // else - including anything the container resolves to an actively rendering type such as
+        // text/html, application/xhtml+xml or image/svg+xml - is forced to download.
+        final String type = isInlineRenderSafe( mimetype ) && !m_engine.getManager( AttachmentManager.class ).forceDownload( att.getFileName() )
+                ? "inline" : "attachment";
 
         // The name must never be concatenated unsanitized: a quote or a control character in it would terminate
         // the quoted string early and allow to inject further header parameters, e.g. a filename* taking
@@ -328,11 +345,27 @@ public class AttachmentServlet extends HttpServlet {
         return result.toString();
     }
 
+    /**
+     * Checks whether the given content type is safe to render inline on the wiki origin, i.e. it is a
+     * passive media type which cannot carry script.  Actively rendering types (text/html,
+     * application/xhtml+xml, image/svg+xml, XML, PDF, ...) are deliberately not on the allowlist.
+     *
+     * @param mimetype The resolved content type of the attachment.
+     * @return {@code true} if the attachment may be served with {@code Content-Disposition: inline}.
+     */
+    static boolean isInlineRenderSafe( final String mimetype ) {
+        if( mimetype == null ) {
+            return false;
+        }
+        final String type = mimetype.toLowerCase();
+        return INLINE_SAFE_TYPES.contains( type ) || type.startsWith( "audio/" ) || type.startsWith( "video/" );
+    }
+
     void sendError( final HttpServletResponse res, final String message ) throws IOException {
         try {
             res.sendError( HttpServletResponse.SC_INTERNAL_SERVER_ERROR, message );
         } catch( final IllegalStateException e ) {
-            // ignore
+            LOG.debug(e.getMessage(), e);
         }
     }
 
@@ -382,7 +415,18 @@ public class AttachmentServlet extends HttpServlet {
         } catch( final RedirectException e ) {
             final Session session = Wiki.session().find( m_engine, req );
             session.addMessage( e.getMessage() );
-
+            //drain the request body
+            try (ServletInputStream inputStream = req.getInputStream();) {
+                int data;
+                while ((data = inputStream.read()) != -1) {
+                    //we are just reading the stream to the end
+                }
+            } catch (Exception err) {
+                //ignore it
+                LOG.debug(e.getMessage(), e);
+            }
+            
+            
             req.getSession().setAttribute("msg", e.getMessage());
             res.sendRedirect( e.getRedirect() );
         }
@@ -406,6 +450,8 @@ public class AttachmentServlet extends HttpServlet {
 
     /**
      *  Uploads a specific mime multipart input set, intercepts exceptions.
+     * 
+     *  If the total request size is too big, the user will be redirected to the Error.jsp page
      *
      *  @param req The servlet request
      *  @return The page to which we should go next.
@@ -418,31 +464,41 @@ public class AttachmentServlet extends HttpServlet {
         final String errorPage = m_engine.getURL( ContextEnum.WIKI_ERROR.getRequestContext(), "", null ); // If something bad happened, Upload should be able to take care of most stuff
         String nextPage = errorPage;
         final String progressId = req.getParameter( "progressid" );
+        String csrfToken = req.getParameter( CsrfProtectionFilter.ANTICSRF_PARAM );
 
         // Check that we have a file upload request
-        if( !ServletFileUpload.isMultipartContent(req) ) {
-            throw new RedirectException( "Not a file upload", errorPage );
+        if( !JakartaServletFileUpload.isMultipartContent(req) ) {
+            throw new RedirectException( "Not a file upload", nextPage );
         }
 
         try {
-            final FileItemFactory factory = new DiskFileItemFactory();
+            final FileItemFactory factory = DiskFileItemFactory.builder().get();
 
             // Create the context _before_ Multipart operations, otherwise strict servlet containers may fail when setting encoding.
             final Context context = Wiki.context().create( m_engine, req, ContextEnum.PAGE_ATTACH.getRequestContext() );
             final UploadListener pl = new UploadListener();
 
-            if (progressId != null) {
+            if( progressId != null ) {
                 m_engine.getManager( ProgressManager.class ).startProgress( pl, progressId );
             }
-
-            final ServletFileUpload upload = new ServletFileUpload( factory );
-            upload.setHeaderEncoding( StandardCharsets.UTF_8.name() );
-            if( !context.hasAdminPermissions() ) {
-                upload.setFileSizeMax( m_maxSize );
+            
+            if (req.getContentLengthLong() > m_maxSize) {
+                //we don't want total upload size to be larger than the max
+                //this is to prevent resource exhaustion
+                //TODO i18n this error message
+                throw new RedirectException("Request too big " + 
+                        MaxUploadTag.humanReadableByteCountBin(req.getContentLengthLong()) + " vs " + 
+                        MaxUploadTag.humanReadableByteCountBin(m_maxSize), errorPage +"?Error=true");
             }
+            final JakartaServletFileUpload upload = new JakartaServletFileUpload( factory );
+            upload.setHeaderCharset(StandardCharsets.UTF_8);
             upload.setProgressListener( pl );
-            final List<FileItem> items = upload.parseRequest( req );
-
+            final List<FileItem> items;
+            try {
+                items = upload.parseRequest(req);
+            } catch (FileUploadByteCountLimitException ex) {
+                throw new RedirectException( "Request too big " + ex.getMessage(), nextPage );
+            }
             String   wikipage   = null;
             String   changeNote = null;
             //FileItem actualFile = null;
@@ -453,20 +509,23 @@ public class AttachmentServlet extends HttpServlet {
                     switch( item.getFieldName() ) {
                     case "page":
                         // FIXME: Kludge alert.  We must end up with the parent page name, if this is an upload of a new revision
-                        wikipage = item.getString( StandardCharsets.UTF_8.name() );
+                        wikipage = item.getString( StandardCharsets.UTF_8);
                         final int x = wikipage.indexOf( "/" );
                         if( x != -1 ) {
                             wikipage = wikipage.substring( 0, x );
                         }
                         break;
                     case "changenote":
-                        changeNote = item.getString( StandardCharsets.UTF_8.name() );
+                        changeNote = item.getString( StandardCharsets.UTF_8 );
                         if( changeNote != null ) {
                             changeNote = TextUtil.replaceEntities( changeNote );
                         }
                         break;
                     case "nextpage":
-                        nextPage = validateNextPage( item.getString( StandardCharsets.UTF_8.name() ), errorPage );
+                        nextPage = validateNextPage( item.getString( StandardCharsets.UTF_8 ), errorPage );
+                        break;
+                    case CsrfProtectionFilter.ANTICSRF_PARAM:
+                        csrfToken = item.getString( StandardCharsets.UTF_8 );
                         break;
                     }
                 } else {
@@ -474,11 +533,30 @@ public class AttachmentServlet extends HttpServlet {
                 }
             }
 
+            // The CsrfProtectionFilter delegates multipart requests to this servlet, since it cannot read the
+            // token from a multipart body without consuming it. Enforce the token here - taken from the multipart
+            // form field written by <wiki:CsrfProtection/> (or, for older clients, the query string) - before
+            // acting on anything else in the request, including the "Broken file upload" redirect below.
+            final Session session = Wiki.session().find( m_engine, req );
+            if( csrfToken == null || !csrfToken.equals( session.antiCsrfToken() ) ) {
+                LOG.error( "Incorrect {} received for {}", CsrfProtectionFilter.ANTICSRF_PARAM, req.getPathInfo() );
+                throw new RedirectException( "Missing or invalid CSRF token", errorPage );
+            }
+
             if(fileItems.isEmpty()) {
-                throw new RedirectException( "Broken file upload", errorPage );
+                throw new RedirectException( "Broken file upload", nextPage );
 
             } else {
                 for( final FileItem actualFile : fileItems ) {
+                    if( !context.hasAdminPermissions() ) {
+                        if (actualFile.getSize()> m_maxSize) {
+                            //TODO i18n this error message
+                            throw new RedirectException("Attachment too big " + actualFile.getName() + " " + 
+                                     MaxUploadTag.humanReadableByteCountBin(actualFile.getSize()) + " vs " + 
+                                     MaxUploadTag.humanReadableByteCountBin(m_maxSize), nextPage);
+                        }
+                    }
+                    
                     final String filename = actualFile.getName();
                     final long   fileSize = actualFile.getSize();
                     try( final InputStream in  = actualFile.getInputStream() ) {
@@ -492,23 +570,23 @@ public class AttachmentServlet extends HttpServlet {
             LOG.warn( msg + " (attachment: " + attName + ")", e );
 
             throw new IOException( msg );
-        } catch( final IOException e ) {
-            // Show the submit page again, but with a bit more intimidating output.
-            msg = "Upload failure: " + e.getMessage();
-            LOG.warn( msg + " (attachment: " + attName + ")", e );
-
-            throw e;
         } catch( final FileUploadException e ) {
             // Show the submit page again, but with a bit more intimidating output.
             msg = "Upload failure: " + e.getMessage();
             LOG.warn( msg + " (attachment: " + attName + ")", e );
 
             throw new IOException( msg, e );
+        } catch( final IOException e ) {
+            // Show the submit page again, but with a bit more intimidating output.
+            msg = "Upload failure: " + e.getMessage();
+            LOG.warn( msg + " (attachment: " + attName + ")", e );
+
+            throw e;
         } finally {
-            if (progressId != null) {
+            if( progressId != null ) {
                 m_engine.getManager( ProgressManager.class ).stopProgress( progressId );
-                // FIXME: In case of exceptions should absolutely remove the uploaded file.
             }
+            // FIXME: In case of exceptions should absolutely remove the uploaded file.
         }
 
         return nextPage;

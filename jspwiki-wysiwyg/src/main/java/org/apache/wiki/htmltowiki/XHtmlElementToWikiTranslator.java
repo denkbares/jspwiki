@@ -18,6 +18,20 @@
  */
 package org.apache.wiki.htmltowiki;
 
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
+import org.apache.wiki.api.core.Engine;
+import org.apache.wiki.htmltowiki.syntax.MarkupHelper;
+import org.apache.wiki.util.ClassUtil;
+import org.apache.wiki.util.XmlUtil;
+import org.jdom2.Content;
+import org.jdom2.Element;
+import org.jdom2.JDOMException;
+import org.jdom2.Verifier;
+import org.jdom2.Text;
+import org.jdom2.xpath.XPathFactory;
+
 import java.io.PrintWriter;
 import java.util.ArrayDeque;
 import java.util.Arrays;
@@ -26,19 +40,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang3.StringUtils;
-import org.apache.wiki.api.core.Engine;
-import org.apache.wiki.htmltowiki.syntax.MarkupHelper;
-import org.apache.wiki.util.ClassUtil;
-import org.apache.wiki.util.XmlUtil;
-import org.jdom2.Content;
-import org.jdom2.Element;
-import org.jdom2.JDOMException;
-import org.jdom2.Text;
-import org.jdom2.Verifier;
-import org.jdom2.xpath.XPathFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Converting XHtml to Wiki Markup.  This is the class which orchestrates all the heavy loading.

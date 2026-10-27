@@ -18,7 +18,7 @@
 --%>
 
 <%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
-<%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
+<%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
 <%@ page import="java.security.Principal" %>
 <%@ page import="java.util.*" %>
 <%@ page import="org.apache.wiki.api.core.*" %>
@@ -30,7 +30,7 @@
 <%@ page import="org.slf4j.Logger" %>
 <%@ page import="org.slf4j.LoggerFactory" %>
 <%@ page errorPage="/Error.jsp" %>
-<%@ page import="javax.servlet.jsp.jstl.fmt.*" %>
+<%@ page import="jakarta.servlet.jsp.jstl.fmt.*" %>
 <fmt:setLocale value="${prefs.Language}" />
 <fmt:setBundle basename="templates.default"/>
 <%!
@@ -82,8 +82,8 @@
     <wiki:Permission permission="createGroups">
       <fmt:message key="group.createsuggestion">
         <fmt:param><wiki:Link jsp="NewGroup.jsp">
-                      <wiki:Param name="group" value="<%=name%>" />
-                      <wiki:Param name="group" value="<%=name%>" />
+                      <wiki:Param name="group" value="<%=TextUtil.replaceEntities(name)%>" />
+                      <wiki:Param name="group" value="<%=TextUtil.replaceEntities(name)%>" />
                       <fmt:message key="group.createit"/>
                    </wiki:Link>
         </fmt:param>
@@ -156,7 +156,7 @@
         method="POST" accept-charset="UTF-8">
       <wiki:CsrfProtection/>
       <input type="submit" name="ok" value="<fmt:message key="actions.deletegroup"/>" />
-      <input type="hidden" name="group" value="${param.group}" />
+      <input type="hidden" name="group" value="${TextUtil.replaceEntities(param.group)}" />
   </form>
   </wiki:Permission>
 

@@ -29,9 +29,9 @@ import org.apache.wiki.util.TextUtil;
 import javax.security.auth.callback.Callback;
 import javax.security.auth.callback.UnsupportedCallbackException;
 import javax.security.auth.login.LoginException;
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -131,6 +131,7 @@ public class CookieAuthenticationLoginModule extends AbstractLoginModule {
                         return cookieFile.setLastModified( System.currentTimeMillis() );
 
                     } catch( final IOException e ) {
+                        LOG.debug(e.getMessage(), e);
                         return false;
                     }
                 }

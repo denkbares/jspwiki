@@ -19,7 +19,6 @@
 package org.apache.wiki.tags;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -27,14 +26,15 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.jsp.PageContext;
-import javax.servlet.jsp.tagext.TagSupport;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.jsp.PageContext;
+import jakarta.servlet.jsp.tagext.TagSupport;
 
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
+import org.apache.wiki.WikiEngine;
 
 
 /**
@@ -283,11 +283,25 @@ public class CookieTag
         final HttpServletResponse res = (HttpServletResponse)pageContext.getResponse();
         if( changed )
         {
+            if ("true".equalsIgnoreCase(
+                    WikiEngine.getInstance(pageContext.getServletConfig()).
+                            getWikiProperties().
+                            getProperty("jspwiki.securecookie", "false"))) {
+                cookie.setHttpOnly(true);
+                cookie.setSecure(true);
+            }
             res.addCookie( cookie );
         }
         if( cleared != null )
         {
-            res.addCookie( cleared );
+             if ("true".equalsIgnoreCase(
+                    WikiEngine.getInstance(pageContext.getServletConfig()).
+                            getWikiProperties().
+                            getProperty("jspwiki.securecookie", "false"))) {
+                cookie.setHttpOnly(true);
+                cookie.setSecure(true);
+            }
+            res.addCookie(cleared);
         }
 
         return EVAL_PAGE;

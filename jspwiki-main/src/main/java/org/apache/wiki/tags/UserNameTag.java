@@ -21,11 +21,12 @@ package org.apache.wiki.tags;
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.core.Session;
 import org.apache.wiki.api.spi.Wiki;
+import org.apache.wiki.auth.UserManager;
 import org.apache.wiki.i18n.InternationalizationManager;
 import org.apache.wiki.preferences.Preferences;
 import org.apache.wiki.util.TextUtil;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.security.Principal;
 import java.util.regex.Pattern;
@@ -54,7 +55,8 @@ public class UserNameTag extends WikiTagBase {
 
         if( user != null ) {
             if( VALID_USER_NAME_PATTERN.matcher( user.getName() ).matches() ) {
-                pageContext.getOut().print( TextUtil.replaceEntities( user.getName() ) );
+                final String name = engine.getManager( UserManager.class ).getDisplayName( user.getName() );
+                pageContext.getOut().print( TextUtil.replaceEntities( name ) );
             } else {
                 pageContext.getOut().print( Preferences.getBundle( m_wikiContext, InternationalizationManager.CORE_BUNDLE )
                                                        .getString( "security.user.fullname.invalid" ) );

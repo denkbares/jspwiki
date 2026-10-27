@@ -47,7 +47,8 @@ import org.apache.wiki.preferences.Preferences;
 import org.apache.wiki.util.ClassUtil;
 import org.freshcookies.security.policy.LocalPolicy;
 
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponse;
+import javax.security.auth.Subject;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
@@ -326,13 +327,14 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
     /** {@inheritDoc} */
     @Override
     public boolean checkStaticPermission( final Session session, final Permission permission ) {
-        return ( Boolean )Session.doPrivileged( session, ( PrivilegedAction< Boolean > )() -> {
+        return ( Boolean )Subject.doAsPrivileged( session.getSubject(), ( PrivilegedAction< Boolean > )() -> {
             try {
                 // Check the JVM-wide security policy first
                 AccessController.checkPermission( permission );
                 return Boolean.TRUE;
             } catch( final AccessControlException e ) {
                 // Global policy denied the permission
+                LOG.debug(e.getMessage(), e);
             }
 
             // Try the local policy - check each Role/Group and User Principal
@@ -340,7 +342,7 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
                 return Boolean.TRUE;
             }
             return Boolean.FALSE;
-        } );
+        }, null );
     }
 
     /** {@inheritDoc} */
@@ -349,19 +351,19 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
         // Check built-in Roles first
         final Role role = new Role(name);
         if ( Role.isBuiltInRole( role ) ) {
-            return role;
+           return role;
         }
 
         // Check Authorizer Roles
         Principal principal = m_authorizer.findRole( name );
         if ( principal != null ) {
-            return principal;
+           return principal;
         }
 
         // Check Groups
         principal = m_engine.getManager( GroupManager.class ).findRole( name );
         if ( principal != null ) {
-            return principal;
+           return principal;
         }
 
         // Ok, no luck---this must be a user principal
@@ -369,16 +371,17 @@ public class DefaultAuthorizationManager implements AuthorizationManager {
         final UserProfile profile;
         final UserDatabase db = m_engine.getManager( UserManager.class ).getUserDatabase();
         try {
-            profile = db.find( name );
-            principals = db.getPrincipals( profile.getLoginName() );
-            for( final Principal value : principals ) {
-                principal = value;
-                if( principal.getName().equals( name ) ) {
-                    return principal;
-                }
-            }
+           profile = db.find( name );
+           principals = db.getPrincipals( profile.getLoginName() );
+           for( final Principal value : principals ) {
+               principal = value;
+               if( principal.getName().equals( name ) ) {
+                   return principal;
+               }
+           }
         } catch( final NoSuchPrincipalException e ) {
-            // We couldn't find the user...
+           // We couldn't find the user...
+           LOG.debug(e.getMessage(), e);
         }
         // Ok, no luck---mark this as unresolved and move on
         return new UnresolvedPrincipal( name );

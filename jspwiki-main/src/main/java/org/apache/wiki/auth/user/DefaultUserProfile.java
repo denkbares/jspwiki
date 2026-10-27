@@ -20,10 +20,12 @@ package org.apache.wiki.auth.user;
 
 import org.apache.commons.lang3.StringUtils;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 
@@ -48,6 +50,12 @@ public final class DefaultUserProfile implements UserProfile {
     private String password;
     private String uid;
     private String wikiname;
+    //oldest should be in position zero, size bounded via configuration
+    private List<String> previousHashedCredentials = new ArrayList<>();
+
+    public List<String> getPreviousHashedCredentials() {
+        return previousHashedCredentials;
+    }
 
     /**
      * Package constructor to allow direct instantiation only from package related classes (i.e., AbstractUserDatabase).
@@ -62,7 +70,10 @@ public final class DefaultUserProfile implements UserProfile {
         if ( o instanceof UserProfile ) {
             final DefaultUserProfile u = ( DefaultUserProfile )o;
             return  same( fullname, u.fullname ) &&
-                    same( password, u.password ) &&
+                    //same( password, u.password ) &&
+                    //Note: this used to compare the password for some reason, but that was causing
+                    //issues when the user wanted to change their password. since this is called
+                    //from DefaultUserManager#setProfile
                     same( loginName, u.loginName ) &&
                     same( StringUtils.lowerCase( email ), StringUtils.lowerCase( u.email ) ) &&
                     same( wikiname, u.wikiname );

@@ -20,7 +20,7 @@ package org.apache.wiki.ui;
 
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
-import org.apache.wiki.WikiContext;
+import org.slf4j.MDC;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.core.Session;
@@ -28,17 +28,16 @@ import org.apache.wiki.api.spi.Wiki;
 import org.apache.wiki.auth.AuthenticationManager;
 import org.apache.wiki.auth.SessionMonitor;
 import org.apache.wiki.auth.WikiSecurityException;
-import org.slf4j.MDC;
 
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletRequestWrapper;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequestWrapper;
 import java.io.IOException;
 import java.io.PrintWriter;
 
@@ -55,14 +54,6 @@ public class WikiServletFilter implements Filter {
 
     private static final Logger LOG = LoggerFactory.getLogger( WikiServletFilter.class );
     protected Engine m_engine;
-
-    /**
-     *  Creates a Wiki Servlet Filter.
-     */
-    public WikiServletFilter()
-    {
-        super();
-    }
 
     /**
      * Initializes the WikiServletFilter.
@@ -140,10 +131,10 @@ public class WikiServletFilter implements Filter {
             }
         }
 
-		try (MDC.MDCCloseable ignored = MDC.putCloseable(m_engine.getApplicationName(), httpRequest.getRequestURL().toString() )) {
-			chain.doFilter( httpRequest, response );
-		}
-	}
+        try (MDC.MDCCloseable ignored = MDC.putCloseable( m_engine.getApplicationName(), httpRequest.getRequestURL().toString() )) {
+            chain.doFilter( httpRequest, response );
+        }
+    }
 
     /**
      *  Figures out the wiki context from the request.  This method does not create the context if it does not exist.

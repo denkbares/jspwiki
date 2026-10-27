@@ -28,17 +28,20 @@ import org.apache.wiki.event.WikiEventManager;
 import org.apache.wiki.event.WikiSecurityEvent;
 import org.apache.wiki.util.comparators.PrincipalComparator;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
-import javax.servlet.http.HttpSessionEvent;
-import javax.servlet.http.HttpSessionListener;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpSessionEvent;
+import jakarta.servlet.http.HttpSessionListener;
 import java.security.Principal;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import org.apache.wiki.security.EventUtil;
 
 /**
  *  <p>Manages Sessions for different Engines.</p>
@@ -110,12 +113,14 @@ public class SessionMonitor implements HttpSessionListener {
     private Session findSession( final String sessionId ) {
         Session wikiSession = null;
         final String sid = ( sessionId == null ) ? "(null)" : sessionId;
-        final Session storedSession = m_sessions.get( sid );
+        synchronized( m_sessions ){
+            final Session storedSession = m_sessions.get( sid );
 
-        // If the weak reference returns a wiki session, return it
-        if( storedSession != null ) {
-            LOG.debug( "Looking up WikiSession for session ID={}... found it", sid );
-            wikiSession = storedSession;
+            // If the weak reference returns a wiki session, return it
+            if( storedSession != null ) {
+                LOG.debug( "Looking up WikiSession for session ID={}... found it", sid );
+                wikiSession = storedSession;
+            }
         }
 
         return wikiSession;
@@ -202,6 +207,23 @@ public class SessionMonitor implements HttpSessionListener {
     }
 
     /**
+     * (Re-)associates a wiki session with the user's current HTTP session id. Needed after the HTTP session id has
+     * been rotated at authentication time (session-fixation defense), so that the upgraded privileges attach to the
+     * new session id instead of the pre-login one.
+     *
+     * @param session the user's HTTP session, carrying its current id
+     * @param wikiSession the wiki session to register under that id
+     */
+    public final void register( final HttpSession session, final Session wikiSession ) {
+        if( session == null || wikiSession == null ) {
+            throw new IllegalArgumentException( "Session cannot be null." );
+        }
+        synchronized( m_sessions ) {
+            m_sessions.put( session.getId(), wikiSession );
+        }
+    }
+
+    /**
      * Returns the current number of active wiki sessions.
      * @return the number of sessions
      */
@@ -259,7 +281,8 @@ public class SessionMonitor implements HttpSessionListener {
      */
     protected final void fireEvent( final int type, final Principal principal, final Session session ) {
         if( WikiEventManager.isListening( this ) ) {
-            WikiEventManager.fireEvent( this, new WikiSecurityEvent( this, type, principal, session ) );
+            WikiEventManager.fireEvent( this, 
+                    EventUtil.applyFrom(new WikiSecurityEvent( this, type, principal, session ) ) );
         }
     }
 
@@ -290,6 +313,26 @@ public class SessionMonitor implements HttpSessionListener {
                 fireEvent( WikiSecurityEvent.SESSION_EXPIRED, storedSession.getLoginPrincipal(), storedSession );
             }
         }
+    }
+
+    /**
+     * gets a list of other sessions for the same login id for auditing purposes.
+     * 
+     * @since 3.0.0
+     * @param name
+     * @return list
+     */
+    public List<Session> findOtherSessionsByUsername(String name) {
+        List<Session> otherSessions = new ArrayList<>();
+        synchronized (m_sessions) {
+
+            for (Session m : m_sessions.values()) {
+                if (m.getLoginPrincipal().getName().equals(name)) {
+                    otherSessions.add(m);
+                }
+            }
+        }
+        return otherSessions;
     }
 
 }

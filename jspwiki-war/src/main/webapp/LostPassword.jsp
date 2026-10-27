@@ -19,8 +19,8 @@
 
 <%@ page import="java.util.*"%>
 <%@ page import="java.text.*"%>
-<%@ page import="javax.mail.*"%>
-<%@ page import="javax.servlet.jsp.jstl.fmt.*"%>
+<%@ page import="jakarta.mail.*"%>
+<%@ page import="jakarta.servlet.jsp.jstl.fmt.*"%>
 <%@ page import="org.slf4j.Logger" %>
 <%@ page import="org.slf4j.LoggerFactory" %>
 <%@ page import="org.apache.wiki.api.core.Context" %>

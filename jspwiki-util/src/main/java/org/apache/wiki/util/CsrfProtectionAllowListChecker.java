@@ -1,6 +1,6 @@
 package org.apache.wiki.util;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * Strategy interface used by the CSRF protection filter to exempt selected POST requests from token validation.

@@ -21,6 +21,7 @@ package org.apache.wiki.ui;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
+import org.slf4j.MDC;
 import org.apache.wiki.WatchDog;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.core.Engine;
@@ -28,23 +29,23 @@ import org.apache.wiki.event.WikiEventManager;
 import org.apache.wiki.event.WikiPageEvent;
 import org.apache.wiki.url.URLConstructor;
 import org.apache.wiki.util.TextUtil;
-import org.slf4j.MDC;
 
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletOutputStream;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.WriteListener;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpServletResponseWrapper;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.WriteListener;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponseWrapper;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
+import java.util.Locale;
 
 
 /**
@@ -89,9 +90,8 @@ public class WikiJSPFilter extends WikiServletFilter {
     public void doFilter( final ServletRequest  request, final ServletResponse response, final FilterChain chain ) throws ServletException, IOException {
         final WatchDog w = WatchDog.getCurrentWatchDog( m_engine );
         try (MDC.MDCCloseable ignored = MDC.putCloseable( m_engine.getApplicationName(), ( ( HttpServletRequest )request ).getRequestURI() )) {
-
             w.enterState("Filtering for URL "+((HttpServletRequest)request).getRequestURI(), 90 );
-            final HttpServletResponseWrapper responseWrapper = new JSPWikiServletResponseWrapper( ( HttpServletResponse )response, m_wiki_encoding, useEncoding );
+            final JSPWikiServletResponseWrapper responseWrapper = new JSPWikiServletResponseWrapper( ( HttpServletResponse )response, m_wiki_encoding, useEncoding );
             request.setCharacterEncoding( m_engine.getContentEncoding().displayName() );
 
             // fire PAGE_REQUESTED event
@@ -106,15 +106,22 @@ public class WikiJSPFilter extends WikiServletFilter {
             try {
                 w.enterState( "Delivering response", 30 );
                 final Context wikiContext = getWikiContext( request );
-                final String r = filter( wikiContext, responseWrapper );
 
-                if( useEncoding ) {
-                    final OutputStreamWriter out = new OutputStreamWriter( response.getOutputStream(), response.getCharacterEncoding() );
-                    out.write( r );
-                    out.flush();
-                    out.close();
+                if( isTextual( responseWrapper.getContentType() ) ) {
+                    final String r = filter( wikiContext, responseWrapper );
+
+                    if( useEncoding ) {
+                        final OutputStreamWriter out = new OutputStreamWriter( response.getOutputStream(), response.getCharacterEncoding() );
+                        out.write( r );
+                        out.flush();
+                        out.close();
+                    } else {
+                        response.getWriter().write(r);
+                    }
                 } else {
-                    response.getWriter().write(r);
+                    // Binary output must bypass the string based marker replacement, decoding it with the response
+                    // charset would corrupt every byte that is not valid in that charset
+                    response.getOutputStream().write( responseWrapper.toByteArray() );
                 }
 
                 // Clean up the UI messages and loggers
@@ -131,6 +138,15 @@ public class WikiJSPFilter extends WikiServletFilter {
         } finally {
             w.exitState();
         }
+    }
+
+    /** Whether a response of this content type is text that the marker replacement may decode and re-encode. */
+    private static boolean isTextual( final String contentType ) {
+        if( contentType == null ) {
+            return true;
+        }
+        final String type = contentType.toLowerCase( Locale.ROOT );
+        return type.startsWith( "text/" ) || type.contains( "xml" ) || type.contains( "json" ) || type.contains( "javascript" );
     }
 
     /**
@@ -271,13 +287,19 @@ public class WikiJSPFilter extends WikiServletFilter {
 			
         }
 
+        /** Returns the raw bytes written so far into the Writer or the OutputStream. */
+        byte[] toByteArray() {
+            m_writer.flush();
+            return m_output.toByteArray();
+        }
+
         /** Returns whatever was written so far into the Writer. */
         @Override
         public String toString() {
             try {
 				flushBuffer();
 			} catch( final IOException e ) {
-				LOG.error("Error while flushing", e );
+                LOG.error( "Error while flushing", e );
                 return StringUtils.EMPTY;
 			}
 
@@ -288,7 +310,7 @@ public class WikiJSPFilter extends WikiServletFilter {
 
 				return m_output.toString();
 			} catch( final UnsupportedEncodingException e ) {
-				LOG.error("Unable to convert to string", e );
+                LOG.error( "Unable to convert to string", e );
                 return StringUtils.EMPTY;
              }
         }
@@ -307,7 +329,7 @@ public class WikiJSPFilter extends WikiServletFilter {
      */
     protected final void fireEvent( final int type, final String pagename ) {
         if( WikiEventManager.isListening( m_engine ) ) {
-            WikiEventManager.fireEvent( m_engine, new WikiPageEvent( m_engine, type, pagename ) );
+            WikiEventManager.fireEvent( m_engine, new WikiPageEvent( m_engine, type, pagename ));
         }
     }
 

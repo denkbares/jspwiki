@@ -19,7 +19,7 @@
 
 <%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
 <%@ page import="java.security.Permission" %>
-<%@ page import="javax.servlet.jsp.jstl.fmt.*" %>
+<%@ page import="jakarta.servlet.jsp.jstl.fmt.*" %>
 <%@ page import="org.apache.wiki.api.core.*" %>
 <%@ page import="org.apache.wiki.attachment.AttachmentManager" %>
 <%@ page import="org.apache.wiki.auth.*" %>
@@ -29,8 +29,8 @@
 <%@ page import="org.apache.wiki.preferences.Preferences" %>
 <%@ page import="org.apache.wiki.ui.progress.ProgressManager" %>
 <%@ page import="org.apache.wiki.util.TextUtil" %>
-<%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
-<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+<%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
+<%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <fmt:setLocale value="${prefs.Language}" />
 <fmt:setBundle basename="templates.default"/>
 <%
@@ -379,7 +379,7 @@
                        class="attachment" ><wiki:PageVersion /></wiki:Link></td>
       --%>
       <td><a href="<wiki:Link version='<%=Integer.toString(att.getVersion())%>' format='url' />"
-                       title="<%= name %>"
+                       title="<%= TextUtil.replaceEntities(name) %>"
                        class="attachment" ><wiki:PageVersion /></a></td>
       <td style="white-space:nowrap;text-align:right;">
         <fmt:formatNumber value='<%=Double.toString(att.getSize()/1000.0) %>' groupingUsed='false' maxFractionDigits='1' minFractionDigits='1'/>&nbsp;<fmt:message key="info.kilobytes"/>

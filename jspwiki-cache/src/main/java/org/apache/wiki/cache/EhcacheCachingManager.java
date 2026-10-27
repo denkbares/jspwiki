@@ -20,10 +20,12 @@ package org.apache.wiki.cache;
 
 import net.sf.ehcache.Cache;
 import net.sf.ehcache.CacheManager;
+import net.sf.ehcache.Ehcache;
 import net.sf.ehcache.Element;
 import net.sf.ehcache.config.Configuration;
 import net.sf.ehcache.config.ConfigurationFactory;
 import net.sf.ehcache.event.CacheEventListener;
+import net.sf.ehcache.event.CacheEventListenerAdapter;
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.engine.Initializable;
 import org.apache.wiki.api.exceptions.WikiException;
@@ -39,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Ehcache-based {@link CachingManager}.
@@ -73,12 +76,20 @@ public class EhcacheCachingManager implements CachingManager, Initializable {
 		if (useCache) {
 			final URL location = this.getClass().getResource(confLocation);
 			LOG.info("Reading ehcache configuration file from classpath on /{}", location);
-			cacheManager = CacheManager.newInstance(location);
-			Configuration configuration = ConfigurationFactory.parseConfiguration(location);
-			if (configuration.getName() == null && engine != null) {
-				configuration.name(engine.getApplicationName());
+			if (engine != null) {
+				// One CacheManager per engine instance: ehcache hands back an existing CacheManager when
+				// the configured name is already in use, so the name must identify the engine, not just
+				// the application.
+				final Configuration configuration = ConfigurationFactory.parseConfiguration(location);
+				if (configuration.getName() == null) {
+					configuration.name(engine.getApplicationName() + "-" + System.identityHashCode(engine));
+				}
+				cacheManager = CacheManager.newInstance(configuration);
 			}
-			cacheManager = CacheManager.newInstance(configuration);
+			else {
+				// No engine (e.g. tests): use the shared singleton so repeated initialization is tolerated.
+				cacheManager = CacheManager.create(location);
+			}
 			registerCache(CACHE_ATTACHMENTS);
 			registerCache(CACHE_ATTACHMENTS_COLLECTION);
 			registerCache(CACHE_ATTACHMENTS_DYNAMIC);
@@ -177,6 +188,18 @@ public class EhcacheCachingManager implements CachingManager, Initializable {
 		return false;
 	}
 
+	@Override
+	public boolean registerListener(final String cacheName, final String listener, final Object... args) {
+		if ("expired".equals(listener) && args.length > 0 && args[0] instanceof final AtomicBoolean allRequested) {
+			return registerListener(cacheName, new CacheEventListenerAdapter() {
+				@Override
+				public void notifyElementExpired(final Ehcache cache, final Element element) {
+					allRequested.set(false); // signal that the cache no longer contains all elements...
+				}
+			});
+		}
+		return false;
+	}
 
 
 	boolean keyAndCacheAreNotNull(final String cacheName, final Serializable key) {

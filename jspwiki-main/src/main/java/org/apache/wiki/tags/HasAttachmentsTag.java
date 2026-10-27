@@ -50,7 +50,7 @@ public class HasAttachmentsTag extends WikiTagBase {
                 }
             }
         } catch( final ProviderException e ) {
-			LOG.error("Provider failed while trying to check for attachements",e);
+            LOG.error("Provider failed while trying to check for attachements",e);
             // FIXME: THrow something.
         }
 

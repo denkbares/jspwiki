@@ -23,9 +23,9 @@
 <%@ page import="org.apache.wiki.auth.permissions.*" %>
 <%@ page import="java.security.Permission" %>
 <%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
-<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
-<%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
-<%@ taglib uri="http://java.sun.com/jsp/jstl/functions" prefix="fn" %>
+<%@ taglib prefix="c" uri="jakarta.tags.core" %>
+<%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
+<%@ taglib prefix="fn" uri="jakarta.tags.functions" %>
 <fmt:setLocale value="${prefs.Language}" />
 <fmt:setBundle basename="templates.default"/>
 <%
@@ -33,11 +33,12 @@
   Context c = Context.findContext(pageContext);
 %>
 <c:set var="progressId" value="<%= c.getEngine().getManager( ProgressManager.class ).getNewProgressIdentifier() %>" />
-<c:set var="csrfProtection" value="<%= c.getWikiSession().antiCsrfToken() %>" />
 <div class="page-content">
 <wiki:Permission permission="upload">
 
-  <form action="<wiki:Link jsp='attach' format='url'><wiki:Param name='progressid' value='${progressId}'/><wiki:Param name='X-XSRF-TOKEN' value='${csrfProtection}'/></wiki:Link>"
+  <%-- The anti-CSRF token travels as a hidden multipart form field (see <wiki:CsrfProtection/> below), NOT as a
+       query-string parameter: query strings end up in access logs, proxies and browser history. --%>
+  <form action="<wiki:Link jsp='attach' format='url'><wiki:Param name='progressid' value='${progressId}'/></wiki:Link>"
          class="accordion<wiki:HasAttachments></wiki:HasAttachments>"
             id="uploadform"
         method="post"
@@ -53,7 +54,11 @@
 
     <%-- <p><fmt:message key="attach.add.info" /></p> --%>
     <div class="form-group">
-      <label class="control-label form-col-20" for="files"><fmt:message key="attach.add.selectfile"/></label>
+      <label class="control-label form-col-20" for="files">
+          <fmt:message key="attach.add.selectfile"/><br>
+          <fmt:message key="attach.add.maxUpload" />
+          <wiki:MaxUpload />
+      </label>
 
       <ul class="list-group form-col-50">
         <li class="list-group-item droppable">

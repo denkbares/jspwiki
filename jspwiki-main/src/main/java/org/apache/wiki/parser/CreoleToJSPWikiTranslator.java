@@ -18,7 +18,6 @@
  */
 package org.apache.wiki.parser;
 
-import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -31,6 +30,8 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * <p>Translates Creole markp to JSPWiki markup. Simple translator uses regular expressions.
@@ -48,7 +49,7 @@ import java.util.regex.Pattern;
  */
 public class CreoleToJSPWikiTranslator
 {
-
+    private static final Logger LOG = LoggerFactory.getLogger(CreoleToJSPWikiTranslator.class);
     // These variables are expanded so that admins
     // can display information about the current installed
     // pagefilter
@@ -192,7 +193,7 @@ public class CreoleToJSPWikiTranslator
         }
         catch (final Exception e)
         {
-            e.printStackTrace();
+            LOG.warn(e.getMessage(), e);
             df = new SimpleDateFormat(DEFAULT_DATEFORMAT);
         }
 
@@ -511,8 +512,7 @@ public class CreoleToJSPWikiTranslator
             }
             catch (final NoSuchAlgorithmException e)
             {
-                // FIXME: Should log properly
-                e.printStackTrace();
+                LOG.error(e.getMessage(), e);
             }
         }
         matcher.appendTail(result);

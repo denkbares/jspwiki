@@ -23,8 +23,8 @@ import org.slf4j.Logger;
 import org.apache.wiki.ajax.WikiAjaxDispatcherServlet;
 import org.apache.wiki.ajax.WikiAjaxServlet;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -143,7 +143,7 @@ public class DefaultProgressManager implements ProgressManager {
         	String progressString = "";
         	try {
         		progressString = Integer.toString( getProgress( progressId ) );
-        	} catch( final IllegalArgumentException e ) { // ignore
+        	} catch( final IllegalArgumentException e ) {
         		LOG.debug( "progressId " + progressId + " is no longer valid" );
         	}
         	LOG.debug( "progressString=" + progressString );

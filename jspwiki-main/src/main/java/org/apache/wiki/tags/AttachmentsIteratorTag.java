@@ -28,8 +28,8 @@ import org.apache.wiki.api.exceptions.ProviderException;
 import org.apache.wiki.attachment.AttachmentManager;
 import org.apache.wiki.pages.PageManager;
 
-import javax.servlet.jsp.JspWriter;
-import javax.servlet.jsp.PageContext;
+import jakarta.servlet.jsp.JspWriter;
+import jakarta.servlet.jsp.PageContext;
 import java.io.IOException;
 import java.util.List;
 
@@ -94,7 +94,7 @@ public class AttachmentsIteratorTag extends IteratorTag {
 
             return EVAL_BODY_BUFFERED;
         } catch( final ProviderException e ) {
-			LOG.error("Provider failed while trying to iterator through history",e);
+            LOG.error("Provider failed while trying to iterator through history",e);
             // FIXME: THrow something.
         }
 

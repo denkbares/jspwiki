@@ -18,7 +18,6 @@
  */
 package org.apache.wiki;
 
-import net.sf.ehcache.CacheManager;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 import org.apache.wiki.api.core.Engine;
@@ -26,12 +25,12 @@ import org.apache.wiki.api.engine.EngineLifecycleExtension;
 import org.apache.wiki.api.spi.Wiki;
 import org.apache.wiki.url.URLConstructor;
 
-import javax.servlet.RequestDispatcher;
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.RequestDispatcher;
+import jakarta.servlet.ServletConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 
@@ -62,7 +61,7 @@ public class WikiServlet extends HttpServlet {
      * protected method {@link WikiEngine#stop()}, which sends {@link org.apache.wiki.event.WikiEngineEvent#SHUTDOWN}
      * events to registered listeners, as well as notifying available {@link EngineLifecycleExtension EngineLifecycleExtension}s.
      *
-     * @see javax.servlet.GenericServlet#destroy()
+     * @see jakarta.servlet.GenericServlet#destroy()
      */
     @Override
     public void destroy() {

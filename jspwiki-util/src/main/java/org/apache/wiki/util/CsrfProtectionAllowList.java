@@ -3,7 +3,7 @@ package org.apache.wiki.util;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * Thread-safe registry of request checkers that may explicitly allowlist individual POST requests for the CSRF

@@ -43,17 +43,23 @@ import org.apache.wiki.references.ReferenceManager;
 import org.apache.wiki.util.ClassUtil;
 import org.apache.wiki.util.TextUtil;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import org.apache.wiki.api.plugin.Plugin;
+import org.apache.wiki.plugin.PluginManager;
+import static org.apache.wiki.search.SearchManager.PLUGIN_SEARCH;
 
 
 /**
@@ -80,8 +86,74 @@ public class DefaultSearchManager extends BasePageFilter implements SearchManage
 
         // TODO: Replace with custom annotations. See JSPWIKI-566
         WikiAjaxDispatcherServlet.registerServlet( JSON_SEARCH, new JSONSearch() );
+        WikiAjaxDispatcherServlet.registerServlet( PLUGIN_SEARCH, new PluginSearch() );
     }
 
+    /**
+     *  Provides a JSON AJAX API to the JSPWiki Plugin discovery mechanism,
+     *  primarily used for [{}] based auto complete
+     */
+    public class PluginSearch implements WikiAjaxServlet {
+
+        public static final String AJAX_ACTION_PLUGINS = "plugins";
+        public static final int DEFAULT_MAX_RESULTS = 20;
+        public int maxResults = DEFAULT_MAX_RESULTS;
+
+        /** {@inheritDoc} */
+        @Override
+        public String getServletMapping() {
+            return PLUGIN_SEARCH;
+        }
+        public static class SimpleSnipData {
+            public String displayName;
+            public String snip;
+        }
+
+        /** {@inheritDoc} */
+        @Override
+        public void service( final HttpServletRequest req,
+                             final HttpServletResponse resp,
+                             final String actionName,
+                             final List< String > params ) throws IOException {
+            String result = "[]";
+            resp.setContentType("application/json");
+            if( actionName != null && StringUtils.isNotBlank( actionName ) ) {
+                if( actionName.equals( AJAX_ACTION_PLUGINS ) ) {
+                    LOG.debug( "Calling getPlugins() START" );
+                    PluginManager mgr = m_engine.getManager(PluginManager.class);
+                    final List< Plugin > plugins = mgr.getDiscoveredPlugins();
+                    List< SimpleSnipData > callResults = new ArrayList<>();
+                   
+                    Locale locale = req.getLocale();
+                    if (locale == null) {
+                        locale = Locale.getDefault();
+                    }
+                    final Locale sorter = locale;
+                    Collections.sort(plugins, new Comparator<Plugin>() {
+                        @Override
+                        public int compare(Plugin o1, Plugin o2) {
+                            return o1.getDisplayName(sorter).compareTo(o2.getDisplayName(sorter));
+                        }
+                    });
+                    for (Plugin p : plugins) {
+                        try {
+                            SimpleSnipData data = new SimpleSnipData();
+                            data.snip = p.getSnipExample();
+                            data.displayName = p.getDisplayName(locale);
+                            callResults.add(data);
+                        } catch (Throwable t) {
+                            LOG.warn("failed to get plugin informatiom from " + p.getClass().getCanonicalName(), t);
+                        }
+                    }
+                    LOG.debug("Calling getSuggestions() DONE. " + callResults.size() );
+                    result = AjaxUtil.toJson( callResults );
+                } 
+            }
+            LOG.debug( "result=" + result );
+            resp.getWriter().write( result );
+        }
+    }
+    
     /**
      *  Provides a JSON AJAX API to the JSPWiki Search Engine.
      */
@@ -104,7 +176,8 @@ public class DefaultSearchManager extends BasePageFilter implements SearchManage
                              final HttpServletResponse resp,
                              final String actionName,
                              final List< String > params ) throws IOException {
-            String result = "";
+            String result = "[]";
+            resp.setContentType("application/json");
             if( StringUtils.isNotBlank( actionName ) ) {
                 if( params.isEmpty() ) {
                     return;
@@ -161,7 +234,7 @@ public class DefaultSearchManager extends BasePageFilter implements SearchManage
                 final String cleanWikiName = MarkupParser.cleanLink(wikiName).toLowerCase() + filename;
                 final String oldStyleName = MarkupParser.wikifyLink(wikiName).toLowerCase() + filename;
                 final Set< String > allPages = m_engine.getManager( ReferenceManager.class ).findCreated();
-
+               
                 int counter = 0;
                 for( final Iterator< String > i = allPages.iterator(); i.hasNext() && counter < maxLength; ) {
                     final String p = i.next();

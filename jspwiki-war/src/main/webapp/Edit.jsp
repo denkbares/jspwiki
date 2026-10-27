@@ -17,6 +17,7 @@
     under the License.
 --%>
 
+<%@ page import="org.apache.wiki.i18n.InternationalizationManager" %>
 <%@ page import="org.slf4j.Logger" %>
 <%@ page import="org.slf4j.LoggerFactory" %>
 <%@ page import="java.util.*" %>
@@ -24,6 +25,7 @@
 <%@ page import="org.apache.wiki.api.exceptions.RedirectException" %>
 <%@ page import="org.apache.wiki.api.spi.Wiki" %>
 <%@ page import="org.apache.wiki.auth.AuthorizationManager" %>
+<%@ page import="org.apache.wiki.http.filter.CsrfProtectionFilter" %>
 <%@ page import="org.apache.wiki.util.HttpUtil" %>
 <%@ page import="org.apache.wiki.filters.SpamFilter" %>
 <%@ page import="org.apache.wiki.htmltowiki.HtmlStringToWikiTranslator" %>
@@ -34,6 +36,7 @@
 <%@ page import="org.apache.wiki.ui.TemplateManager" %>
 <%@ page import="org.apache.wiki.util.TextUtil" %>
 <%@ page import="org.apache.wiki.workflow.DecisionRequiredException" %>
+<%@ page import="org.apache.wiki.plugin.*" %>
 <%@ page errorPage="/Error.jsp" %>
 <%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
 
@@ -73,12 +76,13 @@
     String append  = request.getParameter("append");
     String edit    = request.getParameter("edit");
     String author  = TextUtil.replaceEntities( findParam( pageContext, "author" ) );
-    String changenote = findParam( pageContext, "changenote" );
+    String changenote = TextUtil.replaceEntities( findParam( pageContext, "changenote" ) );
     String text    = EditorManager.getEditedText( pageContext );
     String link    = TextUtil.replaceEntities( findParam( pageContext, "link") );
     String spamhash = findParam( pageContext, SpamFilter.getHashFieldName(request) );
     String captcha = (String)session.getAttribute("captcha");
-
+    boolean isWeblog = "true".equalsIgnoreCase(request.getParameter( WeblogPlugin.ATTR_ISWEBLOG) );
+    
     if ( !wikiSession.isAuthenticated() && wikiSession.isAnonymous() && author != null ) {
         user  = TextUtil.replaceEntities( findParam( pageContext, "author" ) );
     }
@@ -93,7 +97,11 @@
 
     Page wikipage = wikiContext.getPage();
     Page latestversion = wiki.getManager( PageManager.class ).getPage( pagereq );
-
+    if (isWeblog) {
+        //this happens at the intial page load when redirected from the NewBlogEntry.jsp page
+        session.setAttribute(wikipage.getName() + "-" + WeblogPlugin.ATTR_ISWEBLOG, true);
+    }
+    
     if( latestversion == null ) {
         latestversion = wikiContext.getPage();
     }
@@ -111,6 +119,10 @@
     log.debug("preview="+preview+", ok="+ok);
 
     if( ok != null || captcha != null ) {
+        if( !CsrfProtectionFilter.isCsrfProtectedPost( request ) ) {
+            response.sendRedirect( request.getContextPath() + "/error/Forbidden.html" );
+            return;
+        }
         log.info("Saving page "+pagereq+". User="+user+", host="+HttpUtil.getRemoteAddress(request) );
 
         //
@@ -161,6 +173,11 @@
         } else {
             modifiedPage.removeAttribute( Page.CHANGENOTE );
         }
+        if (Boolean.TRUE ==  session.getAttribute(wikipage.getName() + "-" + WeblogPlugin.ATTR_ISWEBLOG)) {
+            //this is generally when the user is saving changes to a page
+            modifiedPage.setAttribute("@" + WeblogPlugin.ATTR_ISWEBLOG, true);
+            session.removeAttribute(wikipage.getName() + "-" + WeblogPlugin.ATTR_ISWEBLOG);
+        } 
 
         //
         //  Figure out the actual page text
@@ -180,7 +197,6 @@
                 wikiContext.setVariable( "captcha", Boolean.TRUE );
                 session.removeAttribute( "captcha" );
             }
-
             if( append != null ) {
                 StringBuffer pageText = new StringBuffer(wiki.getManager( PageManager.class ).getText( pagereq ));
                 pageText.append( text );
@@ -194,8 +210,9 @@
             return;
         } catch( RedirectException ex ) {
             // FIXME: Cut-n-paste code.
-            wikiContext.getWikiSession().addMessage( ex.getMessage() ); // FIXME: should work, but doesn't
-            session.setAttribute( "message", ex.getMessage() );
+            
+            wikiContext.getWikiSession().addMessage( "Redirect Error" ); // FIXME: should work, but doesn't
+            session.setAttribute( "message", "Redirect Error" );
             session.setAttribute(EditorManager.REQ_EDITEDTEXT, EditorManager.getEditedText(pageContext));
             session.setAttribute("author",user);
             session.setAttribute("link",link != null ? link : "" );

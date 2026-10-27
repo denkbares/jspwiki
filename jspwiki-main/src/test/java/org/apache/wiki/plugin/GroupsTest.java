@@ -19,17 +19,37 @@
 
 package org.apache.wiki.plugin;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.Properties;
+import java.util.UUID;
+import org.apache.commons.io.FileUtils;
 import org.apache.wiki.TestEngine;
+import org.apache.wiki.api.exceptions.WikiException;
+import org.apache.wiki.auth.authorize.GroupManager;
+import org.apache.wiki.auth.authorize.XMLGroupDatabase;
 import org.apache.wiki.pages.PageManager;
 import org.apache.wiki.render.RenderingManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 
 public class GroupsTest {
+    private TestEngine testEngine;
+    private File target ;
+    @BeforeEach
+    public void init() throws IOException {
+        final Properties props = TestEngine.getTestProperties();
+        target = new File("target/GroupsTest" + UUID.randomUUID().toString() + ".xml");
+        FileUtils.copyFile(new File("src/test/resources/groupdatabase.xml"), target);
+        props.put(XMLGroupDatabase.PROP_DATABASE, target.getAbsolutePath());
+        testEngine = TestEngine.build(props);
+    }
+    
 
-    static TestEngine testEngine = TestEngine.build();
+    
 
     @AfterEach
     public void tearDown() throws Exception {
@@ -49,6 +69,24 @@ public class GroupsTest {
                 + "<a href=\"/test/Group.jsp?group=Literature\">Literature</a>, "
                 + "<a href=\"/test/Group.jsp?group=TV\">TV</a>\n"
                 , res );
+    }
+    
+    @Test
+    public void jspwiki130part2() throws Exception {
+
+        GroupManager usermanger = testEngine.getManager(GroupManager.class);
+
+        Assertions.assertThrows(WikiException.class, () -> {
+            usermanger.parseGroup("janne", "Al\nBob\nCookie", true);
+        });
+        Assertions.assertThrows(WikiException.class, () -> {
+            usermanger.parseGroup("JanneJalkanen", "Al\nBob\nCookie", true);
+        });
+
+        Assertions.assertThrows(WikiException.class, () -> {
+            usermanger.parseGroup("janne@ecyrd.com", "Al\nBob\nCookie", true);
+        });
+
     }
 
 }

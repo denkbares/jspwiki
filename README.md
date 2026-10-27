@@ -1,6 +1,6 @@
 Forked from [apache/jspwiki](https://github.com/apache/jspwiki)
 
-# Apache JSPWiki 2.12 - Documentation
+# Apache JSPWiki 3.0 - Documentation
 
     Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
@@ -28,6 +28,7 @@ KnowWE quite heavily relies on JSPWiki for some time now and this fork
 allows to easily add some KnowWE specific fixes and improvements.
 The aim is to keep this fork as close as possible to the original.
 
+
 ## What is JSPWiki?
 
 JSPWiki is a simple (well, not anymore) WikiWiki clone, written in Java
@@ -43,17 +44,15 @@ Okay, so you wanna Wiki?  You'll need the following things:
 
 REQUIRED:
 
-* A JSP engine that supports Servlet API 3.1.  We recommend [Apache Tomcat](https://tomcat.apache.org/)
-  for a really easy installation. Tomcat 9.x or later is recommended, although Tomcat 8.x 
-  is supported too; see [additional configuration](https://jspwiki-wiki.apache.org/Wiki.jsp?page=Getting%20Started#section-Getting+Started-Tomcat8.x) 
-  that must be set up in order to run JSPWiki on Tomcat 8.x.
+* A JSP engine that supports Servlet API 6.0.  We recommend [Apache Tomcat](https://tomcat.apache.org/)
+  for a really easy installation. Tomcat 10.1 or later is recommended.
 
 * Some previous administration experience...  If you've ever installed
   Apache or any other web server, you should be pretty well off.
 
 * And of course, a server to run the JSP engine on.
 
-* JDK 11+
+* JDK 17+
 
 
 OPTIONAL:
@@ -72,7 +71,7 @@ Since JSPWiki 2.1.153, JSPWiki comes with a really simple installation
 engine.  Just do the following:
 
 1) Install Tomcat from https://tomcat.apache.org/ (or any other servlet
-   container)
+   container) and unzip it somewhere.
 
 2) Rename the JSPWiki.war file from the download and rename it based on
    your desired URL (if you want it different from /JSPWiki).  For example,
@@ -158,3 +157,4 @@ mailing list: See https://jspwiki.apache.org/community/mailing_lists.html.
 Please use the user mailing list instead of contacting team members directly, 
 and as this is a public list stored in public archives, be sure to avoid including
 any sensitive information (passwords, data, etc.) in your questions.
+

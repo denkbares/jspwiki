@@ -23,7 +23,7 @@
 <%@ page import="org.apache.wiki.ui.progress.*" %>
 <%@ page import="org.apache.wiki.auth.permissions.*" %>
 <%@ page import="java.security.Permission" %>
-<%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
+<%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
 <fmt:setLocale value="${prefs.Language}" />
 <fmt:setBundle basename="templates.default"/>
 <%
@@ -31,12 +31,13 @@
   Context c = Context.findContext(pageContext);
 %>
 <c:set var="progressId" value="<%= c.getEngine().getManager( ProgressManager.class ).getNewProgressIdentifier() %>" />
-<c:set var="csrfProtection" value="<%= c.getWikiSession().antiCsrfToken() %>" />
 
 <div id="addattachment">
 <h3><fmt:message key="attach.add"/></h3>
 <wiki:Permission permission="upload">
-  <form action="<wiki:Link jsp='attach' format='url'><wiki:Param name='progressid' value='${progressId}'/><wiki:Param name='X-XSRF-TOKEN' value='${csrfProtection}'/></wiki:Link>"
+  <%-- The anti-CSRF token travels as a hidden multipart form field (see <wiki:CsrfProtection/> below), NOT as a
+       query-string parameter: query strings end up in access logs, proxies and browser history. --%>
+  <form action="<wiki:Link jsp='attach' format='url'><wiki:Param name='progressid' value='${progressId}'/></wiki:Link>"
          class="wikiform"
             id="uploadform"
         method="post"

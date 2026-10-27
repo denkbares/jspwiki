@@ -242,7 +242,7 @@ public class DefaultAttachmentManager implements AttachmentManager {
 		}
 
 		for (final String forceDownloadPattern : m_forceDownloadPatterns) {
-			if (name.endsWith(forceDownloadPattern) && !forceDownloadPattern.isEmpty()) {
+			if ((name.endsWith(forceDownloadPattern) && !forceDownloadPattern.isEmpty()) || "*".equals(forceDownloadPattern)) {
 				return true;
 			}
 		}

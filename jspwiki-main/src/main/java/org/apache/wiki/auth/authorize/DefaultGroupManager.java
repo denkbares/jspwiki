@@ -82,6 +82,7 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
             final Group group = getGroup( name );
             return group.getPrincipal();
         } catch( final NoSuchPrincipalException e ) {
+            LOG.debug(e.getMessage(), e);
             return null;
         }
     }
@@ -193,6 +194,7 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
             if( create ) {
                 name = "MyGroup";
             } else {
+                //TODO i18n
                 throw new WikiSecurityException( "Group name cannot be blank." );
             }
         } else if( ArrayUtils.contains( Group.RESTRICTED_GROUPNAMES, name ) ) {
@@ -223,6 +225,7 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
         } catch( final NoSuchPrincipalException e ) {
             // It's a new group.... throw error if we don't create new ones
             if( !create ) {
+                //TODO i18n
                 throw new NoSuchPrincipalException( "Group '" + name + "' does not exist." );
             }
         }
@@ -233,6 +236,29 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
             group.clear();
             for( final String member : members ) {
                 group.add( new WikiPrincipal( member ) );
+            }
+        }
+        
+        if( "false".equalsIgnoreCase( m_engine.getWikiProperties().getProperty( Engine.PROP_USE_2_X_ACL_LOGIC, "false" ) ) ) {
+            // check to ensure that the group name does not conflict with any existing user account login, email or wiki name
+            final UserManager userManager = m_engine.getManager( UserManager.class );
+            try {
+                userManager.getUserDatabase().findByEmail( name );
+                throw new WikiSecurityException( "Group name conflicts with a user account" );
+            } catch( final NoSuchPrincipalException e ) {
+                // no issues here
+            }
+            try {
+                userManager.getUserDatabase().findByLoginName( name );
+                throw new WikiSecurityException( "Group name conflicts with a user account" );
+            } catch( final NoSuchPrincipalException e ) {
+                // no issues here
+            }
+            try {
+                userManager.getUserDatabase().findByWikiName( name );
+                throw new WikiSecurityException( "Group name conflicts with a user account" );
+            }catch( final NoSuchPrincipalException e ) {
+                // no issues here
             }
         }
 
@@ -296,6 +322,7 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
 
         // We got an exception! Roll back...
         catch( final WikiSecurityException e ) {
+            LOG.warn("setGroup failed, rolling back changes", e);
             if( oldGroup != null ) {
                 // Restore previous version, re-throw...
                 fireEvent( WikiSecurityEvent.GROUP_REMOVE, group );
@@ -319,6 +346,7 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
         try {
             checkGroupName( context, group.getName() );
         } catch( final WikiSecurityException e ) {
+            LOG.debug(e.getMessage(), e);
         }
 
         // Member names must be "safe" strings

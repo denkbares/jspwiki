@@ -16,7 +16,8 @@
     specific language governing permissions and limitations
     under the License.
 --%>
-
+<%@ page import="org.apache.wiki.i18n.InternationalizationManager" %>
+<%@ page import="java.util.*" %>
 <%@ page import="org.slf4j.Logger" %>
 <%@ page import="org.slf4j.LoggerFactory" %>
 <%@ page import="org.apache.wiki.api.core.*" %>
@@ -52,7 +53,7 @@
     }
 
     if( !CsrfProtectionFilter.isCsrfProtectedPost( request ) ) {
-        response.sendRedirect( "/error/Forbidden.html" );
+        response.sendRedirect( request.getContextPath() + "/error/Forbidden.html" );
         return;
     }
 
@@ -78,7 +79,8 @@
     catch ( WikiSecurityException e )
     {
         // Send error message
-        wikiSession.addMessage( GroupManager.MESSAGES_KEY, e.getMessage() );
+        final ResourceBundle rb = ResourceBundle.getBundle( InternationalizationManager.CORE_BUNDLE, wikiSession.getLocale() );
+        wikiSession.addMessage( GroupManager.MESSAGES_KEY, rb.getString("operation.failed") );
         response.sendRedirect( "Group.jsp" );
     }
 

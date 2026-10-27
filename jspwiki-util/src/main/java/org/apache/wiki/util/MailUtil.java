@@ -18,13 +18,22 @@
  */
 package org.apache.wiki.util;
 
-import javax.activation.DataHandler;
-import javax.mail.*;
-import javax.mail.internet.AddressException;
-import javax.mail.internet.InternetAddress;
-import javax.mail.internet.MimeBodyPart;
-import javax.mail.internet.MimeMessage;
-import javax.mail.internet.MimeMultipart;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
+
+import jakarta.activation.DataHandler;
+import jakarta.mail.Authenticator;
+import jakarta.mail.Message;
+import jakarta.mail.MessagingException;
+import jakarta.mail.PasswordAuthentication;
+import jakarta.mail.Part;
+import jakarta.mail.Session;
+import jakarta.mail.Transport;
+import jakarta.mail.internet.AddressException;
+import jakarta.mail.internet.InternetAddress;
+import jakarta.mail.internet.MimeBodyPart;
+import jakarta.mail.internet.MimeMessage;
+import jakarta.mail.internet.MimeMultipart;
 import javax.naming.Context;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
@@ -37,8 +46,6 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * <p>Contains static methods for sending e-mails to recipients using JNDI-supplied
@@ -146,7 +153,7 @@ import org.slf4j.LoggerFactory;
  * <pre>&lt;resource-ref&gt;
  *   &lt;description>Resource reference to a container-managed JNDI JavaMail factory for sending e-mails.&lt;/description&gt;
  *   &lt;res-ref-name>mail/Session&lt;/res-ref-name&gt;
- *   &lt;res-type>javax.mail.Session&lt;/res-type&gt;
+ *   &lt;res-type>jakarta.mail.Session&lt;/res-type&gt;
  *   &lt;res-auth>Container&lt;/res-auth&gt;
  * &lt;/resource-ref&gt;</pre>
  * <p>To configure your container's resource factory, follow the directions supplied by
@@ -158,7 +165,7 @@ import org.slf4j.LoggerFactory;
  * <pre>&lt;Context ...&gt;
  * ...
  * &lt;Resource name="mail/Session" auth="Container"
- *           type="javax.mail.Session"
+ *           type="jakarta.mail.Session"
  *           mail.smtp.host="127.0.0.1"/&gt;
  *           mail.smtp.port="25"/&gt;
  *           mail.smtp.account="your-account-name"/&gt;
@@ -175,7 +182,7 @@ import org.slf4j.LoggerFactory;
  * <code><var>$CATALINA_HOME</var>/conf/server.xml</code> creates a global resource:</p>
  * <pre>&lt;GlobalNamingResources&gt;
  *   &lt;Resource name="mail/Session" auth="Container"
- *             type="javax.mail.Session"
+ *             type="jakarta.mail.Session"
  *             ...
  *             mail.smtp.starttls.enable="true"/&gt;
  * &lt;/GlobalNamingResources&gt;</pre>
@@ -248,8 +255,6 @@ public final class MailUtil {
     static final String PROP_MAIL_STARTTLS           = "mail.smtp.starttls.enable";
     static final String PROP_MAILS_STARTTLS          = "mail.smtps.starttls.enable";
 
-    static final String PROP_MAIL_SSL_PROTOCOLS      = "mail.smtp.ssl.protocols";
-
     private static String c_fromAddress;
     
     /**
@@ -266,7 +271,7 @@ public final class MailUtil {
      * See the top-level JavaDoc for this class for a description of
      * required properties and their default values.</p>
      * <p>The e-mail address used for the <code>to</code> parameter must be in
-     * RFC822 format, as described in the JavaDoc for {@link javax.mail.internet.InternetAddress}
+     * RFC822 format, as described in the JavaDoc for {@link jakarta.mail.internet.InternetAddress}
      * and more fully at
      * <a href="http://www.freesoft.org/CIE/RFC/822/index.htm">http://www.freesoft.org/CIE/RFC/822/index.htm</a>.
      * In other words, e-mail addresses should look like this:</p>
@@ -306,78 +311,74 @@ public final class MailUtil {
         }
     }
 
-	public static void sendMultiPartMessage(Properties props, String to, String subject, String plainContent,
-											String htmlContent, Map<String, URL> imageUrlsByCid) throws MessagingException{
-		Session session = getMailSession( props );
-		setSenderEmailAddress(session, props);
+    public static void sendMultiPartMessage(Properties props, String to, String subject, String plainContent,
+                                            String htmlContent, Map<String, URL> imageUrlsByCid) throws MessagingException{
+        final Session session = getMailSession( props );
+        setSenderEmailAddress(session, props);
 
-		try
-		{
-			// Create and address the message
-			MimeMessage msg = new MimeMessage(session);
-			msg.setFrom(new InternetAddress(c_fromAddress));
-			msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(to, false));
-			msg.setSubject(subject, "UTF-8");
-			msg.setSentDate(new Date());
+        try
+        {
+            // Create and address the message
+            MimeMessage msg = new MimeMessage(session);
+            msg.setFrom(new InternetAddress(c_fromAddress));
+            msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(to, false));
+            msg.setSubject(subject, "UTF-8");
+            msg.setSentDate(new Date());
 
-			// most of the code here taken from
-			// https://stackoverflow.com/questions/3902455/mail-multipart-alternative-vs-multipart-mixed
-			// but slightly easier organized and renamed
-			final MimeMultipart rootMp = new MimeMultipart("mixed");
-			msg.setContent(rootMp);
-			{
-				// alternative
-				final MimeMultipart alternativeMp = newChild(rootMp, "alternative");
-				{
-					// Note: MUST RENDER HTML LAST otherwise iPad mail client only renders the last image and no email
+            // most of the code here taken from
+            // https://stackoverflow.com/questions/3902455/mail-multipart-alternative-vs-multipart-mixed
+            // but slightly easier organized and renamed
+            final MimeMultipart rootMp = new MimeMultipart("mixed");
+            msg.setContent(rootMp);
+            {
+                // alternative
+                final MimeMultipart alternativeMp = newChild(rootMp, "alternative");
+                {
+                    // Note: MUST RENDER HTML LAST otherwise iPad mail client only renders the last image and no email
 
-					// text
-					if (plainContent != null && !plainContent.isEmpty()) {
-						final MimeBodyPart textBodyPart = new MimeBodyPart();
-						textBodyPart.setText(plainContent, "UTF-8");
-						textBodyPart.setHeader("Content-Type", "text/plain; charset=UTF-8");
-						alternativeMp.addBodyPart(textBodyPart);
-					}
+                    // text
+                    if (plainContent != null && !plainContent.isEmpty()) {
+                        final MimeBodyPart textBodyPart = new MimeBodyPart();
+                        textBodyPart.setText(plainContent, "UTF-8");
+                        textBodyPart.setHeader("Content-Type", "text/plain; charset=UTF-8");
+                        alternativeMp.addBodyPart(textBodyPart);
+                    }
 
-					// html
-					final MimeMultipart relatedMp = newChild(alternativeMp,"related");
+                    // html
+                    final MimeMultipart relatedMp = newChild(alternativeMp,"related");
 
-					final MimeBodyPart htmlBodyPart = new MimeBodyPart();
-					htmlBodyPart.setText(htmlContent, "UTF-8");
-					htmlBodyPart.setHeader("Content-Type", "text/html; charset=UTF-8");
-					relatedMp.addBodyPart(htmlBodyPart);
+                    final MimeBodyPart htmlBodyPart = new MimeBodyPart();
+                    htmlBodyPart.setText(htmlContent, "UTF-8");
+                    htmlBodyPart.setHeader("Content-Type", "text/html; charset=UTF-8");
+                    relatedMp.addBodyPart(htmlBodyPart);
 
-					// add multi-part for image
-					for (Map.Entry<String, URL> entry : imageUrlsByCid.entrySet()) {
-						MimeBodyPart part = new MimeBodyPart();
-						DataHandler dh = new DataHandler(entry.getValue());
-						part.setDataHandler(dh);
-						part.addHeader("Content-ID", "<" + entry.getKey() + ">");
-						part.addHeader("Content-Type", dh.getContentType());
-						part.setDisposition(Part.INLINE);
-						relatedMp.addBodyPart(part);
-					}
-				}
+                    // add multi-part for image
+                    for (Map.Entry<String, URL> entry : imageUrlsByCid.entrySet()) {
+                        MimeBodyPart part = new MimeBodyPart();
+                        DataHandler dh = new DataHandler(entry.getValue());
+                        part.setDataHandler(dh);
+                        part.addHeader("Content-ID", "<" + entry.getKey() + ">");
+                        part.addHeader("Content-Type", dh.getContentType());
+                        part.setDisposition(Part.INLINE);
+                        relatedMp.addBodyPart(part);
+                    }
+                }
 
-				// attachments
-				// TODO.. (~ addAttachments(mpMixed,attachments))
-			}
+                // attachments
+                // TODO.. (~ addAttachments(mpMixed,attachments))
+            }
 
-			// Send and log it
-			Transport.send(msg);
-			if (LOG.isInfoEnabled())
-			{
-				LOG.info("Sent e-mail to=" + to + ", subject=\"" + subject + "\", used "
-						 + (c_useJndi ? "JNDI" : "standalone") + " mail session.");
-			}
-		}
-		catch (MessagingException e)
-		{
-			LOG.error("Error while sending multipart message", e);
-			throw e;
-		}
-	}
-    
+            // Send and log it
+            Transport.send(msg);
+            LOG.info("Sent e-mail to={}, subject=\"{}\", used {} mail session.", to, subject, (c_useJndi ? "JNDI" : "standalone") );
+        }
+        catch (MessagingException e)
+        {
+            LOG.error("Error while sending", e);
+            throw e;
+        }
+    }
+
     // --------- JavaMail Session Helper methods  --------------------------------
 
     /**
@@ -452,7 +453,7 @@ public final class MailUtil {
      * Returns a stand-alone JavaMail Session by looking up the correct mail account, password, host and others from a
      * supplied set of properties. If the JavaMail property {@value #PROP_MAIL_ACCOUNT} is set to a value that is
      * non-<code>null</code> and of non-zero length, the Session will be initialized with an instance of
-     * {@link javax.mail.Authenticator}.
+     * {@link jakarta.mail.Authenticator}.
      *
      * @param props the properties that contain mail session properties.
      * @return the initialized JavaMail Session.
@@ -479,9 +480,8 @@ public final class MailUtil {
                 mailProps.setProperty( key, props.getProperty( key ) );
             }
         }
-		mailProps.put(PROP_MAIL_SSL_PROTOCOLS, "TLSv1.2");  // required for JavaMail 1.4.7, not required for >= 1.6.2
 
-		// Add SMTP authentication if required
+        // Add SMTP authentication if required
         final Session session;
         if ( useAuthentication ) {
             mailProps.put( PROP_MAIL_AUTH, TRUE );
@@ -522,7 +522,7 @@ public final class MailUtil {
     }
 
     /**
-     * Simple {@link javax.mail.Authenticator} subclass that authenticates a user to
+     * Simple {@link jakarta.mail.Authenticator} subclass that authenticates a user to
      * an SMTP server.
      */
     protected static class SmtpAuthenticator extends Authenticator {

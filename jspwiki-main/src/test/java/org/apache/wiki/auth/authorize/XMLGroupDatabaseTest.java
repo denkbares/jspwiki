@@ -18,6 +18,12 @@
  */
 package org.apache.wiki.auth.authorize;
 
+import java.io.File;
+import java.io.IOException;
+import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
+import java.io.File;
+import java.io.IOException;
 import org.apache.wiki.TestEngine;
 import org.apache.wiki.WikiEngine;
 import org.apache.wiki.api.exceptions.WikiException;
@@ -25,11 +31,16 @@ import org.apache.wiki.auth.NoSuchPrincipalException;
 import org.apache.wiki.auth.WikiPrincipal;
 import org.apache.wiki.auth.WikiSecurityException;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.security.Principal;
 import java.util.Properties;
+import java.util.UUID;
+import org.apache.commons.io.FileUtils;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import java.util.UUID;
+import org.apache.commons.io.FileUtils;
 
 
 /**
@@ -37,22 +48,38 @@ import java.util.Properties;
  */
 public class XMLGroupDatabaseTest {
 
-    private XMLGroupDatabase m_db;
-
-    private String m_wiki;
-
+    private WikiEngine engine;
+    private File target ;
     @BeforeEach
-    public void setUp() throws Exception {
-
+    public void init() throws IOException {
         final Properties props = TestEngine.getTestProperties();
-        final WikiEngine engine = new TestEngine( props );
-        m_db = new XMLGroupDatabase();
-        m_db.initialize( engine, props );
-        m_wiki = engine.getApplicationName();
+        target = new File("target/XMLGroupDatabaseTest" + UUID.randomUUID().toString() + ".xml");
+        FileUtils.copyFile(new File("src/test/resources/groupdatabase.xml"), target);
+        props.put(XMLGroupDatabase.PROP_DATABASE, target.getAbsolutePath());
+        engine = TestEngine.build(props);
+    }
+    
+    @AfterEach
+    public void cleanup() {
+        if (target != null) {
+            target.delete();
+        }
     }
 
     @Test
-    public void testDelete() throws WikiException {
+    public void testDelete() throws Exception {
+        XMLGroupDatabase m_db;
+
+        String m_wiki;
+        final Properties props = TestEngine.getTestProperties();
+        File target = new File("target/XMLUserDatabaseTest" + UUID.randomUUID().toString() + ".xml");
+        FileUtils.copyFile(new File("src/test/resources/groupdatabase.xml" ), target);
+        props.put( XMLGroupDatabase.PROP_DATABASE, target.getAbsolutePath() );
+        
+        final WikiEngine engine = new TestEngine(props);
+        m_db = new XMLGroupDatabase();
+        m_db.initialize(engine, engine.getWikiProperties());
+        m_wiki = engine.getApplicationName();
         // First, count the number of groups in the db now.
         final int oldUserCount = m_db.groups().length;
 
@@ -66,7 +93,7 @@ public class XMLGroupDatabaseTest {
         m_db.save( group, new WikiPrincipal( "Tester" ) );
 
         // Make sure the profile saved successfully
-        group = backendGroup( name );
+        group = backendGroup( name, m_db );
         Assertions.assertEquals( name, group.getName() );
         Assertions.assertEquals( oldUserCount + 1, m_db.groups().length );
 
@@ -76,7 +103,17 @@ public class XMLGroupDatabaseTest {
     }
 
     @Test
-    public void testGroups() throws WikiSecurityException {
+    public void testGroups() throws WikiSecurityException, WikiException, IOException {
+        XMLGroupDatabase m_db;
+        final Properties props = TestEngine.getTestProperties();
+        File target = new File("target/XMLUserDatabaseTest" + UUID.randomUUID().toString() + ".xml");
+        FileUtils.copyFile(new File("src/test/resources/groupdatabase.xml" ), target);
+        props.put( XMLGroupDatabase.PROP_DATABASE, target.getAbsolutePath() );
+        String m_wiki;
+        final WikiEngine engine = new TestEngine(props);
+        m_db = new XMLGroupDatabase();
+        m_db.initialize(engine, engine.getWikiProperties());
+        m_wiki = engine.getApplicationName();
         // Test file has 4 groups in it: TV, Literature, Art, and Admin
         final Group[] groups = m_db.groups();
         Assertions.assertEquals( 4, groups.length );
@@ -84,29 +121,29 @@ public class XMLGroupDatabaseTest {
         Group group;
 
         // Group TV has 3 members
-        group = backendGroup( "TV" );
+        group = backendGroup( "TV", m_db );
         Assertions.assertEquals( "TV", group.getName() );
         Assertions.assertEquals( 3, group.members().length );
 
         // Group Literature has 2 members
-        group = backendGroup( "Literature" );
+        group = backendGroup( "Literature", m_db );
         Assertions.assertEquals( "Literature", group.getName() );
         Assertions.assertEquals( 2, group.members().length );
 
         // Group Art has no members
-        group = backendGroup( "Art" );
+        group = backendGroup( "Art", m_db );
         Assertions.assertEquals( "Art", group.getName() );
         Assertions.assertEquals( 0, group.members().length );
 
         // Group Admin has 1 member (Administrator)
-        group = backendGroup( "Admin" );
+        group = backendGroup( "Admin", m_db );
         Assertions.assertEquals( "Admin", group.getName() );
         Assertions.assertEquals( 1, group.members().length );
         Assertions.assertEquals( "Administrator", group.members()[ 0 ].getName() );
 
         // Group Archaeology doesn't exist
         try {
-            backendGroup( "Archaeology" );
+            backendGroup( "Archaeology", m_db );
             // We should never get here
             Assertions.fail();
         } catch( final NoSuchPrincipalException e ) {
@@ -116,6 +153,16 @@ public class XMLGroupDatabaseTest {
 
     @Test
     public void testSave() throws Exception {
+        XMLGroupDatabase m_db;
+        final Properties props = TestEngine.getTestProperties();
+        File target = new File("target/XMLUserDatabaseTest" + UUID.randomUUID().toString() + ".xml");
+        FileUtils.copyFile(new File("src/test/resources/groupdatabase.xml" ), target);
+        props.put( XMLGroupDatabase.PROP_DATABASE, target.getAbsolutePath() );
+        String m_wiki;
+        final WikiEngine engine = new TestEngine(props);
+        m_db = new XMLGroupDatabase();
+        m_db.initialize(engine, engine.getWikiProperties());
+        m_wiki = engine.getApplicationName();
         // Create a new group with random name
         final String name = "TestGroup" + System.currentTimeMillis();
         Group group = new Group( name, m_wiki );
@@ -128,7 +175,7 @@ public class XMLGroupDatabaseTest {
         m_db.save( group, new WikiPrincipal( "Tester" ) );
 
         // Make sure the profile saved successfully
-        group = backendGroup( name );
+        group = backendGroup( name, m_db );
         Assertions.assertEquals( name, group.getName() );
         Assertions.assertEquals( 3, group.members().length );
         Assertions.assertTrue( group.isMember( new WikiPrincipal( "Al" ) ) );
@@ -150,6 +197,16 @@ public class XMLGroupDatabaseTest {
 
     @Test
     public void testResave() throws Exception {
+        XMLGroupDatabase m_db;
+        final Properties props = TestEngine.getTestProperties();
+        File target = new File("target/XMLUserDatabaseTest" + UUID.randomUUID().toString() + ".xml");
+        FileUtils.copyFile(new File("src/test/resources/groupdatabase.xml" ), target);
+        props.put( XMLGroupDatabase.PROP_DATABASE, target.getAbsolutePath() );
+        String m_wiki;
+        final WikiEngine engine = new TestEngine(props);
+        m_db = new XMLGroupDatabase();
+        m_db.initialize(engine, engine.getWikiProperties());
+        m_wiki = engine.getApplicationName();
         // Create a new group with random name & 3 members
         final String name = "TestGroup" + System.currentTimeMillis();
         Group group = new Group( name, m_wiki );
@@ -162,7 +219,7 @@ public class XMLGroupDatabaseTest {
         m_db.save( group, new WikiPrincipal( "Tester" ) );
 
         // Make sure the profile saved successfully
-        group = backendGroup( name );
+        group = backendGroup( name, m_db );
         Assertions.assertEquals( name, group.getName() );
 
         // Modify the members by adding the group; re-add Al while we're at it
@@ -182,7 +239,7 @@ public class XMLGroupDatabaseTest {
         Assertions.assertNotNull( group.getLastModified() );
 
         // Check the back-end; We should see the same thing
-        group = backendGroup( name );
+        group = backendGroup( name, m_db );
         members = group.members();
         Assertions.assertEquals( 4, members.length );
         Assertions.assertNotNull( group.getCreator() );
@@ -196,7 +253,7 @@ public class XMLGroupDatabaseTest {
         m_db.delete( group );
     }
 
-    private Group backendGroup( final String name ) throws WikiSecurityException {
+    private Group backendGroup( final String name, final XMLGroupDatabase m_db ) throws WikiSecurityException {
         final Group[] groups = m_db.groups();
         for( final Group group : groups ) {
             if( group.getName().equals( name ) ) {
@@ -204,6 +261,33 @@ public class XMLGroupDatabaseTest {
             }
         }
         throw new NoSuchPrincipalException( "No group named " + name );
+    }
+    
+    
+    @Test
+    public void testJspwiki130() throws Exception {
+        XMLGroupDatabase m_db = new XMLGroupDatabase();
+        m_db.initialize(engine, engine.getWikiProperties());
+        //force resaving it...
+        Method m = XMLGroupDatabase.class.getDeclaredMethod("saveDOM", null);
+        m.setAccessible(true);
+        m.invoke(m_db, null);
+
+        //check to ensure the check file was created.
+        File check = new File(target.getAbsoluteFile() + ".check");
+        Assertions.assertTrue(check.exists());
+
+        //alert the groupdb in a way that is still xml valid but will trigger the hash check
+        String xml = FileUtils.readFileToString(target, StandardCharsets.UTF_8);
+        xml = xml.replace("Archie Bunker", "Bunker Archie");
+        FileUtils.writeStringToFile(target, xml, StandardCharsets.UTF_8);
+
+        //reinit, expecting an exception
+        final XMLGroupDatabase m_db2 = new XMLGroupDatabase();
+        Assertions.assertThrows(RuntimeException.class, () -> {
+              m_db2.initialize(engine, engine.getWikiProperties());
+        });
+      
     }
 
 }

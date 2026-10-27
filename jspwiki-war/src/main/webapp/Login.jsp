@@ -58,7 +58,7 @@
     // Are we saving the profile?
     if( "saveProfile".equals( request.getParameter( "action" ) ) ) {
         if( !CsrfProtectionFilter.isCsrfProtectedPost( request ) ) {
-            response.sendRedirect( "/error/Forbidden.html" );
+            response.sendRedirect( request.getContextPath() + "/error/Forbidden.html" );
             return;
         }
 
@@ -72,7 +72,7 @@
         if ( wikiSession.getMessages( "profile" ).length == 0 ) {
             try {
                 userMgr.setUserProfile( wikiContext, profile );
-                CookieAssertionLoginModule.setUserCookie( response, profile.getFullname() );
+                CookieAssertionLoginModule.setUserCookie( pageContext, response, profile.getFullname() );
             } catch( DuplicateUserException due ) {
                 // User collision! (full name or wiki name already taken)
                 wikiSession.addMessage( "profile", wiki.getManager( InternationalizationManager.class )
@@ -148,7 +148,7 @@
 
         // Set user cookie
         Principal principal = wikiSession.getUserPrincipal();
-        CookieAssertionLoginModule.setUserCookie( response, principal.getName() );
+        CookieAssertionLoginModule.setUserCookie( pageContext, response, principal.getName() );
 
         if( rember != null ) {
             CookieAuthenticationLoginModule.setLoginCookie( wiki, response, principal.getName() );

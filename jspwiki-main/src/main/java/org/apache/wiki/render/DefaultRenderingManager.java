@@ -69,7 +69,6 @@ import java.util.Properties;
 public class DefaultRenderingManager implements RenderingManager {
 
     private static final Logger LOG = LoggerFactory.getLogger( DefaultRenderingManager.class );
-
     private static final String VERSION_DELIMITER = "::";
     /** The name of the default renderer. */
     private static final String DEFAULT_PARSER = JSPWikiMarkupParser.class.getName();

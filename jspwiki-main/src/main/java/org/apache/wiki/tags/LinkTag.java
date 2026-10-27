@@ -19,6 +19,8 @@
 package org.apache.wiki.tags;
 
 import org.slf4j.LoggerFactory;
+
+import static org.apache.wiki.utils.WikiPageUtils.getJarVersion;
 import org.slf4j.Logger;
 import org.apache.wiki.api.core.Attachment;
 import org.apache.wiki.api.core.ContextEnum;
@@ -32,14 +34,12 @@ import org.apache.wiki.parser.LinkParsingOperations;
 import org.apache.wiki.parser.MarkupParser;
 import org.apache.wiki.util.TextUtil;
 
-import javax.servlet.jsp.JspWriter;
-import javax.servlet.jsp.tagext.BodyContent;
-import javax.servlet.jsp.tagext.BodyTag;
+import jakarta.servlet.jsp.JspWriter;
+import jakarta.servlet.jsp.tagext.BodyContent;
+import jakarta.servlet.jsp.tagext.BodyTag;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-
-import static org.apache.wiki.utils.WikiPageUtils.getJarVersion;
 
 /**
  *  Provides a generic link tag for all kinds of linking purposes.
@@ -51,7 +51,7 @@ import static org.apache.wiki.utils.WikiPageUtils.getJarVersion;
  */
 public class LinkTag extends WikiLinkTag implements ParamHandler, BodyTag {
 
-	static final long serialVersionUID = 0L;
+    private static final long serialVersionUID = 0L;
     private static final Logger LOG = LoggerFactory.getLogger( LinkTag.class );
 
     private String m_version;
@@ -264,10 +264,9 @@ public class LinkTag extends WikiLinkTag implements ParamHandler, BodyTag {
             url = makeBasicURL( m_context, page, null );
         }
 
-
-        String version = m_version == null ? getJarVersion() : m_version;
-        if (appendVersion && url != null && !"version".contains(url) && !url.endsWith("/") && !url.endsWith(".jsp")) {
-            String appendChar = url.contains("?") ? "&" : "?";
+        final String version = m_version == null ? getJarVersion() : m_version;
+        if( appendVersion && url != null && !"version".contains( url ) && !url.endsWith( "/" ) && !url.endsWith( ".jsp" ) ) {
+            final String appendChar = url.contains( "?" ) ? "&" : "?";
             url += appendChar + "version=" + version;
         }
 

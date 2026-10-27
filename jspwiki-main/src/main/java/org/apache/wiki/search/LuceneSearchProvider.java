@@ -18,27 +18,12 @@
  */
 package org.apache.wiki.search;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.StringReader;
-import java.io.StringWriter;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.Properties;
-import java.util.concurrent.Executor;
-
 import org.apache.commons.lang3.StringUtils;
-import org.apache.lucene.analysis.classic.ClassicAnalyzer;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.analysis.classic.ClassicAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StringField;
@@ -57,6 +42,7 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TermQuery;
+import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.highlight.Highlighter;
 import org.apache.lucene.search.highlight.InvalidTokenOffsetsException;
 import org.apache.lucene.search.highlight.QueryScorer;
@@ -85,7 +71,20 @@ import org.apache.wiki.util.ClassUtil;
 import org.apache.wiki.util.FileUtil;
 import org.apache.wiki.util.TextUtil;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.StringReader;
+import java.io.StringWriter;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
+import java.util.Properties;
 import java.util.stream.Collectors;
 
 
@@ -96,10 +95,9 @@ import java.util.stream.Collectors;
  */
 public class LuceneSearchProvider implements SearchProvider {
 
-    protected static final Logger LOG = LoggerFactory.getLogger(LuceneSearchProvider.class);
+    protected static final Logger LOG = LoggerFactory.getLogger( LuceneSearchProvider.class );
 
     protected Engine m_engine;
-    private Executor searchExecutor;
 
     // Lucene properties.
 
@@ -132,14 +130,13 @@ public class LuceneSearchProvider implements SearchProvider {
 
     /** The maximum number of hits to return from searches. */
     public static final int MAX_SEARCH_HITS = 99_999;
-
-    protected static final String PUNCTUATION_TO_SPACES = StringUtils.repeat(" ", TextUtil.PUNCTUATION_CHARS_ALLOWED.length() );
+    protected static final String PUNCTUATION_TO_SPACES = StringUtils.repeat( " ", TextUtil.PUNCTUATION_CHARS_ALLOWED.length() );
 
     /** {@inheritDoc} */
     @Override
     public void initialize( final Engine engine, final Properties props ) throws NoRequiredPropertyException, IOException {
         m_engine = engine;
-//        searchExecutor = Executors.newCachedThreadPool();
+        // no executor: an unbounded cached thread pool per engine is never shut down and does not pay off for wiki-sized indexes
 
         m_luceneDirectory = engine.getWorkDir() + File.separator + LUCENE_DIR + File.separator + getIndexId() + File.separator + Paths.get(props.getProperty("var.basedir", "unknown-wiki")).getFileName();
 
@@ -217,8 +214,8 @@ public class LuceneSearchProvider implements SearchProvider {
 
                 final Directory luceneDir = FSDirectory.open( dir.toPath() );
                 try( final IndexWriter writer = getIndexWriter( luceneDir ) ) {
-                    long pagesStart = System.currentTimeMillis();
-					long pagesIndexed = 0L;
+                    final long pagesStart = System.currentTimeMillis();
+                    long pagesIndexed = 0L;
                     final Collection< Page > allPages = m_engine.getManager( PageManager.class ).getAllPages();
                     for( final Page page : allPages ) {
                         try {
@@ -229,10 +226,9 @@ public class LuceneSearchProvider implements SearchProvider {
                             LOG.warn( "Unable to index page {}, continuing to next ", page.getName(), e );
                         }
                     }
-                    LOG.info("Indexed {} pages in {}ms", pagesIndexed, System.currentTimeMillis() - pagesStart);
+                    LOG.info( "Indexed {} pages in {}ms", pagesIndexed, System.currentTimeMillis() - pagesStart );
 
-                    long attachmentStart = System.currentTimeMillis();
-
+                    final long attachmentStart = System.currentTimeMillis();
                     long attachmentsIndexed = 0L;
                     final Collection< Attachment > allAttachments = m_engine.getManager( AttachmentManager.class ).getAllAttachments();
                     for( final Attachment att : allAttachments ) {
@@ -244,7 +240,7 @@ public class LuceneSearchProvider implements SearchProvider {
                             LOG.warn( "Unable to index attachment {}, continuing to next", att.getName(), e );
                         }
                     }
-                    LOG.info("Indexed {} attachments in {}ms", attachmentsIndexed, System.currentTimeMillis() - attachmentStart);
+                    LOG.info( "Indexed {} attachments in {}ms", attachmentsIndexed, System.currentTimeMillis() - attachmentStart );
                 }
 
                 final Date end = new Date();
@@ -486,7 +482,6 @@ public class LuceneSearchProvider implements SearchProvider {
             final QueryParser qp = new MultiFieldQueryParser( queryfields, getLuceneAnalyzer() );
             qp.setAllowLeadingWildcard(true);
             final Query luceneQuery = qp.parse( query );
-//            final IndexSearcher searcher = new IndexSearcher( reader, searchExecutor );
             final IndexSearcher searcher = new IndexSearcher( reader );
 
             if( ( flags & FLAG_CONTEXTS ) != 0 ) {
@@ -495,15 +490,13 @@ public class LuceneSearchProvider implements SearchProvider {
                                                new QueryScorer( luceneQuery ) );
             }
 
-            final ScoreDoc[] hits = searcher.search( luceneQuery, MAX_SEARCH_HITS ).scoreDocs;
             final AuthorizationManager mgr = m_engine.getManager( AuthorizationManager.class );
+            final TopDocs hits = searcher.search( luceneQuery, MAX_SEARCH_HITS );
+            final StoredFields storedFields = reader.storedFields();
 
-            list = new ArrayList<>( hits.length );
-            // lucene-10: IndexSearcher.doc(int) removed -> obtain a StoredFields accessor once and reuse
-            final StoredFields storedFields = searcher.storedFields();
-            for( final ScoreDoc hit : hits ) {
-                final int docID = hit.doc;
-                final Document doc = storedFields.document( docID );
+            list = new ArrayList<>( hits.scoreDocs.length );
+            for( final ScoreDoc hit : hits.scoreDocs ) {
+                final Document doc = storedFields.document( hit.doc );
                 final String pageName = doc.get( LUCENE_ID );
                 final Page page = m_engine.getManager( PageManager.class ).getPage( pageName, PageProvider.LATEST_VERSION );
 

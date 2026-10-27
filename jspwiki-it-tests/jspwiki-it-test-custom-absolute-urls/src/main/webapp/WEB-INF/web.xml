@@ -27,13 +27,13 @@
        JSPWiki is an open source JSP-based WikiClone.  It is licensed
        under the Apache 2.0 license.
 
-       For more information, please come to http://jspwiki.apache.org/
+       For more information, please come to https://jspwiki.apache.org/
    </description>
    <display-name>JSPWiki</display-name>
 
    <!-- Resource bundle default location -->
    <context-param>
-     <param-name>javax.servlet.jsp.jstl.fmt.localizationContext</param-name>
+     <param-name>jakarta.servlet.jsp.jstl.fmt.localizationContext</param-name>
      <param-value>templates.default</param-value>
    </context-param>
 

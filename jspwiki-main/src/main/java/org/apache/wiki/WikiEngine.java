@@ -64,8 +64,8 @@ import org.apache.wiki.util.TextUtil;
 import org.apache.wiki.variables.VariableManager;
 import org.apache.wiki.workflow.WorkflowManager;
 
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletContext;
+import jakarta.servlet.ServletConfig;
+import jakarta.servlet.ServletContext;
 import java.io.File;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
@@ -85,6 +85,9 @@ import java.util.Properties;
 import java.util.TimeZone;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import org.apache.wiki.auth.SecurityVerificationUtility;
+import org.apache.wiki.api.core.Context;
+import org.apache.wiki.security.AuditLogger;
 
 
 /**
@@ -241,6 +244,7 @@ public class WikiEngine implements Engine {
     @Override
     public void initialize( final Properties props ) throws WikiException {
         m_startTime  = new Date();
+        
         m_properties = props;
 
         LOG.info( "*******************************************" );
@@ -257,7 +261,7 @@ public class WikiEngine implements Engine {
                 throw new InternalWikiException( "JSPWiki requires a container which supports at least version 3.1 of Servlet specification" );
             }
         }
-
+        AuditLogger.initialize(this);
         fireEvent( WikiEngineEvent.INITIALIZING ); // begin initialization
 
         LOG.debug( "Configuring WikiEngine..." );
@@ -343,10 +347,15 @@ public class WikiEngine implements Engine {
 
         final Map< String, String > extraComponents = ClassUtil.getExtraClassMappings();
         initExtraComponents( extraComponents );
+        
+        
+        ProductUpdateChecker.initialize(props);
 
         fireEvent( WikiEngineEvent.INITIALIZED ); // initialization complete
 
         LOG.info( "WikiEngine configured." );
+        
+        new SecurityVerificationUtility().verify(this);
         m_isConfigured = true;
     }
 
@@ -358,13 +367,13 @@ public class WikiEngine implements Engine {
     void createAndFindWorkingDirectory( final Properties props ) throws WikiException {
         m_workDir = TextUtil.getStringProperty( props, PROP_WORKDIR, null );
 
-		if( m_workDir == null ) {
-			m_workDir = System.getProperty( "java.io.tmpdir", "." );
-			String baseDirName = new File(TextUtil.getStringProperty(props, "var.basedir", "default")).getName();
-			String baseDirSuffix = baseDirName.substring(0, Math.min(baseDirName.length(), 10)).replaceAll("\\h+", "_"); // avoid long paths
-			String appName = TextUtil.getStringProperty(props, PROP_APPNAME, m_appid).replaceAll("\\h+", "_");
-			m_workDir += File.separator+Release.APPNAME+"-" + appName +"-"+baseDirSuffix;
-		}
+        if( m_workDir == null ) {
+            m_workDir = System.getProperty( "java.io.tmpdir", "." );
+            final String baseDirName = new File( TextUtil.getStringProperty( props, "var.basedir", "default" ) ).getName();
+            final String baseDirSuffix = baseDirName.substring( 0, Math.min( baseDirName.length(), 10 ) ).replaceAll( "\\h+", "_" ); // avoid long paths
+            final String appName = TextUtil.getStringProperty( props, PROP_APPNAME, m_appid ).replaceAll( "\\h+", "_" );
+            m_workDir += File.separator + Release.APPNAME + "-" + appName + "-" + baseDirSuffix;
+        }
 
         final File f = new File( m_workDir );
         try {
@@ -667,6 +676,9 @@ public class WikiEngine implements Engine {
         fireEvent( WikiEngineEvent.SHUTDOWN );
         getManager( CachingManager.class ).shutdown();
         getManager( FilterManager.class ).destroy();
+        if (ProductUpdateChecker.getInstance() != null) {
+            ProductUpdateChecker.getInstance().shutdown();
+        }
         WikiEventManager.shutdown();
     }
 
@@ -998,7 +1010,7 @@ public class WikiEngine implements Engine {
      */
     protected final void firePageEvent( final int type, final String pageName ) {
         if( WikiEventManager.isListening(this ) ) {
-            WikiEventManager.fireEvent(this,new WikiPageEvent(this, type, pageName ) );
+            WikiEventManager.fireEvent(this,new WikiPageEvent(this, type, pageName ));
         }
     }
 

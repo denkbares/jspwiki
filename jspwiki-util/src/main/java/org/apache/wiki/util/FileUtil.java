@@ -18,6 +18,9 @@
  */
 package org.apache.wiki.util;
 
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
+
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -41,9 +44,6 @@ import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  *  Generic utilities related to file and stream handling.
  */
@@ -51,7 +51,7 @@ public final class FileUtil {
 
     /** Size of the buffer used when copying large chunks of data. */
     private static final int      BUFFER_SIZE = 8192;
-    private static final Logger LOG         = LoggerFactory.getLogger(FileUtil.class);
+    private static final Logger   LOG         = LoggerFactory.getLogger(FileUtil.class);
 
     /**
      *  Private constructor prevents instantiation.

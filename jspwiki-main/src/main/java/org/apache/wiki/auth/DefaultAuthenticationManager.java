@@ -44,15 +44,19 @@ import javax.security.auth.Subject;
 import javax.security.auth.callback.CallbackHandler;
 import javax.security.auth.login.LoginException;
 import javax.security.auth.spi.LoginModule;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import java.security.Principal;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import org.apache.wiki.WikiContext;
+import org.apache.wiki.WikiSession;
+import org.apache.wiki.auth.user.UserProfile;
 
 
 /**
@@ -144,6 +148,7 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
                  return ( ( WebContainerAuthorizer )authorizer ).isContainerAuthorized();
             }
         } catch ( final WikiException e ) {
+            LOG.debug(e.getMessage(), e);
             // It's probably ok to fail silently...
         }
         return false;
@@ -175,9 +180,10 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
 
             // If the container logged the user in successfully, tell the Session (and add all the Principals)
             if (!principals.isEmpty()) {
-                fireEvent( WikiSecurityEvent.LOGIN_AUTHENTICATED, getLoginPrincipal( principals ), session );
+                rotateSessionAfterAuthentication( request, session );
+                fireEvent( WikiSecurityEvent.LOGIN_AUTHENTICATED, getLoginPrincipal( principals ), session, request );
                 for( final Principal principal : principals ) {
-                    fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, principal, session );
+                    fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, principal, session, request );
                 }
 
                 // Add all appropriate Authorizer roles
@@ -190,7 +196,24 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
             // Execute the cookie assertion login module
             final Set< Principal > principals = authenticationMgr.doJAASLogin( CookieAssertionLoginModule.class, handler, options );
             if (!principals.isEmpty()) {
-                fireEvent( WikiSecurityEvent.LOGIN_ASSERTED, getLoginPrincipal( principals ), session);
+                fireEvent( WikiSecurityEvent.LOGIN_ASSERTED, getLoginPrincipal( principals ), session, request);
+            }
+        }
+        
+        if (!session.isAnonymous()) {
+            final SessionMonitor monitor = SessionMonitor.getInstance(m_engine);
+            List<Session> sessions = monitor.findOtherSessionsByUsername(session.getLoginPrincipal().getName());
+            StringBuilder sb = new StringBuilder();
+            for (Session s : sessions) {
+                if (s.getRemoteAddress() != null && !s.getRemoteAddress().equals(request.getRemoteAddr())) {
+                    sb.append(request.getRemoteAddr()).append(",");
+                }
+            }
+            if (sb.length() > 0) {
+                sb.append(request.getRemoteAddr());
+                LOG.warn("AUDIT - New login for login '" + session.getLoginPrincipal().getName() + "' from " + request.getRemoteAddr()
+                        + " however there are already concurrent logins from the following addresses " + sb.toString());
+                fireEvent(WikiSecurityEvent.LOGIN_ALERT, session.getLoginPrincipal(), session, request);
             }
         }
 
@@ -198,11 +221,33 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
         if( session.isAnonymous() ) {
             final Set< Principal > principals = authenticationMgr.doJAASLogin( AnonymousLoginModule.class, handler, options );
             if(!principals.isEmpty()) {
-                fireEvent( WikiSecurityEvent.LOGIN_ANONYMOUS, getLoginPrincipal( principals ), session );
+                fireEvent( WikiSecurityEvent.LOGIN_ANONYMOUS, getLoginPrincipal( principals ), session, request );
                 return true;
             }
+        } else {
+            //attempt to get the user profile
+           
+            try {
+                UserManager mgr = m_engine.getManager(UserManager.class);
+                UserProfile profile = mgr.getUserDatabase().findByLoginName(session.getLoginPrincipal().getName());
+                if (request.getSession().getAttribute("LOGINTIMESTAMPSET") == null) {
+                    request.getSession().setAttribute("LOGINTIMESTAMPSET", true);
+                    Long lastLoginAt = (Long) profile.getAttributes().get(UserProfile.ATTR_CURRENT_LOGIN_TIMESTAMP);
+                    String oldIp = (String) profile.getAttributes().get(UserProfile.ATTR_CURRENT_LOGIN_IP);
+                    if (lastLoginAt != null) {
+                        profile.getAttributes().put(UserProfile.ATTR_PREVIOUS_LOGIN_TIMESTAMP, lastLoginAt);
+                    }
+                    if (oldIp != null) {
+                        profile.getAttributes().put(UserProfile.ATTR_PREVIOUS_LOGIN_IP, oldIp);
+                    }
+                    profile.getAttributes().put(UserProfile.ATTR_CURRENT_LOGIN_IP, request.getRemoteAddr());
+                    profile.getAttributes().put(UserProfile.ATTR_CURRENT_LOGIN_TIMESTAMP, System.currentTimeMillis());
+                    mgr.setUserProfile(Wiki.context().create(m_engine, request, ""), profile);
+                }
+            } catch (Exception ex) {
+                LOG.debug(ex.getMessage(), ex);
+            }
         }
-
         // If by some unusual turn of events the Anonymous login module doesn't work, login failed!
         return false;
     }
@@ -227,9 +272,10 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
         // Execute the user's specified login module
         final Set< Principal > principals = doJAASLogin( m_loginModuleClass, handler, m_loginModuleOptions );
         if(!principals.isEmpty()) {
-            fireEvent(WikiSecurityEvent.LOGIN_AUTHENTICATED, getLoginPrincipal( principals ), session );
+            rotateSessionAfterAuthentication( request, session );
+            fireEvent(WikiSecurityEvent.LOGIN_AUTHENTICATED, getLoginPrincipal( principals ), session, request );
             for ( final Principal principal : principals ) {
-                fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, principal, session );
+                fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, principal, session, request );
             }
 
             // Add all appropriate Authorizer roles
@@ -238,6 +284,33 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Session-fixation defense: the pre-authentication HTTP session id and anti-CSRF token must not survive the
+     * upgrade to an authenticated session. Rotates the servlet session id, re-keys the {@link SessionMonitor} entry
+     * so the wiki session attaches to the new id, and regenerates the wiki session's anti-CSRF token so a token
+     * observed before login cannot be replayed against the authenticated session.
+     *
+     * @param request the servlet request, may be <code>null</code> (e.g. embedded use); nothing to rotate then
+     * @param session the wiki session being upgraded
+     */
+    private void rotateSessionAfterAuthentication( final HttpServletRequest request, final Session session ) {
+        if( request != null ) {
+            final HttpSession httpSession = request.getSession( false );
+            if( httpSession != null ) {
+                final SessionMonitor monitor = SessionMonitor.getInstance( m_engine );
+                monitor.remove( httpSession );
+                try {
+                    request.changeSessionId();
+                } catch( final IllegalStateException e ) {
+                    LOG.debug( "Unable to rotate the http session id: {}", e.getMessage() );
+                }
+                monitor.register( httpSession, session );
+            }
+        }
+        session.regenerateAntiCsrfToken();
+        
     }
 
     /**
@@ -260,6 +333,7 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
             m_lastLoginAttempts.add( username );
         } catch( final InterruptedException e ) {
             // FALLTHROUGH is fine
+            LOG.debug(e.getMessage(), e);
         }
     }
 
@@ -290,7 +364,7 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
         }
 
         // Log the event
-        fireEvent( WikiSecurityEvent.LOGOUT, originalPrincipal, null );
+        fireEvent( WikiSecurityEvent.LOGOUT, originalPrincipal, null, request );
     }
 
     /**
@@ -337,6 +411,7 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
                 commitSucceeded = loginModule.commit();
             }
         } catch( final LoginException e ) {
+            LOG.debug(e.getMessage(), e);
             // Login or commit failed! No principal for you!
         }
 
@@ -409,16 +484,39 @@ public class DefaultAuthenticationManager implements AuthenticationManager {
         for( final Principal role : authorizer.getRoles() ) {
             // Test the Authorizer
             if( authorizer.isUserInRole( session, role ) ) {
-                fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, role, session );
+                fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, role, session, request );
                 LOG.debug( "Added authorizer role {}.", role.getName() );
             // If web authorizer, test the request.isInRole() method also
             } else if ( request != null && authorizer instanceof WebAuthorizer ) {
                 final WebAuthorizer wa = ( WebAuthorizer )authorizer;
+                addRoles( request, "jspwiki.role.admin", "Admin",session);
+                addRoles( request, "jspwiki.role.authenticated", "Authenticated",session);
+                addRoles( request, "jspwiki.role.extraRoles", null,session);
                 if ( wa.isUserInRole( request, role ) ) {
-                    fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, role, session );
+                    fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, role, session, request );
                     LOG.debug( "Added container role {}.",role.getName() );
                 }
             }
+        }
+    }
+    
+    private void addRoles(HttpServletRequest request, String configProp, String jspWikiRole, Session session) {
+        if (m_engine.getWikiProperties().containsKey(configProp)) {
+            String roles = m_engine.getWikiProperties().getProperty(configProp);
+            if (roles != null) {
+                String[] parts = roles.split("\\,");
+                for (String s : parts) {
+                    if (request.isUserInRole(s)) {
+                        WikiPrincipal wikiPrincipal = new WikiPrincipal(s);
+                        fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, wikiPrincipal, session );
+                        if (jspWikiRole != null) {
+                            WikiPrincipal wikiPrincipal1 = new WikiPrincipal(jspWikiRole);
+                            fireEvent( WikiSecurityEvent.PRINCIPAL_ADD, wikiPrincipal1, session );
+                        }
+                    }
+                }
+            }
+
         }
     }
 

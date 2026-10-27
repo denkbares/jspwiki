@@ -648,12 +648,12 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 						final Attachment att = getAttachmentInfo(page, attachmentName, WikiProvider.LATEST_VERSION);
 						//  Sanity check - shouldn't really be happening, unless you mess with the repository directly.
 						if (att == null) {
-							throw new ProviderException("Attachment disappeared while reading information:"
-														+ " if you did not touch the repository, there is a serious bug somewhere. " + "Attachment = " + attachment
-														+ ", decoded = " + attachmentName);
+							LOG.error("Attachment disappeared while reading information: if you did not touch the repository, there is a serious bug"
+									  + " somewhere or perhaps it was deleted by antivirus software, etc. Attachment = {}, decoded = {}", attachment, attachmentName);
 						}
-
-						result.add(att);
+						else {
+							result.add(att);
+						}
 					}
 				}
 			}
@@ -681,7 +681,7 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 		attachmentLock.readLock().lock();
 		try {
 			final File attDir = new File(m_storageDir);
-			if (!attDir.exists()) {
+			if (!attDir.exists() && !attDir.mkdirs()) {
 				throw new ProviderException("Specified attachment directory " + m_storageDir + " does not exist!");
 			}
 

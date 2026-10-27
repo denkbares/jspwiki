@@ -34,7 +34,7 @@ import org.apache.wiki.parser.MarkupParser;
 import org.apache.wiki.url.URLConstructor;
 import org.apache.wiki.util.TextUtil;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.net.URLDecoder;
 import java.util.HashMap;
@@ -286,7 +286,7 @@ public class DefaultCommandResolver implements CommandResolver {
                         page = finalPage;
                     }
                 } catch( final ProviderException e ) {
-                    // FIXME: Should not ignore!
+                    LOG.debug(e.getMessage(), e);
                 }
                 return page;
             }

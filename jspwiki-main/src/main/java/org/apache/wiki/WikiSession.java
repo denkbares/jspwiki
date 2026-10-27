@@ -18,24 +18,9 @@
  */
 package org.apache.wiki;
 
-import java.security.Principal;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.WeakHashMap;
-import java.util.concurrent.ConcurrentHashMap;
-
-import javax.security.auth.Subject;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
-
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 import org.apache.wiki.api.core.Engine;
 import org.apache.wiki.api.core.Session;
 import org.apache.wiki.auth.AuthenticationManager;
@@ -52,8 +37,23 @@ import org.apache.wiki.auth.user.UserProfile;
 import org.apache.wiki.event.WikiEvent;
 import org.apache.wiki.event.WikiSecurityEvent;
 import org.apache.wiki.util.HttpUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import javax.security.auth.Subject;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
+import java.net.http.HttpRequest;
+import java.security.Principal;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 /**
@@ -76,7 +76,7 @@ public class WikiSession implements Session {
 
     /** The Engine that created this session. */
     private Engine m_engine;
-
+    private String remoteAddress;
     private String antiCsrfToken;
     private String m_status            = ANONYMOUS;
 
@@ -153,6 +153,15 @@ public class WikiSession implements Session {
         return antiCsrfToken;
     }
 
+    /**
+     * Regenerates the anti-CSRF token. Called when the session's privilege level changes (i.e. at login), so that
+     * a token observed before authentication cannot be replayed against the authenticated session.
+     */
+    @Override
+    public void regenerateAntiCsrfToken() {
+        antiCsrfToken = UUID.randomUUID().toString();
+    }
+
     /** {@inheritDoc} */
     @Override
     public Locale getLocale() {
@@ -209,7 +218,9 @@ public class WikiSession implements Session {
     /** {@inheritDoc} */
     @Override
     public Principal[] getPrincipals() {
-        return new ArrayList<>(m_subject.getPrincipals()).stream().filter(AuthenticationManager::isUserPrincipal).toArray(Principal[]::new);
+
+        // Take the first non Role as the main Principal
+        return new ArrayList<>( m_subject.getPrincipals() ).stream().filter( AuthenticationManager::isUserPrincipal ).toArray( Principal[]::new );
     }
 
     /** {@inheritDoc} */
@@ -218,11 +229,12 @@ public class WikiSession implements Session {
         final Set< Principal > roles = new HashSet<>();
 
         // Add all the Roles possessed by the Subject directly
-        roles.addAll(m_subject.getPrincipals(Role.class));
+        roles.addAll( m_subject.getPrincipals( Role.class ) );
 
         // Add all the GroupPrincipals possessed by the Subject directly
-        roles.addAll( m_subject.getPrincipals( GroupPrincipal.class ) );
-
+        roles.addAll(m_subject.getPrincipals(GroupPrincipal.class));
+        
+        
         // Return a defensive copy
         final Principal[] roleArray = roles.toArray( new Principal[0] );
         Arrays.sort( roleArray, WikiPrincipal.COMPARATOR );
@@ -418,7 +430,7 @@ public class WikiSession implements Session {
             throw new IllegalStateException( "User database cannot be null." );
         }
         try {
-            final UserProfile profile = database.find( searchId );
+            final UserProfile profile = database.findByLoginName( searchId );
             final Principal[] principals = database.getPrincipals( profile.getLoginName() );
             for( final Principal principal : principals ) {
                 // Add the Principal to the Subject
@@ -427,6 +439,12 @@ public class WikiSession implements Session {
                 // Set the user principal if needed; we prefer FullName, but the WikiName will also work
                 final boolean isFullNamePrincipal = ( principal instanceof WikiPrincipal &&
                                                       ( ( WikiPrincipal )principal ).getType().equals( WikiPrincipal.FULL_NAME ) );
+                if (( principal instanceof WikiPrincipal &&
+                                                      ( ( WikiPrincipal )principal ).getType().equals( WikiPrincipal.LOGIN_NAME )) ){
+                    m_loginPrincipal = principal;
+                }
+                
+                
                 if ( isFullNamePrincipal ) {
                    m_userPrincipal = principal;
                 } else if ( !( m_userPrincipal instanceof WikiPrincipal ) ) {
@@ -491,10 +509,21 @@ public class WikiSession implements Session {
         final HttpSession session = request.getSession();
         final SessionMonitor monitor = SessionMonitor.getInstance( engine );
         final WikiSession wikiSession = ( WikiSession )monitor.find( session );
-
+        wikiSession.remoteAddress = request.getRemoteAddr();
         // Attach reference to wiki engine
         wikiSession.m_engine = engine;
         wikiSession.m_cachedLocale = request.getLocale();
+        
+        String v = engine.getWikiProperties().getProperty("jspwiki.role.extraRoles", null);
+        if (v != null) {
+            String[] extraRoles = v.split("\\,");
+            for (String s : extraRoles) {
+                if (request.isUserInRole(s)) {
+                    wikiSession.m_subject.getPrincipals().add(new GroupPrincipal(s));
+                }
+            }
+        }
+        
         return wikiSession;
     }
 
@@ -563,6 +592,11 @@ public class WikiSession implements Session {
     public static Principal[] userPrincipals( final Engine engine ) {
         final SessionMonitor monitor = SessionMonitor.getInstance( engine );
         return monitor.userPrincipals();
+    }
+
+    @Override
+    public String getRemoteAddress() {
+        return remoteAddress;
     }
 
 }

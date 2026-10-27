@@ -128,7 +128,14 @@ public interface Session extends WikiEventListener {
      * @return the CSRF protection Token associated with this wiki session.
      */
     String antiCsrfToken();
-
+    
+     /**
+     * Regenerates the anti-CSRF token. Called when the session's privilege level changes (i.e. at login), so that
+     * a token observed before authentication cannot be replayed against the authenticated session.
+     * @since 3.0.1
+     */
+    void regenerateAntiCsrfToken();
+    
     /**
      *  Returns a cached Locale object for this user.  It's better to use WikiContext's corresponding getBundle() method, since that
      *  will actually react if the user changes the locale in the middle, but if that's not available (or, for some reason, you need
@@ -249,6 +256,15 @@ public interface Session extends WikiEventListener {
      */
     static Object doPrivileged( final Session session, final PrivilegedAction<?> action ) throws AccessControlException {
         return Subject.doAsPrivileged( session.getSubject(), action, null );
+    }
+    
+    /**
+     * returns the remote address of the user login session, usually an ip address
+     * @since 3.0.0
+     * @return string
+     */
+    default String getRemoteAddress() {
+        return null;
     }
 
 }

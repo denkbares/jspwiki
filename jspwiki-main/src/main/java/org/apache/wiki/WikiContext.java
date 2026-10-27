@@ -36,9 +36,9 @@ import org.apache.wiki.ui.PageCommand;
 import org.apache.wiki.ui.WikiCommand;
 import org.apache.wiki.util.TextUtil;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
-import javax.servlet.jsp.PageContext;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.jsp.PageContext;
 import java.security.Permission;
 import java.security.Principal;
 import java.util.HashMap;
@@ -163,6 +163,9 @@ public class WikiContext implements Context, Command {
     public static final Permission DUMMY_PERMISSION = new PropertyPermission( "os.name", "read" );
 
     /**
+     *  Note: it is preferred to use the DSL API for creating a wiki context. 
+     *  Example: Wiki.contex().create( .. )
+     * 
      *  Create a new WikiContext for the given WikiPage. Delegates to {@link #WikiContext(Engine, HttpServletRequest, Page)}.
      *
      *  @param engine The Engine that is handling the request.
@@ -176,6 +179,8 @@ public class WikiContext implements Context, Command {
      * <p>
      * Creates a new WikiContext for the given Engine, Command and HttpServletRequest.
      * </p>
+     * Note: it is preferred to use the DSL API for creating a wiki context. 
+     * Example: Wiki.contex().create( .. )
      * <p>
      * This constructor will also look up the HttpSession associated with the request, and determine if a Session object is present.
      * If not, a new one is created.
@@ -230,6 +235,9 @@ public class WikiContext implements Context, Command {
      * Creates a new WikiContext for the given Engine, WikiPage and HttpServletRequest. This method simply looks up the appropriate
      * Command using {@link #findCommand(Engine, HttpServletRequest, Page)} and delegates to
      * {@link #WikiContext(Engine, HttpServletRequest, Command)}.
+     * 
+     * Note: it is preferred to use the DSL API for creating a wiki context. 
+     *  Example: Wiki.contex().create( .. )
      *
      * @param engine The Engine that is handling the request
      * @param request The HttpServletRequest that should be associated with this context. This parameter may be <code>null</code>.
@@ -241,6 +249,9 @@ public class WikiContext implements Context, Command {
 
     /**
      *  Creates a new WikiContext from a supplied HTTP request, using a default wiki context.
+     * 
+     *  Note: it is preferred to use the DSL API for creating a wiki context. 
+     *  Example: Wiki.contex().create( .. )
      *
      *  @param engine The Engine that is handling the request
      *  @param request the HTTP request
@@ -546,7 +557,7 @@ public class WikiContext implements Context, Command {
             // This shouldn't happen, really...
             return WikiPrincipal.GUEST;
         }
-        return m_session.getUserPrincipal();
+        return m_session.getLoginPrincipal();
     }
 
     /**
@@ -621,7 +632,10 @@ public class WikiContext implements Context, Command {
             copy.m_page        = m_page;
             copy.m_realPage    = m_realPage;
             return copy;
-        } catch( final CloneNotSupportedException e ){} // Never happens
+        } catch( final CloneNotSupportedException e ){
+            // Never happens
+            LOG.debug(e.getMessage(), e);
+        } 
 
         return null;
     }
@@ -653,7 +667,10 @@ public class WikiContext implements Context, Command {
             copy.m_realPage    = m_realPage.clone();
             return copy;
         }
-        catch( final CloneNotSupportedException e ){} // Never happens
+        catch( final CloneNotSupportedException e ){
+            LOG.debug(e.getMessage(), e);
+            // Never happens
+        } 
 
         return null;
     }

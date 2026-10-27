@@ -29,9 +29,9 @@ import org.apache.wiki.modules.WikiModuleInfo;
 import org.apache.wiki.preferences.Preferences;
 import org.apache.wiki.preferences.Preferences.TimeFormat;
 
-import javax.servlet.ServletContext;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.jsp.PageContext;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.jsp.PageContext;
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
@@ -165,7 +165,7 @@ public class DefaultTemplateManager extends BaseModuleManager implements Templat
     @Override
     public String findJSP( final PageContext pageContext, final String template, final String name ) {
         if( name == null || template == null ) {
-			LOG.error("findJSP() was asked to find a null template or name (" + template + "," + name + ")." + " JSP page '" +
+            LOG.error("findJSP() was asked to find a null template or name (" + template + "," + name + ")." + " JSP page '" +
                       ( ( HttpServletRequest )pageContext.getRequest() ).getRequestURI() + "'" );
             throw new InternalWikiException( "Illegal arguments to findJSP(); please check logs." );
         }
@@ -255,9 +255,12 @@ public class DefaultTemplateManager extends BaseModuleManager implements Templat
                     fmt.applyPattern( s );
                     resultMap.put( s, fmt.format( d ) );
                 } catch( final IllegalArgumentException e ) {
+                    LOG.debug(e.getMessage(), e);
                 } // skip parameter
             }
-        } catch( final IllegalArgumentException e ) {} // skip parameter
+        } catch( final IllegalArgumentException e ) {
+            LOG.debug(e.getMessage(), e);
+        } // skip parameter
 
         return resultMap;
     }

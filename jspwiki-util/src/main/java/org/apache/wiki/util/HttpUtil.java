@@ -18,13 +18,16 @@
  */
 package org.apache.wiki.util;
 
+import jakarta.servlet.ServletResponse;
 import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.apache.commons.net.util.SubnetUtils;
+
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
@@ -44,22 +47,48 @@ public final class HttpUtil {
     private static final int    ONE                   = 48;
     private static final int    NINE                  = 57;
     private static final int    DOT                   = 46;
-
+    
     /** Private constructor to prevent direct instantiation. */
     private HttpUtil() {
     }
-
+    
     /**
-     * returns the remote address by looking into {@code x-forwarded-for} header or, if unavailable,
+     * returns the remote address by looking into {@code x-forwarded-for} header or, if unavailable, 
      * into {@link HttpServletRequest#getRemoteAddr()}.
-     *
+     * 
      * @param req http request
      * @return remote address associated to the request.
      */
     public static String getRemoteAddress( final HttpServletRequest req ) {
-		return StringUtils.isNotEmpty ( req.getHeader( "X-Forwarded-For" ) ) ? req.getHeader( "X-Forwarded-For" ) :
-			                                                                          req.getRemoteAddr();
-	}
+        String realIP = StringUtils.isNotEmpty ( req.getHeader( "X-Forwarded-For" ) ) ? req.getHeader( "X-Forwarded-For" ) :
+                                                                                          req.getRemoteAddr();
+        // can be a comma-separated list of IPs, the first one is the originating client
+        if( realIP.contains( "," ) ) {
+            realIP = realIP.substring( 0, realIP.indexOf( "," ) ).trim();
+        }
+
+        return realIP;
+    }
+
+    /**
+     * Returns whether or not the IP address of the request equals a given IP,
+     * or is in a given IP range
+     *
+     * @param req http request
+     * @param ipOrRange IP address or IP range to test against
+     * @since 3.0.0
+     * @return
+     */
+    public static boolean ipIsInRange(final HttpServletRequest req, final String ipOrRange) {
+        String requestIP = getRemoteAddress(req);
+        if (ipOrRange.contains("/")) {
+            SubnetUtils subnet = new SubnetUtils(ipOrRange);
+            SubnetUtils.SubnetInfo subnetInfo = subnet.getInfo();
+            return subnetInfo.isInRange(requestIP);
+        } else {
+            return requestIP.equals(ipOrRange);
+        }
+    }
 
     /**
      *  Attempts to retrieve the given cookie value from the request. Returns the string value (which may or may not be decoded
@@ -93,7 +122,7 @@ public final class HttpUtil {
     /**
      *  Creates an ETag based on page information. An ETag is unique to each page and version, so it can be used to check if the page has
      *  changed. Do not assume that the ETag is in any particular format.
-     *
+     *  
      *  @param pageName  The page name for which the ETag should be created.
      *  @param lastModified  The page last modified date for which the ETag should be created.
      *  @return A String depiction of an ETag.
@@ -101,7 +130,7 @@ public final class HttpUtil {
     public static String createETag( final String pageName, final Date lastModified ) {
         return Long.toString( pageName.hashCode() ^ lastModified.getTime() );
     }
-
+    
     /**
      *  If returns true, then should return a 304 (HTTP_NOT_MODIFIED)
      *
@@ -125,11 +154,11 @@ public final class HttpUtil {
             //  HTTP 1.1 ETags go first
             final String thisTag = createETag( pageName, lastModified );
             final String eTag = req.getHeader( "If-None-Match" );
-
+            
             if( eTag != null && eTag.equals(thisTag) ) {
                 return true;
             }
-
+            
             //  Next, try if-modified-since
             final DateFormat rfcDateFormat = new SimpleDateFormat( "EEE, dd MMM yyyy HH:mm:ss z" );
 
@@ -155,18 +184,19 @@ public final class HttpUtil {
                     }
                 }
             } catch( final IllegalArgumentException e ) {
+                LOG.debug(e.getMessage(), e);
                 // Illegal date/time header format.  We fail quietly, and return false.
                 // FIXME: Should really move to ETags.
             }
         }
-
+         
         return false;
     }
 
     /**
      * Attempts to form a valid URI based on the string given.  Currently it can guess email addresses (mailto:).  If nothing else is given,
      * it assumes it to be an http:// url.
-     *
+     * 
      * @param uri  URI to take a poke at
      * @return Possibly a valid URI
      * @since 2.2.8
@@ -180,7 +210,7 @@ public final class HttpUtil {
         } else if( notBeginningWithHttpOrHttps( uri ) ) {
             uri = "http://" + uri;
         }
-
+        
         return uri;
     }
 
@@ -323,6 +353,18 @@ public final class HttpUtil {
      */
     public static String getAbsoluteUrl(final HttpServletRequest request) {
         return getAbsoluteUrl(request, null);
+    }
+
+    /**
+     * Add's a header to the response
+     *
+     * @param response servlet response in which the header is added
+     * @param headerName header's name
+     * @param headerValue header's value
+     */
+    public static void addHeader( final ServletResponse response, final String headerName, final String headerValue ) {
+        final HttpServletResponse res = ( HttpServletResponse )response;
+        res.addHeader( headerName, headerValue );
     }
 
 }

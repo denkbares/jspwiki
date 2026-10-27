@@ -17,15 +17,38 @@
     under the License.
 --%>
 
+<%@page import="java.util.Date"%>
+<%@page import="java.text.SimpleDateFormat"%>
+<%@page import="org.apache.wiki.preferences.Preferences"%>
+<%@page import="org.apache.wiki.preferences.Preferences.TimeFormat"%>
+<%@page import="org.apache.wiki.i18n.InternationalizationManager"%>
 <%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
-<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
-<%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
-<%@ page import="javax.servlet.jsp.jstl.fmt.*" %>
+<%@page import="org.apache.wiki.auth.user.UserProfile"%>
+<%@page import="org.apache.wiki.auth.UserManager"%>
+<%@ taglib prefix="c" uri="jakarta.tags.core" %>
+<%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
+<%@ page import="jakarta.servlet.jsp.jstl.fmt.*" %>
+<%@ page import="org.apache.wiki.ProductUpdateChecker" %>
 <%@ page import="org.apache.wiki.api.core.*" %>
 <fmt:setLocale value="${prefs.Language}" />
 <fmt:setBundle basename="templates.default"/>
 <%
   Context c = Context.findContext(pageContext);
+  UserManager mgr = c.getEngine().getManager(UserManager.class);
+  UserProfile profile = mgr.getUserProfile(c.getWikiSession());
+  String lastLoginAt=null;
+  String lastLoginFrom=null;
+  if (profile!=null) {
+      Long timestamp = (Long) profile.getAttributes().get(UserProfile.ATTR_PREVIOUS_LOGIN_TIMESTAMP);
+      lastLoginFrom = (String) profile.getAttributes().get(UserProfile.ATTR_PREVIOUS_LOGIN_IP);
+      if (timestamp!=null) {
+        SimpleDateFormat sdf = Preferences.getDateFormat(c, TimeFormat.DATETIME);
+        lastLoginAt = sdf.format(new Date(timestamp));
+      }
+  }
+  
+  
+  
 %>
 <c:set var="redirect"><%= c.getEngine().encodeName(c.getName()) %></c:set>
 <c:set var="username"><wiki:UserName /></c:set>
@@ -36,9 +59,10 @@
   }
 %>
 <%
-  String cleanedUserName = c.getCurrentUser().getName();
+  String loginName = c.getCurrentUser().getName();
+  String cleanedUserName = mgr.getDisplayName(loginName);
   int i = cleanedUserName.indexOf(".");
-  if (i > 0) {
+  if (cleanedUserName.equals(loginName) && i > 0) {
     cleanedUserName = capitalize(cleanedUserName.substring(0, i)) + " " + capitalize(cleanedUserName.substring(i + 1));
   }
 %>
@@ -68,7 +92,46 @@
           </wiki:UserCheck>
         </wiki:LinkTo>
       </wiki:UserCheck>
+        
     </li>
+   
+    <wiki:UserCheck status="admin">
+        <li>   <% 
+                ProductUpdateChecker checker = ProductUpdateChecker.getInstance();
+                if (checker!=null) {
+                    ProductUpdateChecker.UpdateStatus status = checker.getUpdateStatus();
+                    if (status!=null) {
+                        switch (status.getIsUpToDate()) {
+                        case UP_TO_DATE:
+                        %>
+                            <a href="#" class="info">
+                            <fmt:message key="fav.productstatus.updateToDate"></fmt:message>
+                            </a>
+                        <%
+                            break;
+                        case UNKNOWN:
+                            %>
+                            <a href="#" class="warn">
+                            <fmt:message key="fav.productstatus.unknown"></fmt:message>
+                            </a>
+                            <%          
+                            break;
+                        case UPDATE_AVAILABLE:
+                        //
+                            %>
+                            <a href="https://jspwiki-wiki.apache.org/Wiki.jsp?page=Downloads"
+                               class="warning"
+                               target="_blank"> 
+                                <fmt:message key="fav.productstatus.updateAvailable"></fmt:message>
+                            </a>
+                            <%          
+                            break;
+                        } 
+                    }
+                }
+%>
+        </li>
+    </wiki:UserCheck>
 
     <li class="divider"></li>
 
@@ -123,6 +186,21 @@
           <h4><fmt:message key="actions.logout"/></h4>
           <p><fmt:message key='actions.confirmlogout'/></p>
         </div>
+		 <%
+        if (lastLoginAt!=null && lastLoginFrom!=null) {
+            %>
+            <div class="content">
+			<fmt:message key="fav.greet.lastLogin">
+				<fmt:param><%=lastLoginAt%></fmt:param>
+				<fmt:param><%=lastLoginFrom%></fmt:param>
+			</fmt:message>
+
+            </div>
+            <%
+        }
+    %>
+		
+		
       </wiki:UserCheck>
     </li>
   </ul>

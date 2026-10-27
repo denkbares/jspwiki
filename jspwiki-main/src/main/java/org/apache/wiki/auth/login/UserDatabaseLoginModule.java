@@ -18,7 +18,12 @@
  */
 package org.apache.wiki.auth.login;
 
-import java.io.IOException;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
+import org.apache.wiki.auth.NoSuchPrincipalException;
+import org.apache.wiki.auth.WikiPrincipal;
+import org.apache.wiki.auth.user.UserDatabase;
+import org.apache.wiki.auth.user.UserProfile;
 
 import javax.security.auth.callback.Callback;
 import javax.security.auth.callback.NameCallback;
@@ -26,15 +31,7 @@ import javax.security.auth.callback.PasswordCallback;
 import javax.security.auth.callback.UnsupportedCallbackException;
 import javax.security.auth.login.FailedLoginException;
 import javax.security.auth.login.LoginException;
-
-
-import org.apache.wiki.auth.NoSuchPrincipalException;
-import org.apache.wiki.auth.WikiPrincipal;
-import org.apache.wiki.auth.user.UserDatabase;
-import org.apache.wiki.auth.user.UserProfile;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import java.io.IOException;
 
 /**
  * <p>

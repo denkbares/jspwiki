@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
 --%>
-
+<%@ page import="org.apache.wiki.i18n.InternationalizationManager" %>
 <%@ page import="org.slf4j.Logger" %>
 <%@ page import="org.slf4j.LoggerFactory" %>
 <%@ page import="java.util.*" %>
@@ -28,6 +28,7 @@
 <%@ page import="org.apache.wiki.api.spi.Wiki" %>
 <%@ page import="org.apache.wiki.api.exceptions.RedirectException" %>
 <%@ page import="org.apache.wiki.auth.AuthorizationManager" %>
+<%@ page import="org.apache.wiki.http.filter.CsrfProtectionFilter" %>
 <%@ page import="org.apache.wiki.auth.login.CookieAssertionLoginModule" %>
 <%@ page import="org.apache.wiki.filters.SpamFilter" %>
 <%@ page import="org.apache.wiki.htmltowiki.HtmlStringToWikiTranslator" %>
@@ -42,11 +43,10 @@
 <%@ page import="org.apache.wiki.variables.VariableManager" %>
 <%@ page import="org.apache.wiki.workflow.DecisionRequiredException" %>
 <%@ page errorPage="/Error.jsp" %>
-<%@ page import="javax.servlet.http.Cookie" %>
+<%@ page import="jakarta.servlet.http.Cookie" %>
 <%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
-<%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
-<%@ page import="javax.servlet.jsp.jstl.fmt.*" %>
-<%@ page import="org.slf4j.LoggerFactory" %>
+<%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
+<%@ page import="jakarta.servlet.jsp.jstl.fmt.*" %>
 <%!
     Logger log = LoggerFactory.getLogger("JSPWiki");
 
@@ -73,9 +73,9 @@
         return;
     }
     String pagereq = wikiContext.getName();
-
-    ResourceBundle rb = Preferences.getBundle( wikiContext, "CoreResources" );
     Session wikiSession = wikiContext.getWikiSession();
+    final ResourceBundle rb = ResourceBundle.getBundle( InternationalizationManager.CORE_BUNDLE, wikiSession.getLocale() );
+    
     String storedUser = wikiSession.getUserPrincipal().getName();
     String commentedBy = storedUser;
 
@@ -145,6 +145,10 @@
     log.debug("preview="+preview+", ok="+ok);
 
     if( ok != null ) {
+        if( !CsrfProtectionFilter.isCsrfProtectedPost( request ) ) {
+            response.sendRedirect( request.getContextPath() + "/error/Forbidden.html" );
+            return;
+        }
         log.info("Saving page "+pagereq+". User="+storedUser+", host="+HttpUtil.getRemoteAddress(request) );
 
         //  Modifications are written here before actual saving
@@ -183,7 +187,7 @@
         //  Build comment part
         //
         StringBuffer pageText = new StringBuffer( wiki.getManager( PageManager.class ).getPureText( wikipage ));
-
+        
         log.debug("Page initial contents are "+pageText.length()+" chars");
 
         //
@@ -224,7 +228,7 @@
                 response.addCookie( linkcookie );
             }
 
-            CookieAssertionLoginModule.setUserCookie( response, author );
+            CookieAssertionLoginModule.setUserCookie( pageContext, response, author );
         } else {
             session.removeAttribute("link");
             session.removeAttribute("author");
@@ -238,7 +242,7 @@
             response.sendRedirect( redirect );
             return;
         } catch( RedirectException e ) {
-            session.setAttribute( VariableManager.VAR_MSG, e.getMessage() );
+            wikiSession.addMessage( VariableManager.VAR_MSG, rb.getString("operation.failed") );
             response.sendRedirect( e.getRedirect() );
             return;
         }

@@ -20,10 +20,14 @@
 <%@ page import="java.util.*" %>
 <%@ page import="org.apache.wiki.api.core.*" %>
 <%@ page import="org.apache.wiki.ui.admin.*" %>
+<%@ page import="org.apache.wiki.auth.user.*" %>
+<%@ page import="org.apache.wiki.auth.*" %>
+ <%@ page import="org.apache.wiki.api.spi.Wiki" %>
+<%@ page import="java.security.Principal" %>
 <%@ page errorPage="/Error.jsp" %>
 <%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
-<%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
-<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+<%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
+<%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <fmt:setLocale value="${prefs.Language}" />
 <fmt:setBundle basename="templates.default"/>
 <script>
@@ -61,12 +65,20 @@ function addNew()
 <div>
    <p>
    This is a list of user accounts that exist in this system.
+   TEST
    </p>
    <p><wiki:Messages/></p>
    <div id="userlist">
+        <%
+            Engine engine = Wiki.engine().find( getServletConfig() );
+            Context ctx = Context.findContext(pageContext);
+            UserManager mgr = engine.getManager( UserManager.class );
+            UserDatabase udb = mgr.getUserDatabase();
+            Principal[] users = udb.getWikiNames();
+       %>
       <select name="userid" id="userid" size="16" onchange="javascript:refreshUserInfo()">
          <c:forEach var="user" items="${engine.userManager.userDatabase.wikiNames}">
-            <option value="${user.name}"><c:out value="${user.name}" escapeXml="true"/></option>
+            <option value="${user.getName()}"><c:out value="${user.getName()}" escapeXml="true"/></option>
          </c:forEach>
       </select>
    </div>

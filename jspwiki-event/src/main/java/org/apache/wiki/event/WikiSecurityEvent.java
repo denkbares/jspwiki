@@ -18,10 +18,11 @@
  */
 package org.apache.wiki.event;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import org.apache.commons.lang3.ArrayUtils;
 import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
-import org.slf4j.event.Level;
 
 import java.security.Principal;
 
@@ -111,6 +112,11 @@ public final class WikiSecurityEvent extends WikiEvent {
     /** When a user profile name changes. */
     public static final int   PROFILE_NAME_CHANGED     = 54;
     
+    /** When a low disk space is encountered . */
+    public static final int   LOW_STORAGE              = 55;
+    /** Login audit alert, multiple concurrent logins from the different ip addresses . */
+    public static final int   LOGIN_ALERT = 56;
+    
     /** The security logging service. */
     private static final Logger LOG = LoggerFactory.getLogger( "SecurityLog" );
     
@@ -118,7 +124,7 @@ public final class WikiSecurityEvent extends WikiEvent {
     
     private final Object      m_target;
 
-    private static final int[] ERROR_EVENTS = { LOGIN_FAILED };
+    private static final int[] ERROR_EVENTS = { LOGIN_FAILED, LOGIN_ALERT };
     
     private static final int[] WARN_EVENTS  = { LOGIN_ACCOUNT_EXPIRED, LOGIN_CREDENTIAL_EXPIRED };
     
@@ -140,6 +146,7 @@ public final class WikiSecurityEvent extends WikiEvent {
         }
         this.m_principal = principal;
         this.m_target = target;
+        
         if( LOG.isErrorEnabled() && ArrayUtils.contains( ERROR_EVENTS, type ) ) {
             LOG.error( this.toString() );
         } else if( LOG.isWarnEnabled() && ArrayUtils.contains( WARN_EVENTS, type ) ) {
@@ -211,23 +218,24 @@ public final class WikiSecurityEvent extends WikiEvent {
      * @return the string representation
      */
     public String eventName( final int type ) {
-        switch( type ) {
-            case LOGIN_AUTHENTICATED:       return "LOGIN_AUTHENTICATED";
-            case LOGIN_ACCOUNT_EXPIRED:     return "LOGIN_ACCOUNT_EXPIRED";
-            case LOGIN_CREDENTIAL_EXPIRED:  return "LOGIN_ACCOUNT_EXPIRED";
-            case LOGIN_FAILED:              return "LOGIN_FAILED";
-            case LOGOUT:                    return "LOGOUT";
-            case PRINCIPAL_ADD:             return "PRINCIPAL_ADD";
-            case SESSION_EXPIRED:           return "SESSION_EXPIRED";
-            case GROUP_ADD:                 return "GROUP_ADD";
-            case GROUP_REMOVE:              return "GROUP_REMOVE";
-            case GROUP_CLEAR_GROUPS:        return "GROUP_CLEAR_GROUPS";
-            case ACCESS_ALLOWED:            return "ACCESS_ALLOWED";
-            case ACCESS_DENIED:             return "ACCESS_DENIED";
-            case PROFILE_NAME_CHANGED:      return "PROFILE_NAME_CHANGED";
-            case PROFILE_SAVE:              return "PROFILE_SAVE";
-            default:                        return super.eventName();
+        Field[] fields = this.getClass().getFields();
+        for (Field f : fields) {
+            if (Modifier.isStatic(f.getModifiers()) &&
+                    Modifier.isPublic(f.getModifiers()) &&
+                    Modifier.isFinal(f.getModifiers())) {
+                try {
+                    if (f.getInt(null) == type) {
+                        return f.getName();
+                    }
+                } catch (IllegalArgumentException ex) {
+                    LOG.debug(ex.getMessage() + " for " + type);
+                } catch (IllegalAccessException ex) {
+                    LOG.debug(ex.getMessage() + " for " + type);
+                }
+            }
         }
+         return super.eventName();
+        
     }
 
     /**
@@ -242,6 +250,7 @@ public final class WikiSecurityEvent extends WikiEvent {
             case LOGIN_ACCOUNT_EXPIRED:     return "login failed: expired account";
             case LOGIN_CREDENTIAL_EXPIRED:  return "login failed: credential expired";
             case LOGIN_FAILED:              return "login failed";
+            case LOGIN_ALERT:               return "login alert";
             case LOGOUT:                    return "user logged out";
             case PRINCIPAL_ADD:             return "new principal added";
             case SESSION_EXPIRED:           return "session expired";
@@ -252,7 +261,7 @@ public final class WikiSecurityEvent extends WikiEvent {
             case ACCESS_DENIED:             return "access denied";
             case PROFILE_NAME_CHANGED:      return "user profile name changed";
             case PROFILE_SAVE:              return "user profile saved";
-            default:                        return super.getTypeDescription();
+            default:                        return eventName(getType());
         }
     }
 

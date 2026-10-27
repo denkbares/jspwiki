@@ -21,14 +21,14 @@
 <%@ page import="java.io.*" %>
 <%@ page import="java.util.*" %>
 <%@ page import="java.util.jar.*" %>
-<%@ page import="javax.servlet.jsp.jstl.fmt.*" %>
+<%@ page import="jakarta.servlet.jsp.jstl.fmt.*" %>
 <%@ page import="org.apache.wiki.api.core.*" %>
 <%@ page import="org.apache.wiki.ui.*" %>
 <%@ page import="org.apache.wiki.preferences.*" %>
 <%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
-<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
-<%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
-<%@ taglib uri="http://java.sun.com/jsp/jstl/functions" prefix="fn" %>
+<%@ taglib prefix="c" uri="jakarta.tags.core" %>
+<%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
+<%@ taglib prefix="fn" uri="jakarta.tags.functions" %>
 <fmt:setLocale value="${prefs.Language}" />
 <fmt:setBundle basename="templates.default"/>
 <%
@@ -129,16 +129,6 @@
       <input class="" id="prefSectionEditing" name="prefSectionEditing"  data-pref="SectionEditing"
          type="checkbox" ${prefs.SectionEditing ? 'checked="checked"' : ''} >
       <fmt:message key="prefs.user.sectionediting.text"/>
-    </label>
-  </div>
-
-  <div class="form-group form-inline ">
-    <label class="control-label form-col-20" for="prefAppearance"><fmt:message key="prefs.user.appearance"/></label>
-    <label class="form-control form-switch xpref-appearance">
-      <!--<fmt:message key="prefs.user.appearance.light"/>-->
-      <input id="prefAppearance" name="prefAppearance"  data-pref="Appearance"
-           type="checkbox" class="" value="on" ${prefs.Appearance ? 'checked="checked"' : ''} >
-      <fmt:message key="prefs.user.appearance.dark"/>
     </label>
   </div>
 
