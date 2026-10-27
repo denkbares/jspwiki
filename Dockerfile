@@ -27,7 +27,7 @@ RUN set -x \
 # fastest, minimum build
   && mvn -B clean package -pl jspwiki-war,jspwiki-wikipages/en -am -DskipTests
 
-FROM tomcat:10.1-jdk17
+FROM tomcat:11.0-jdk21
 
 COPY --from=package /tmp/jspwiki-war/target/JSPWiki.war /tmp
 COPY --from=package /tmp/jspwiki-wikipages/en/target/jspwiki-wikipages-en-*-jspwiki.zip /tmp
