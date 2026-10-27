@@ -476,7 +476,7 @@ Wiki.Snips = {
 
             new Request({
             url: Wiki.XHRPreview,
-            data: { page: Wiki.PageName, wikimarkup: "[{Groups}]", 'X-XSRF-TOKEN': wiki.CsrfProtection },
+            data: { page: Wiki.PageName, wikimarkup: "[{Groups}]", 'X-XSRF-TOKEN': Wiki.CsrfProtection },
             onSuccess: function(responseText){
 
                 var body = "Anonymous|Asserted|Authenticated|All";
