@@ -418,7 +418,12 @@ public class DefaultGroupManager implements GroupManager, Authorizer, WikiEventL
             final UserProfile[] profiles = ( UserProfile[] )se.getTarget();
             final Principal[] oldPrincipals = new Principal[] { new WikiPrincipal( profiles[ 0 ].getLoginName() ),
                     new WikiPrincipal( profiles[ 0 ].getFullname() ), new WikiPrincipal( profiles[ 0 ].getWikiName() ) };
-            final Principal newPrincipal = new WikiPrincipal( profiles[ 1 ].getFullname() );
+            // JSPWIKI-130: sessions no longer carry the full name, so a member listed under it would lose the membership.
+            // Keep the user under the wiki name, or under the login name if there is none (no full name).
+            final String newWikiName = profiles[ 1 ].getWikiName();
+            final Principal newPrincipal = newWikiName == null || newWikiName.isEmpty()
+                                           ? new WikiPrincipal( profiles[ 1 ].getLoginName(), WikiPrincipal.LOGIN_NAME )
+                                           : new WikiPrincipal( newWikiName, WikiPrincipal.WIKI_NAME );
 
             // Examine each group
             int groupsChanged = 0;

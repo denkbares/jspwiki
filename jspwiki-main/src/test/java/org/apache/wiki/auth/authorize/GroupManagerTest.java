@@ -26,9 +26,12 @@ import org.apache.wiki.api.exceptions.WikiException;
 import org.apache.wiki.auth.GroupPrincipal;
 import org.apache.wiki.auth.NoSuchPrincipalException;
 import org.apache.wiki.auth.SecurityEventTrap;
+import org.apache.wiki.auth.UserManager;
 import org.apache.wiki.auth.Users;
 import org.apache.wiki.auth.WikiPrincipal;
 import org.apache.wiki.auth.WikiSecurityException;
+import org.apache.wiki.auth.user.UserDatabase;
+import org.apache.wiki.auth.user.UserProfile;
 import org.apache.wiki.event.WikiSecurityEvent;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
@@ -108,6 +111,26 @@ public class GroupManagerTest
         Assertions.assertTrue ( group.isMember( new WikiPrincipal( "Biff" ) ) );
         Assertions.assertTrue ( group.isMember( new WikiPrincipal( "SteveAustin" ) ) );
         Assertions.assertTrue ( group.isMember( new WikiPrincipal( "FredFlintstone" ) ) );
+    }
+
+    @Test
+    public void testProfileNameChangeKeepsTheMemberUnderTheNewWikiName() throws Exception
+    {
+        // Test3 lists Fred under his login name; he renames himself from "Fred Flintstone"
+        final UserDatabase db = m_engine.getManager( UserManager.class ).getUserDatabase();
+        final UserProfile before = db.findByLoginName( "Fred" );
+        final UserProfile after = db.newProfile();
+        after.setLoginName( before.getLoginName() );
+        after.setFullname( "Fred Feuerstein" );
+
+        m_groupMgr.actionPerformed( new WikiSecurityEvent( m_session, WikiSecurityEvent.PROFILE_NAME_CHANGED,
+                                                           new UserProfile[] { before, after } ) );
+
+        final Group group = m_groupMgr.getGroup( "Test3" );
+        Assertions.assertEquals( 1, group.members().length );
+        // JSPWIKI-130: sessions carry the login and the wiki name, but no longer the full name
+        Assertions.assertTrue( group.isMember( new WikiPrincipal( "FredFeuerstein" ) ), "listed under the new wiki name" );
+        Assertions.assertFalse( group.isMember( new WikiPrincipal( "Fred Feuerstein" ) ), "not under the new full name" );
     }
 
     @Test

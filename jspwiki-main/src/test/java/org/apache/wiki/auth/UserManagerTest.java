@@ -126,6 +126,33 @@ class UserManagerTest {
     }
 
     @Test
+    void testValidateProfileReportsAWikiNameCollisionAsTakenFullName() throws Exception {
+        // "Janne  Jalkanen" differs from Janne's full name, but yields her wiki name "JanneJalkanen"
+        final HttpServletRequest request = Mockito.mock( HttpServletRequest.class );
+        Mockito.when( request.getParameter( "loginname" ) ).thenReturn( "janne2" );
+        Mockito.when( request.getParameter( "fullname" ) ).thenReturn( "Janne  Jalkanen" );
+        Mockito.when( request.getParameter( "email" ) ).thenReturn( "janne2@example.com" );
+        Mockito.when( request.getParameter( "password" ) ).thenReturn( "myP@5sw0rd" );
+        Mockito.when( request.getParameter( "password2" ) ).thenReturn( "myP@5sw0rd" );
+        Mockito.when( request.getSession() ).thenReturn( Mockito.mock( HttpSession.class ) );
+        final Session session = WikiSessionTest.anonymousSession( m_engine );
+        final Context context = Mockito.mock( Context.class );
+        Mockito.when( context.getHttpRequest() ).thenReturn( request );
+        Mockito.when( context.getEngine() ).thenReturn( m_engine );
+        Mockito.when( context.getWikiSession() ).thenReturn( session );
+
+        final UserProfile profile = m_mgr.parseProfile( context );
+        Assertions.assertEquals( "JanneJalkanen", profile.getWikiName() );
+        m_mgr.validateProfile( context, profile );
+
+        final List< String > messages = List.of( session.getMessages( DefaultUserManager.SESSION_MESSAGES ) );
+        Assertions.assertTrue( messages.stream().anyMatch( m -> m.contains( "Janne  Jalkanen" ) ),
+                               "the collision should be reported with the full name the user entered: " + messages );
+        Assertions.assertFalse( messages.stream().anyMatch( m -> m.contains( "janne2" ) ),
+                                "not with the login name, which is fine: " + messages );
+    }
+
+    @Test
     void testGetUserProfileOfAuthenticatedUser() throws Exception {
         // janne's login name differs from both her wiki name and her full name
         final Session session = WikiSessionTest.authenticatedSession( m_engine, Users.JANNE, Users.JANNE_PASS );

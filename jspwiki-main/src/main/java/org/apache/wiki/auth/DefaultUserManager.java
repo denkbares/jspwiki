@@ -475,8 +475,9 @@ public class DefaultUserManager implements UserManager {
             try {
                 otherProfile = getUserDatabase().findByWikiName(wikiName );
                 if( otherProfile != null && !profile.equals( otherProfile ) && !loginName.equals( otherProfile.getLoginName() ) ) {
-                    final Object[] args = { loginName };
-                    session.addMessage( SESSION_MESSAGES, MessageFormat.format( rb.getString( "security.error.illegalloginname" ), args ) );
+                    // the wiki name is derived from the full name, so the full name is what the user has to change
+                    final Object[] args = { fullName };
+                    session.addMessage( SESSION_MESSAGES, MessageFormat.format( rb.getString( "security.error.fullname.taken" ), args ) );
                 }
             } catch( final NoSuchPrincipalException e ) { 
                 LOG.debug(e.getMessage(), e);
