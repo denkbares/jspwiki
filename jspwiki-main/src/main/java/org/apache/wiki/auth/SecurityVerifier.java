@@ -43,6 +43,7 @@ import javax.security.auth.spi.LoginModule;
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.security.AccessControlException;
 import java.security.AccessController;
@@ -641,15 +642,11 @@ public final class SecurityVerifier {
     void verifyPolicy() {
         // Look up the policy file and set the status text.
         final URL policyURL = m_engine.findConfigFile( AuthorizationManager.DEFAULT_POLICY );
-        String path = policyURL.getPath();
-        if ( path.startsWith("file:") ) {
-            path = path.substring( 5 );
-        }
-        final File policyFile = new File( path );
 
         // Next, verify the policy
         try {
-            // Get the file
+            // Get the file, decoded like DefaultAuthorizationManager does, the path may contain spaces
+            final File policyFile = new File( policyURL.toURI() );
             final PolicyReader policy = new PolicyReader( policyFile );
             m_session.addMessage( INFO_POLICY, "The security policy '" + policy.getFile() + "' exists." );
 
@@ -688,7 +685,8 @@ public final class SecurityVerifier {
                 principals.addAll(Arrays.asList(domain.getPrincipals()));
             }
             m_policyPrincipals = principals.toArray( new Principal[0] );
-        } catch( final IOException e ) {
+        } catch( final IOException | URISyntaxException | IllegalArgumentException e ) {
+            // a policy that cannot be read is reported, the verifier also runs at engine start and must not abort it
             m_session.addMessage( ERROR_POLICY, e.getMessage() );
         }
     }
