@@ -28,6 +28,9 @@ KnowWE quite heavily relies on JSPWiki for some time now and this fork
 allows to easily add some KnowWE specific fixes and improvements.
 The aim is to keep this fork as close as possible to the original.
 
+The [browser array conversion contract](jspwiki-war/README.md) describes the MooTools compatibility
+adjustment and its verification against the generated WAR.
+
 ## What is JSPWiki?
 
 JSPWiki is a simple (well, not anymore) WikiWiki clone, written in Java

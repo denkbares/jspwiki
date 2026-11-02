@@ -148,7 +148,8 @@ String.convert = function(item){
 };
 
 /*<1.5compat>*/
-Array.from = Array.convert;
+// Keep the native iterable/mapping contract; legacy scalar conversion is Array.convert.
+if (!Array.from) Array.from = Array.convert;
 /*</1.5compat>*/
 
 
