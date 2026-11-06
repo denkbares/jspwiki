@@ -20,6 +20,7 @@ package org.apache.wiki.ui;
 
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.api.core.Engine;
+import org.apache.wiki.utils.WikiPageUtils;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -47,7 +48,7 @@ class TemplateManagerTest {
     @ParameterizedTest
     @MethodSource( "provideArgumentsForAddResourceRequest" )
     void shouldCheckAddResourceRequest( final String type, final String res, final String expected ) {
-        if( TemplateManager.RESOURCE_SCRIPT.equals( type ) || TemplateManager.RESOURCE_STYLESHEET.equals( type ) ) {
+        if( res.startsWith( "engine://" ) ) {
             final Properties properties = new Properties();
             properties.setProperty( "jspwiki.syntax.plain", "plain/wiki-snips-jspwiki.js" );
             Mockito.doReturn( engine ).when( ctx ).getEngine();
@@ -65,7 +66,11 @@ class TemplateManagerTest {
 
     static Stream< Arguments > provideArgumentsForAddResourceRequest() {
         return Stream.of(
-                Arguments.of( TemplateManager.RESOURCE_SCRIPT, "engine://jspwiki.syntax.plain", "<script type='text/javascript' src='plain/wiki-snips-jspwiki.js'></script>" ),
+                Arguments.of( TemplateManager.RESOURCE_SCRIPT, "engine://jspwiki.syntax.plain", "<script type='text/javascript' src='plain/wiki-snips-jspwiki.js?version=" + WikiPageUtils.getJarVersion() + "'></script>" ),
+                Arguments.of( TemplateManager.RESOURCE_SCRIPT, "scripts/haddock-edit.js", "<script type='text/javascript' src='scripts/haddock-edit.js?version=" + WikiPageUtils.getJarVersion() + "'></script>" ),
+                Arguments.of( TemplateManager.RESOURCE_SCRIPT, "scripts/editor.js?version=42", "<script type='text/javascript' src='scripts/editor.js?version=42'></script>" ),
+                Arguments.of( TemplateManager.RESOURCE_SCRIPT, "//cdn.example.org/editor.js", "<script type='text/javascript' src='//cdn.example.org/editor.js'></script>" ),
+                Arguments.of( TemplateManager.RESOURCE_STYLESHEET, "templates/default/haddock-wysiwyg.css", "<link rel='stylesheet' type='text/css' href='templates/default/haddock-wysiwyg.css?version=" + WikiPageUtils.getJarVersion() + "' />" ),
                 Arguments.of( TemplateManager.RESOURCE_STYLESHEET, "engine://jspwiki.whatever.not.exists", "<link rel='stylesheet' type='text/css' href='engine://jspwiki.whatever.not.exists' />" ),
                 Arguments.of( TemplateManager.RESOURCE_INLINECSS, "color: white", "<style type='text/css'>\ncolor: white\n</style>\n" ),
                 Arguments.of( TemplateManager.RESOURCE_JSFUNCTION, "function whatever() {}", "function whatever() {}" )

@@ -40,6 +40,7 @@ import org.apache.wiki.i18n.InternationalizationManager;
 import org.apache.wiki.modules.ModuleManager;
 import org.apache.wiki.preferences.Preferences;
 import org.apache.wiki.util.ClassUtil;
+import org.apache.wiki.utils.WikiPageUtils;
 
 
 /**
@@ -347,6 +348,9 @@ public interface TemplateManager extends ModuleManager {
                     resolvedResource = val;
                 }
             }
+            if( type.equals( RESOURCE_SCRIPT ) || type.equals( RESOURCE_STYLESHEET ) ) {
+                resolvedResource = appendVersion( resolvedResource );
+            }
 
             String resourceString = null;
             switch (type) {
@@ -378,6 +382,22 @@ public interface TemplateManager extends ModuleManager {
         }
 
         ctx.setVariable(RESOURCE_INCLUDES, resourcemap);
+    }
+
+    /**
+     *  Appends the version of the deployed wiki to the URL of a local script or stylesheet, like {@code wiki:Link} does.
+     *  The files are served without caching headers, so browsers cache them heuristically for a long time and would
+     *  otherwise keep the scripts of an older deployment, mixing them with the current ones. URLs that already carry a
+     *  query, absolute URLs and unresolved {@code engine://} references are left alone.
+     *
+     *  @param resource the URL of the resource
+     *  @return the URL with the version appended
+     */
+    static String appendVersion( final String resource ) {
+        if( StringUtils.isBlank( resource ) || resource.contains( "?" ) || resource.contains( "://" ) || resource.startsWith( "//" ) ) {
+            return resource;
+        }
+        return resource + "?version=" + WikiPageUtils.getJarVersion();
     }
 
     /**
