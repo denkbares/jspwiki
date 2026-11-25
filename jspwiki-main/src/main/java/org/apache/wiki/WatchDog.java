@@ -22,7 +22,14 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
 import org.apache.wiki.api.core.Engine;
 
+import java.lang.management.LockInfo;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MonitorInfo;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
 import java.lang.ref.WeakReference;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
@@ -51,6 +58,9 @@ public final class WatchDog {
     private final Stack< State > m_stateStack = new Stack<>();
     private boolean m_enabled = true;
     private final Engine m_engine;
+
+    /** How many threads are described at most along a chain of threads waiting for each other. */
+    private static final int MAX_DESCRIBED_THREADS = 5;
 
     private static final Logger LOG = LoggerFactory.getLogger( WatchDog.class );
 
@@ -113,6 +123,31 @@ public final class WatchDog {
     /**
      *  Hopefully finalizes this properly.  This is rather untested for now...
      */
+    /**
+     *  Checks all watched threads once and reports the late ones.
+     *
+     *  @return the number of threads that exceeded their timeout
+     */
+    static int checkAll() {
+        int late = 0;
+        for( final Map.Entry< Integer, WeakReference< WatchDog > > entry : c_kennel.entrySet() ) {
+            final WeakReference< WatchDog > wr = entry.getValue();
+            final WatchDog w = wr.get();
+            if( w != null ) {
+                if( !w.isWatchableAlive() ) {
+                    c_kennel.remove( entry.getKey() );
+                } else if( w.isStateStackNotEmpty() && w.check() ) {
+                    late++;
+                }
+                // A thread that is alive but in no state stays registered. It used to be removed, and the pass ended
+                // there: the threads behind it were checked a pass later (or never, as long as a thread in front of them
+                // was idle again), and a thread removed just before it entered a state was not watched at all. Its
+                // watchdog goes away by itself, as it is only weakly referenced here.
+            }
+        }
+        return late;
+    }
+
     private static void scrub() {
         //  During finalization, the object may already be cleared (depending on the finalization order). Therefore, it's
         //  possible that this method is called from another thread after the WatchDog itself has been cleared.
@@ -242,7 +277,12 @@ public final class WatchDog {
         return m_watchable != null && m_watchable.isAlive();
     }
 
-    private void check() {
+    /**
+     *  Checks whether the watched thread exceeded the timeout of its current state, and reports it if so.
+     *
+     *  @return whether the thread is late
+     */
+    private boolean check() {
         LOG.debug( "Checking watchdog '{}'", m_watchable.getName() );
 
         synchronized( m_stateStack ) {
@@ -254,14 +294,89 @@ public final class WatchDog {
                     LOG.info( "Watchable '" + m_watchable.getName() + "' exceeded timeout in state '" + st.getState() +
                               "' by " + (now - st.getExpiryTime()) / 1000 + " seconds" +
                              ( LOG.isDebugEnabled() ? "" : "Enable DEBUG-level logging to see stack traces." ) );
+                    reportHangingThread( st );
                     dumpStackTraceForWatchable();
 
                     m_watchable.timeoutExceeded( st.getState() );
+                    return true;
                 }
             } else {
                 LOG.warn( "Stack for " + m_watchable.getName() + " is empty!" );
             }
         }
+        return false;
+    }
+
+    /**
+     *  Describes what a thread that exceeded its timeout is doing: its stack trace and, if it waits for a lock, the thread
+     *  holding that lock with its stack trace, and so on along the chain of waiting threads.
+     *
+     *  @param thread the late thread
+     *  @return the description as multiple lines of text
+     */
+    static String describeHangingThread( final Thread thread ) {
+        final StringBuilder description = new StringBuilder();
+        try {
+            final ThreadMXBean threads = ManagementFactory.getThreadMXBean();
+            final Set< Long > described = new HashSet<>();
+            long id = thread.getId();
+            // a thread waiting for a lock leads to the holder of the lock, which may wait itself: follow that chain
+            while( id != -1 && described.size() < MAX_DESCRIBED_THREADS && described.add( id ) ) {
+                final ThreadInfo info = threads.getThreadInfo( new long[] { id }, true, true )[ 0 ];
+                if( info == null ) {
+                    break; // the thread has ended meanwhile
+                }
+                describe( info, description );
+                id = info.getLockOwnerId();
+            }
+            final long[] deadlocked = threads.findDeadlockedThreads();
+            if( deadlocked != null && Arrays.stream( deadlocked ).anyMatch( described::contains ) ) {
+                description.append( "These threads are in a deadlock: they wait for each other and will never continue." );
+            }
+        } catch( final RuntimeException e ) {
+            // not every JVM supports this, and a report must never break the watchdog
+            description.append( "No lock information available (" ).append( e ).append( "), stack trace of thread '" )
+                       .append( thread.getName() ).append( "':\n" );
+            for( final StackTraceElement element : thread.getStackTrace() ) {
+                description.append( "\tat " ).append( element ).append( '\n' );
+            }
+        }
+        return description.toString();
+    }
+
+    private static void describe( final ThreadInfo info, final StringBuilder description ) {
+        description.append( "Thread '" ).append( info.getThreadName() ).append( "' is " ).append( info.getThreadState() );
+        final LockInfo lock = info.getLockInfo();
+        if( lock != null ) {
+            description.append( ", waiting for " ).append( lock );
+            if( info.getLockOwnerName() != null ) {
+                description.append( " held by thread '" ).append( info.getLockOwnerName() ).append( "'" );
+            }
+        }
+        description.append( ":\n" );
+        final StackTraceElement[] stack = info.getStackTrace();
+        for( int depth = 0; depth < stack.length; depth++ ) {
+            description.append( "\tat " ).append( stack[ depth ] ).append( '\n' );
+            for( final MonitorInfo monitor : info.getLockedMonitors() ) {
+                if( monitor.getLockedStackDepth() == depth ) {
+                    description.append( "\t- locked " ).append( monitor ).append( '\n' );
+                }
+            }
+        }
+    }
+
+    /**
+     *  Writes to the log, once per state, what a late thread is doing. Without this the log only says that a request is
+     *  late, which does not help to find out why after the wiki was restarted.
+     */
+    private void reportHangingThread( final State state ) {
+        if( state.m_reported || !( m_watchable instanceof ThreadWrapper ) ) {
+            return;
+        }
+        state.m_reported = true;
+        final Thread thread = ( ( ThreadWrapper )m_watchable ).m_thread;
+        LOG.warn( "Watchable '" + m_watchable.getName() + "' exceeded timeout in state '" + state.getState() +
+                  "', this is what it is doing (logged once):\n" + describeHangingThread( thread ) );
     }
 
     /**
@@ -345,18 +460,7 @@ public final class WatchDog {
                 return;
             }
 
-            for( final Map.Entry< Integer, WeakReference< WatchDog > > entry : c_kennel.entrySet() ) {
-                final WeakReference< WatchDog > wr = entry.getValue();
-                final WatchDog w = wr.get();
-                if( w != null ) {
-                    if( w.isWatchableAlive() && w.isStateStackNotEmpty() ) {
-                        w.check();
-                    } else {
-                        c_kennel.remove( entry.getKey() );
-                        break;
-                    }
-                }
-            }
+            WatchDog.checkAll();
 
             WatchDog.scrub();
         }
@@ -371,6 +475,8 @@ public final class WatchDog {
         protected final String m_state;
         protected final long   m_enterTime;
         protected final long   m_expiryTime;
+        /** Whether the log already tells what the thread is doing in this state. Guarded by the state stack. */
+        protected boolean      m_reported;
 
         protected State( final String state, final int expiry ) {
             m_state      = state;
