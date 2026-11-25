@@ -247,7 +247,7 @@
 
          <td class="changenote">
            <% String changenote = (String) currentPage.getAttribute( Page.CHANGENOTE );  %>
-		   <%= (changenote==null) ? "" : changenote  %>
+		   <%= (changenote==null) ? "" : TextUtil.replaceEntities( changenote )  %>
          </td>
 
       </tr>
@@ -364,7 +364,7 @@
     <%
       String name = att.getName(); //att.getFileName();
       int dot = name.lastIndexOf(".");
-      String attachtype = ( dot != -1 ) ? name.substring(dot+1) : "&nbsp;";
+      String attachtype = ( dot != -1 ) ? TextUtil.replaceEntities( name.substring(dot+1) ) : "&nbsp;";
 
       String sname = name;
       if( sname.length() > MAXATTACHNAMELENGTH ) sname = sname.substring(0,MAXATTACHNAMELENGTH) + "...";
@@ -400,7 +400,7 @@
       --%>
       <td class='changenote'>
         <% String changenote = (String) att.getAttribute( Page.CHANGENOTE ); %>
-		<%= (changenote==null) ? "" : changenote  %>
+		<%= (changenote==null) ? "" : TextUtil.replaceEntities( changenote )  %>
       </td>
     </tr>
     </wiki:HistoryIterator><%-- </wiki:AttachmentsIterator> --%>

@@ -328,6 +328,19 @@ public class MarkdownRendererTest {
                                  translate( src ) );
     }
 
+    /** JSPWIKI-1296 (CVE-2026-125949): text and url of an inline image must be encoded. */
+    @Test
+    public void testInlineImagesAreEncoded() throws Exception {
+        final String srcAlt = "Link [x\" onerror=\"alert(1)](http://foobar.jpg)";
+        final String resAlt = translate( srcAlt );
+        Assertions.assertFalse( resAlt.contains( "\" onerror=\"" ), resAlt );
+        Assertions.assertTrue( resAlt.contains( "alt=\"x&quot; onerror=&quot;alert(1)\"" ), resAlt );
+
+        final String srcUrl = "Link [test](<http://foobar.jpg?\"onerror=\"alert(1)>)";
+        final String resUrl = translate( srcUrl );
+        Assertions.assertFalse( resUrl.contains( "\"onerror=\"" ), resUrl );
+    }
+
     @Test
     public void testInlineImagesLink3() throws Exception {
         final String src = "Link [SandBox](http://foobar.jpg)";

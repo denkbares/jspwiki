@@ -32,6 +32,9 @@ import org.apache.wiki.util.TextUtil;
 
 import java.util.Map;
 import java.util.ResourceBundle;
+import java.util.Set;
+import java.util.StringJoiner;
+import java.util.regex.Pattern;
 
 
 /**
@@ -91,6 +94,100 @@ public class Image implements Plugin {
     private static String getCleanParameter( final Map< String, String > params, final String paramId ) {
         return TextUtil.replaceEntities( params.get( paramId ) );
     }
+
+    /** Valid values for the width, height and border parameters, e.g. <tt>200</tt>, <tt>200px</tt> or <tt>50%</tt>. */
+    private static final Pattern SIZE_PATTERN = Pattern.compile( "\\d{1,5}(\\.\\d{1,3})?(px|%)?" );
+
+    /** Valid values for the align parameter (it ends up as <tt>float</tt> of the plugin's table). */
+    private static final Set< String > VALID_ALIGN = Set.of( "left", "right", "center", "none" );
+
+    /** A single css class name. */
+    private static final Pattern CSS_CLASS_PATTERN = Pattern.compile( "-?[_a-zA-Z][_a-zA-Z0-9-]*" );
+
+    /** A frame name usable as link target (besides the reserved <tt>_blank</tt>, <tt>_self</tt>, ...). */
+    private static final Pattern TARGET_PATTERN = Pattern.compile( "[a-zA-Z][a-zA-Z0-9_-]*" );
+
+    /**
+     *  CSS properties allowed in the style parameter. Everything that could take the image out of the page flow
+     *  (position, z-index, transform, ...) or load external resources is not listed, see JSPWIKI-1297 (CVE-2026-78110).
+     */
+    private static final Set< String > ALLOWED_STYLE_PROPERTIES = Set.of(
+            "width", "height", "max-width", "max-height", "min-width", "min-height",
+            "margin", "margin-top", "margin-right", "margin-bottom", "margin-left",
+            "padding", "padding-top", "padding-right", "padding-bottom", "padding-left",
+            "border", "border-width", "border-style", "border-color", "border-radius",
+            "border-top", "border-right", "border-bottom", "border-left",
+            "float", "clear", "display", "vertical-align", "text-align",
+            "color", "background-color", "opacity", "box-shadow", "object-fit",
+            "font-size", "font-style", "font-weight", "font-family" );
+
+    /** Allowed characters inside a css value: no quotes, backslashes, comments, functions with url, etc. */
+    private static final Pattern STYLE_VALUE_PATTERN = Pattern.compile( "[a-zA-Z0-9#%.,()\\s-]+" );
+
+    /** Negative lengths (e.g. negative margins) could be used to place the image over other content. */
+    private static final Pattern NEGATIVE_NUMBER = Pattern.compile( "(^|[\\s(,])-\\s*\\.?\\d" );
+
+    /**
+     *  Returns the given style restricted to a set of harmless css declarations, or <tt>null</tt> if none remains.
+     *  Declarations with unknown properties or suspicious values are dropped (JSPWIKI-1297, CVE-2026-78110).
+     */
+    static String sanitizeStyle( final String style ) {
+        if( style == null ) {
+            return null;
+        }
+        final StringJoiner result = new StringJoiner( "; " );
+        for( final String declaration : style.split( ";" ) ) {
+            final int colon = declaration.indexOf( ':' );
+            if( colon < 0 ) {
+                continue;
+            }
+            final String property = declaration.substring( 0, colon ).trim().toLowerCase( Locale.ROOT );
+            final String value = declaration.substring( colon + 1 ).trim();
+            final String lowerValue = value.toLowerCase( Locale.ROOT );
+            if( ALLOWED_STYLE_PROPERTIES.contains( property )
+                && !value.isEmpty()
+                && STYLE_VALUE_PATTERN.matcher( value ).matches()
+                && !lowerValue.contains( "url" )
+                && !lowerValue.contains( "expression" )
+                && !lowerValue.contains( "var(" )
+                && !NEGATIVE_NUMBER.matcher( value ).find() ) {
+                result.add( property + ": " + value );
+            }
+        }
+        return result.length() == 0 ? null : result + ";";
+    }
+
+    /** Returns only the syntactically valid class names of the given class list, or <tt>null</tt> if none remains. */
+    static String sanitizeCssClass( final String cssClass ) {
+        if( cssClass == null ) {
+            return null;
+        }
+        final StringJoiner result = new StringJoiner( " " );
+        for( final String name : cssClass.trim().split( "\\s+" ) ) {
+            if( CSS_CLASS_PATTERN.matcher( name ).matches() ) {
+                result.add( name );
+            }
+        }
+        return result.length() == 0 ? null : result.toString();
+    }
+
+    /** Returns the given size if it is a plain (positive) number with an optional <tt>px</tt> or <tt>%</tt> unit, otherwise <tt>null</tt>. */
+    static String sanitizeSize( final String size ) {
+        if( size == null ) {
+            return null;
+        }
+        final String trimmed = size.trim();
+        return SIZE_PATTERN.matcher( trimmed ).matches() ? trimmed : null;
+    }
+
+    /** Returns the given alignment in lower case if it is one of left, right, center or none, otherwise <tt>null</tt>. */
+    static String sanitizeAlign( final String align ) {
+        if( align == null ) {
+            return null;
+        }
+        final String lower = align.trim().toLowerCase( Locale.ROOT );
+        return VALID_ALIGN.contains( lower ) ? lower : null;
+    }
     
     @Override
     public String getDisplayName(Locale locale) {
@@ -104,7 +201,8 @@ public class Image implements Plugin {
     }
     
     private boolean needsSanitization(String link) {
-        String testVal = link.toLowerCase().replaceAll("\\s+", "").trim();
+        // browsers ignore whitespace and control characters in the scheme, e.g. "java\tscript:"
+        String testVal = link.toLowerCase().replaceAll("[\\s\\p{Cntrl}]+", "").trim();
         if (testVal.startsWith("data")
                 || testVal.startsWith("javascript")
                 || testVal.startsWith("vbscript")) {
@@ -120,16 +218,18 @@ public class Image implements Plugin {
     public String execute( final Context context, final Map<String, String> params ) throws PluginException {
         final Engine engine  = context.getEngine();
         String src           = getCleanParameter( params, PARAM_SRC );
-        final String align   = getCleanParameter( params, PARAM_ALIGN );
-        final String ht      = getCleanParameter( params, PARAM_HEIGHT );
-        final String wt      = getCleanParameter( params, PARAM_WIDTH );
+        final String align   = sanitizeAlign( params.get( PARAM_ALIGN ) );
+        final String ht      = sanitizeSize( params.get( PARAM_HEIGHT ) );
+        final String wt      = sanitizeSize( params.get( PARAM_WIDTH ) );
         final String alt     = getCleanParameter( params, PARAM_ALT );
         final String caption = getCleanParameter( params, PARAM_CAPTION );
         String link          = getCleanParameter( params, PARAM_LINK );
         String target        = getCleanParameter( params, PARAM_TARGET );
-        final String style   = getCleanParameter( params, PARAM_STYLE );
-        final String cssclass= getCleanParameter( params, PARAM_CLASS );
-        final String border  = getCleanParameter( params, PARAM_BORDER );
+        // style, class and the size parameters are validated rather than just encoded, so that they cannot be used
+        // to inject css which places the image over the rest of the page (JSPWIKI-1276, JSPWIKI-1297)
+        final String style   = TextUtil.replaceEntities( sanitizeStyle( params.get( PARAM_STYLE ) ) );
+        final String cssclass= TextUtil.replaceEntities( sanitizeCssClass( params.get( PARAM_CLASS ) ) );
+        final String border  = sanitizeSize( params.get( PARAM_BORDER ) );
         final String title   = getCleanParameter( params, PARAM_TITLE );
 
         if( src == null ) {
@@ -245,11 +345,9 @@ public class Image implements Plugin {
             || s.equals("_parent")
             || s.equals("_top") ) {
             return true;
-        } else if( !s.isEmpty() ) { // check [a-zA-z]
-            final char c = s.charAt(0);
-            return Character.isLowerCase(c) || Character.isUpperCase(c);
         }
-        return false;
+        // a frame name: [a-zA-Z][a-zA-Z0-9_-]*
+        return TARGET_PATTERN.matcher( s ).matches();
     }
 
 }

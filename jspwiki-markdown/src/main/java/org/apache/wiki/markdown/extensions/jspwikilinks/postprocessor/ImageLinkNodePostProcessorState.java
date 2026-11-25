@@ -24,6 +24,9 @@ import com.vladsch.flexmark.util.sequence.CharSubSequence;
 import org.apache.wiki.api.core.Context;
 import org.apache.wiki.markdown.nodes.JSPWikiLink;
 import org.apache.wiki.parser.LinkParsingOperations;
+import org.apache.wiki.util.TextUtil;
+
+import java.util.Locale;
 
 
 /**
@@ -48,18 +51,31 @@ public class ImageLinkNodePostProcessorState implements NodePostProcessorState< 
      */
     @Override
     public void process( final NodeTracker state, final JSPWikiLink link ) {
+        // url and text are written into attributes, so they must be encoded (JSPWIKI-1296, CVE-2026-125949)
         final WikiHtmlInline img = WikiHtmlInline.of( "<img class=\"inline\" " +
-                                                               "src=\"" + urlRef + "\" " +
-                                                               "alt=\"" + link.getText().toString() + "\" />" );
+                                                               "src=\"" + TextUtil.replaceEntities( sanitizeUrl( urlRef ) ) + "\" " +
+                                                               "alt=\"" + TextUtil.replaceEntities( link.getText().toString() ) + "\" />" );
         if( ( isLinkFromText && linkOperations.isExternalLink( link.getText().toString() ) ) ||
                 ( isLinkFromText && linkOperations.linkExists( link.getText().toString() ) ) ) {
-            link.setUrl( CharSubSequence.of( urlRef ) );
+            link.setUrl( CharSubSequence.of( sanitizeUrl( urlRef ) ) );
             link.removeChildren();
             link.appendChild( img );
             state.nodeAdded( img );
         } else {
             NodePostProcessorStateCommonOperations.addContent( state, link, img );
         }
+    }
+
+    /**
+     * Neutralizes script and data urls the same way the Image plugin does. Browsers ignore whitespace and control
+     * characters inside the scheme, so these are ignored for the check.
+     */
+    static String sanitizeUrl( final String url ) {
+        final String scheme = url.toLowerCase( Locale.ROOT ).replaceAll( "[\\s\\p{Cntrl}]+", "" );
+        if( scheme.startsWith( "javascript:" ) || scheme.startsWith( "vbscript:" ) || scheme.startsWith( "data:" ) ) {
+            return "http://invalid_url" + url;
+        }
+        return url;
     }
 
 }

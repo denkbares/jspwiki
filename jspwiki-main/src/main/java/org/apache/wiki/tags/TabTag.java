@@ -158,7 +158,8 @@ public class TabTag extends WikiTagBase {
             sb.append( " id=\"menu-" ).append( getId() ).append( "\"" );
 
             if( m_url != null ) {
-                sb.append( " href='" ).append( m_url ).append( "'" );
+                // m_url is encoded with replaceEntities(), which does not encode single quotes
+                sb.append( " href=\"" ).append( m_url ).append( "\"" );
             }
 
             if( handleAccesskey() ) {

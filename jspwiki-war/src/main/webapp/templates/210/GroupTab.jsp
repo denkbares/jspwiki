@@ -27,7 +27,9 @@
 <%@ page import="org.apache.wiki.auth.authorize.Group" %>
 <%@ page import="org.apache.wiki.auth.authorize.GroupManager" %>
 <%@ page import="org.apache.wiki.preferences.Preferences" %>
+<%@ page import="org.apache.wiki.util.TextUtil" %>
 <%@ page import="org.apache.wiki.util.comparators.PrincipalComparator" %>
+<%@ page import="org.apache.commons.text.StringEscapeUtils" %>
 <%@ page import="org.slf4j.Logger" %>
 <%@ page import="org.slf4j.LoggerFactory" %>
 <%@ page errorPage="/Error.jsp" %>
@@ -35,6 +37,8 @@
 <fmt:setLocale value="${prefs.Language}" />
 <fmt:setBundle basename="templates.default"/>
 <%!
+  // group data is written into javascript string literals and later into innerHTML, so it is html encoded
+  // first and then javascript encoded (see JSPWIKI-1351)
   String printWikiGroupPutGroup( Group group, String name, boolean cursor, PageContext pageContext)
   {
     Principal[] m = group.members();
@@ -48,19 +52,20 @@
 
       ss.append( "WikiGroup.putGroup( \"" );
 
-      ss.append( name );
+      ss.append( StringEscapeUtils.escapeEcmaScript( TextUtil.replaceEntities( name ) ) );
       ss.append( delim );
 
-      for( int j=0; j < m.length; j++ ) { ss.append( m[j].getName().trim()+"\\n" ); }
+      // members end up in a textarea value, so only javascript encoding is needed
+      for( int j=0; j < m.length; j++ ) { ss.append( StringEscapeUtils.escapeEcmaScript( m[j].getName().trim() )+"\\n" ); }
 
       ss.append( delim );
       mf = new MessageFormat(LocaleSupport.getLocalizedMessage(pageContext, "grp.createdon") );
-      args = new Object[]{(group.getCreated()==null) ? "" : Preferences.renderDate(Context.findContext( pageContext ), group.getCreated(),Preferences.TimeFormat.DATETIME), group.getCreator()};
-      ss.append( mf.format( args ) );
+      args = new Object[]{(group.getCreated()==null) ? "" : Preferences.renderDate(Context.findContext( pageContext ), group.getCreated(),Preferences.TimeFormat.DATETIME), TextUtil.replaceEntities( group.getCreator() )};
+      ss.append( StringEscapeUtils.escapeEcmaScript( mf.format( args ) ) );
 
       mf = new MessageFormat(LocaleSupport.getLocalizedMessage(pageContext, "grp.lastmodified") );
-      args = new Object[]{(group.getLastModified()==null) ? "" : Preferences.renderDate(Context.findContext( pageContext ), group.getLastModified(),Preferences.TimeFormat.DATETIME), group.getModifier()};
-      ss.append( mf.format( args ) );
+      args = new Object[]{(group.getLastModified()==null) ? "" : Preferences.renderDate(Context.findContext( pageContext ), group.getLastModified(),Preferences.TimeFormat.DATETIME), TextUtil.replaceEntities( group.getModifier() )};
+      ss.append( StringEscapeUtils.escapeEcmaScript( mf.format( args ) ) );
 
       ss.append( "\", " );
       ss.append( ( cursor ) ? "true" : "false" );

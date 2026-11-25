@@ -201,4 +201,94 @@ public class ImageTest {
 
     }
 
+
+    /** JSPWIKI-1297 (CVE-2026-78110): css which takes the image out of the page flow is dropped. */
+    @Test
+    public void styleCssInjection() throws Exception {
+        final String src = "[{Image src='img.png' style='position:fixed; top:0; left:0; z-index:9999; width:100%; "
+                           + "background-image:url(http://evil.example/x.png); margin:-500px; border:1px solid red'}]";
+
+        testEngine.saveText( "ThisPage", src );
+        final String res = testEngine.getManager( RenderingManager.class ).getHTML( "ThisPage" );
+
+        Assertions.assertFalse( res.contains( "position" ), res );
+        Assertions.assertFalse( res.contains( "z-index" ), res );
+        Assertions.assertFalse( res.contains( "evil.example" ), res );
+        Assertions.assertFalse( res.contains( "-500px" ), res );
+        Assertions.assertTrue( res.contains( "style=\"width: 100%; border: 1px solid red;\"" ), res );
+    }
+
+    @Test
+    public void sanitizeStyle() {
+        Assertions.assertNull( Image.sanitizeStyle( null ) );
+        Assertions.assertNull( Image.sanitizeStyle( "position:fixed;top:0" ) );
+        Assertions.assertNull( Image.sanitizeStyle( "width:expression(alert(1))" ) );
+        Assertions.assertNull( Image.sanitizeStyle( "width:100px\\;position:fixed" ) );
+        Assertions.assertNull( Image.sanitizeStyle( "width:/**/100px" ) );
+        Assertions.assertNull( Image.sanitizeStyle( "width:100px\"onmouseover=\"alert(1)" ) );
+        Assertions.assertNull( Image.sanitizeStyle( "margin:calc(0px - 500px)" ) );
+        Assertions.assertNull( Image.sanitizeStyle( "background-color:var(--x)" ) );
+        Assertions.assertEquals( "width: 50%; float: right; border-color: #ff0000;", Image.sanitizeStyle( "WIDTH:50%;float : right;;border-color:#ff0000;" ) );
+        Assertions.assertEquals( "margin: 0 auto;", Image.sanitizeStyle( "margin:0 auto" ) );
+        Assertions.assertEquals( "color: rgb(10, 20, 30);", Image.sanitizeStyle( "color:rgb(10, 20, 30)" ) );
+    }
+
+    @Test
+    public void classInjection() throws Exception {
+        final String src = "[{Image src='img.png' class='good also-good \" onmouseover=\"alert(1) evil<b>'}]";
+
+        testEngine.saveText( "ThisPage", src );
+        final String res = testEngine.getManager( RenderingManager.class ).getHTML( "ThisPage" );
+
+        Assertions.assertFalse( res.contains( "onmouseover" ), res );
+        Assertions.assertFalse( res.contains( "evil" ), res );
+        Assertions.assertTrue( res.contains( "class=\"good also-good\"" ), res );
+        Assertions.assertNull( Image.sanitizeCssClass( "\"><script>" ) );
+    }
+
+    /** JSPWIKI-1276 (CVE-2026-71903): only plain sizes and known alignments/targets are accepted. */
+    @Test
+    public void sizeAlignTargetValidation() throws Exception {
+        final String src = "[{Image src='img.png' width='100px;position:fixed' height='50%' border='1' align='left;position:fixed' "
+                           + "target='x onclick=alert(1)' link='http://www.example.com/'}]";
+
+        testEngine.saveText( "ThisPage", src );
+        final String res = testEngine.getManager( RenderingManager.class ).getHTML( "ThisPage" );
+
+        Assertions.assertFalse( res.contains( "position" ), res );
+        Assertions.assertFalse( res.contains( "onclick" ), res );
+        Assertions.assertFalse( res.contains( "width=" ), res );
+        Assertions.assertFalse( res.contains( "float" ), res );
+        Assertions.assertFalse( res.contains( "target=" ), res );
+        Assertions.assertTrue( res.contains( "height=\"50%\"" ), res );
+        Assertions.assertTrue( res.contains( "border=\"1\"" ), res );
+
+        Assertions.assertEquals( "200", Image.sanitizeSize( " 200 " ) );
+        Assertions.assertEquals( "200px", Image.sanitizeSize( "200px" ) );
+        Assertions.assertNull( Image.sanitizeSize( "-200" ) );
+        Assertions.assertNull( Image.sanitizeSize( "200\" onerror=\"alert(1)" ) );
+        Assertions.assertEquals( "center", Image.sanitizeAlign( "Center" ) );
+        Assertions.assertNull( Image.sanitizeAlign( "left; position:fixed" ) );
+    }
+
+    @Test
+    public void validTarget() throws Exception {
+        final String src = "[{Image src='img.png' target='_blank' link='http://www.example.com/'}]";
+
+        testEngine.saveText( "ThisPage", src );
+        final String res = testEngine.getManager( RenderingManager.class ).getHTML( "ThisPage" );
+
+        Assertions.assertTrue( res.contains( "target=\"_blank\"" ), res );
+    }
+
+    @Test
+    public void linkWithControlCharacters() throws Exception {
+        final String src = "[{Image src='img.png' link='\u0001javascript:alert(document.cookie)'}]";
+
+        testEngine.saveText( "ThisPage", src );
+        final String res = testEngine.getManager( RenderingManager.class ).getHTML( "ThisPage" );
+
+        Assertions.assertTrue( res.contains( "href=\"http://invalid_url" ), res );
+    }
+
 }

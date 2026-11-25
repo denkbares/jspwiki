@@ -23,6 +23,7 @@
 <%@ page import="org.apache.wiki.ui.progress.*" %>
 <%@ page import="org.apache.wiki.auth.permissions.*" %>
 <%@ page import="java.security.Permission" %>
+<%@ page import="org.apache.wiki.util.TextUtil" %>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
 <fmt:setLocale value="${prefs.Language}" />
 <fmt:setBundle basename="templates.default"/>
@@ -114,10 +115,13 @@
     <%
       String name = att.getFileName();
       int dot = name.lastIndexOf(".");
-      String attachtype = ( dot != -1 ) ? name.substring(dot+1).toLowerCase() : "&nbsp;";
+      // file names are user controlled, so everything derived from them is html encoded (JSPWIKI-1351)
+      String attachtype = ( dot != -1 ) ? TextUtil.replaceEntities( name.substring(dot+1).toLowerCase() ) : "&nbsp;";
 
       String sname = name;
       if( sname.length() > MAXATTACHNAMELENGTH ) sname = sname.substring(0,MAXATTACHNAMELENGTH) + "...";
+      sname = TextUtil.replaceEntities( sname );
+      name = TextUtil.replaceEntities( name );
     %>
     <tr>
       <td><div id="attach-<%= attachtype %>" class="attachtype"><%= attachtype %></div></td>
@@ -144,7 +148,7 @@
       <%
          String changeNote = (String)att.getAttribute(Page.CHANGENOTE);
          if( changeNote != null ) {
-         %><%=changeNote%><%
+         %><%=TextUtil.replaceEntities(changeNote)%><%
          }
       %>
       </td>

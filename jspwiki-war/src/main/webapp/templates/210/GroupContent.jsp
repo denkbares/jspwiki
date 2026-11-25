@@ -117,7 +117,7 @@
       <td><%
             for ( int i = 0; i < members.length; i++ )
             {
-              out.println( members[i].getName().trim() );
+              out.println( TextUtil.replaceEntities( members[i].getName().trim() ) );
               if ( i < ( members.length - 1 ) )
               {
                 out.println( "<br/>" );
@@ -129,7 +129,7 @@
       <tr>
         <td colspan="2">
         <fmt:message key="group.modifier">
-           <fmt:param><%=modifier%></fmt:param>
+           <fmt:param><%=TextUtil.replaceEntities(modifier)%></fmt:param>
            <fmt:param><%=modified%></fmt:param>
         </fmt:message>
         </td>
@@ -137,7 +137,7 @@
       <tr>
         <td colspan="2">
         <fmt:message key="group.creator">
-           <fmt:param><%=creator%></fmt:param>
+           <fmt:param><%=TextUtil.replaceEntities(creator)%></fmt:param>
            <fmt:param><%=created%></fmt:param>
         </fmt:message>
         </td>
@@ -164,7 +164,7 @@
 
 <wiki:Permission permission="editGroup">
   <wiki:Tab id="editgroup" title='<%=LocaleSupport.getLocalizedMessage(pageContext, "actions.editgroup")%>'
-           url='<%=c.getURL(ContextEnum.PAGE_NONE.getRequestContext(), "EditGroup.jsp", "group="+request.getParameter("group") ) %>'
+           url='<%=c.getURL(ContextEnum.PAGE_NONE.getRequestContext(), "EditGroup.jsp", "group="+TextUtil.urlEncodeUTF8(request.getParameter("group")) ) %>'
            accesskey="e" >
   </wiki:Tab>
 </wiki:Permission>

@@ -56,7 +56,7 @@
 
   <wiki:Permission permission="viewGroup">
   <wiki:Tab id="viewgroup" title='<%=LocaleSupport.getLocalizedMessage(pageContext, "actions.viewgroup")%>'
-           url='<%=c.getURL(ContextEnum.PAGE_NONE.getRequestContext(), "Group.jsp", "group="+request.getParameter("group") ) %>'
+           url='<%=c.getURL(ContextEnum.PAGE_NONE.getRequestContext(), "Group.jsp", "group="+TextUtil.urlEncodeUTF8(request.getParameter("group")) ) %>'
            accesskey="v" >
   </wiki:Tab>
   </wiki:Permission>

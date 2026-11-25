@@ -19,11 +19,13 @@
 package org.apache.wiki.plugin;
 
 import org.apache.wiki.api.core.Context;
+import org.apache.wiki.api.core.ContextEnum;
 import org.apache.wiki.api.exceptions.PluginException;
 import org.apache.wiki.api.plugin.Plugin;
 import org.apache.wiki.pages.PageLock;
 import org.apache.wiki.pages.PageManager;
 import org.apache.wiki.preferences.Preferences;
+import org.apache.wiki.util.TextUtil;
 
 import java.util.List;
 import java.util.Locale;
@@ -70,8 +72,11 @@ public class ListLocksPlugin implements Plugin {
             int rowNum = 1;
             for( final PageLock lock : locks ) {
                 result.append( rowNum % 2 != 0 ? "<tr class=\"odd\">" : "<tr>" );
-                result.append( "<td>" ).append( lock.getPage() ).append( "</td>" );
-                result.append( "<td>" ).append( lock.getLocker() ).append( "</td>" );
+                // page name and locker are user controlled, so they must be encoded (CVE-2026-125741)
+                final String pageUrl = context.getURL( ContextEnum.PAGE_VIEW.getRequestContext(), lock.getPage() );
+                result.append( "<td><a class=\"wikipage\" href=\"" ).append( TextUtil.replaceEntities( pageUrl ) ).append( "\">" )
+                      .append( TextUtil.replaceEntities( lock.getPage() ) ).append( "</a></td>" );
+                result.append( "<td>" ).append( TextUtil.replaceEntities( lock.getLocker() ) ).append( "</td>" );
                 result.append( "<td>" ).append( Preferences.renderDate( context, lock.getAcquisitionTime(), Preferences.TimeFormat.DATETIME ) ).append( "</td>" );
                 result.append( "<td>" ).append( Preferences.renderDate( context, lock.getExpiryTime(), Preferences.TimeFormat.DATETIME ) ).append( "</td>" );
                 result.append( "</tr>\n" );
