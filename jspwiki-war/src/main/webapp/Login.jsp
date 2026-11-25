@@ -34,7 +34,6 @@
 <%@ page import="org.apache.wiki.preferences.Preferences" %>
 <%@ page import="org.apache.wiki.workflow.DecisionRequiredException" %>
 <%@ page import="org.apache.wiki.auth.permissions.PagePermission" %>
-<%@ page import="org.apache.wiki.auth.permissions.PermissionFactory" %>
 <%@ page errorPage="/Error.jsp" %>
 <%@ taglib uri="http://jspwiki.apache.org/tags" prefix="wiki" %>
 <%!
@@ -155,13 +154,18 @@
         }
 
         // If wiki page was "Login", redirect to main, otherwise use the page supplied
+        // Without a redirect parameter (an already logged in user opening Login.jsp, see above) wikiPageExists(null)
+        // would fail with a NullPointerException in the attachment manager
         String redirectPage = request.getParameter( "redirect" );
-        if( !wiki.getManager( PageManager.class ).wikiPageExists( redirectPage ) ) {
+        if( redirectPage == null || redirectPage.isBlank()
+            || !wiki.getManager( PageManager.class ).wikiPageExists( redirectPage ) ) {
             redirectPage = wiki.getFrontPage();
         }
 
-		// If not allowed on the redirect page, also redirect to main
-		PagePermission pp = PermissionFactory.getPagePermission(redirectPage, "view");
+		// If not allowed on the redirect page, also redirect to main. The permission needs the wiki name: the policy
+		// grants "<wiki>:<page>", and a permission without one is implied only by AllPermission - everybody else
+		// always ended up on the front page
+		PagePermission pp = new PagePermission(wiki.getApplicationName() + ":" + redirectPage, "view");
 		if (!wiki.getManager( AuthorizationManager.class ).checkPermission(wikiSession, pp)) {
 			redirectPage = wiki.getFrontPage();
 		}

@@ -870,6 +870,13 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 					Files.delete(file.toPath());
 				}
 				Files.delete(dir.toPath());
+
+				// do not leave the directory of the page behind once its last attachment is gone
+				final File pageDir = dir.getParentFile();
+				final String[] remaining = pageDir.list();
+				if (remaining != null && remaining.length == 0) {
+					Files.delete(pageDir.toPath());
+				}
 			}
 			catch (IOException e) {
 				throw new ProviderException("Could not delete attachment: " + att.getName(), e);
