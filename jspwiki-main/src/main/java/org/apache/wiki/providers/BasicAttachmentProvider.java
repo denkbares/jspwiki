@@ -43,6 +43,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -53,6 +55,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.UUID;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -124,6 +127,13 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 	 * key distinct from the page batch flag so both can live side by side in that single file.
 	 */
 	private static final String ATTACHMENT_CREATION_DATE_BATCH_DONE = "creation.date.batch.all.attachments.checked";
+
+	/**
+	 * Name prefix and suffix of the temporary files that receive an attachment's stream, before the complete file is filed as the
+	 * attachment's next version.
+	 */
+	static final String UPLOAD_PREFIX = "jspwiki-attachment-upload-";
+	static final String UPLOAD_SUFFIX = ".tmp";
 
 	private static final Logger LOG = LoggerFactory.getLogger(BasicAttachmentProvider.class);
 
@@ -336,26 +346,30 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 
 	/**
 	 * {@inheritDoc}
+	 * <p>
+	 * The stream is copied into a temporary file without holding the attachment lock: it may come from a slow upload or a URL import,
+	 * and every attachment read and write of the wiki would wait for it. The lock is only taken to file the complete copy as the next
+	 * version. A stream that fails creates no version.
 	 */
 	@Override
 	public void putAttachmentData(final Attachment att, final InputStream data) throws ProviderException, IOException {
-		attachmentLock.writeLock().lock();
+		final Path upload = receiveUpload(att, data);
 		try {
-			final File attDir = findAttachmentDir(att);
+			attachmentLock.writeLock().lock();
+			try {
+				final File attDir = findAttachmentDir(att);
 
-			if (!attDir.exists()) {
-				attDir.mkdirs();
-			}
-			final int latestVersion = findLatestVersion(att);
-			final int versionNumber = latestVersion + 1;
-			final String[] pages = attDir.list(new AttachmentVersionFilter());
-			// make sure to use the right extension in the correct case, independent of file system case-sensitivity settings
-			String extension = pages == null || pages.length == 0 ? getFileExtension(att.getFileName()) : getFileExtension(pages[pages.length - 1]);
-			final File newfile = new File(attDir, versionNumber + "." + extension);
-			try (final OutputStream out = Files.newOutputStream(newfile.toPath())) {
-				LOG.debug("Uploading attachment " + att.getFileName() + " to page " + att.getParentName());
+				if (!attDir.exists()) {
+					attDir.mkdirs();
+				}
+				final int latestVersion = findLatestVersion(att);
+				final int versionNumber = latestVersion + 1;
+				final String[] pages = attDir.list(new AttachmentVersionFilter());
+				// make sure to use the right extension in the correct case, independent of file system case-sensitivity settings
+				String extension = pages == null || pages.length == 0 ? getFileExtension(att.getFileName()) : getFileExtension(pages[pages.length - 1]);
+				final File newfile = new File(attDir, versionNumber + "." + extension);
 				LOG.debug("Saving attachment contents to " + newfile.getAbsolutePath());
-				FileUtil.copyContents(data, out);
+				Files.move(upload, newfile.toPath());
 
 				final Properties props = getPageProperties(att);
 
@@ -377,9 +391,51 @@ public class BasicAttachmentProvider implements AttachmentProvider {
 				LOG.error("Could not save attachment data: ", e);
 				throw (IOException) e.fillInStackTrace();
 			}
+			finally {
+				attachmentLock.writeLock().unlock();
+			}
 		}
 		finally {
-			attachmentLock.writeLock().unlock();
+			// still there only if it could not be filed
+			deleteUpload(upload);
+		}
+	}
+
+	/**
+	 * Copies the stream into a new temporary file in the system's temporary directory. Not in the storage directory: it may be the
+	 * working tree of a git repository (KnowWE's git providers), whose sweep-up commits every file it finds there, and an upload in
+	 * progress or left over by a crash must not end up in the wiki's history. Not in the attachment's own directory either, which
+	 * would make a first version still being uploaded look like an existing attachment. Filing the file as a version is a rename on
+	 * the same file system, otherwise a local copy.
+	 */
+	private Path receiveUpload(final Attachment att, final InputStream data) throws IOException {
+		// a file of our own with the usual permissions, unlike Files.createTempFile, which would carry owner-only permissions over to the
+		// attachment
+		final Path upload = Path.of(System.getProperty("java.io.tmpdir")).resolve(UPLOAD_PREFIX + UUID.randomUUID() + UPLOAD_SUFFIX);
+		LOG.debug("Uploading attachment " + att.getFileName() + " to page " + att.getParentName());
+		boolean received = false;
+		try (final OutputStream out = Files.newOutputStream(upload, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
+			FileUtil.copyContents(data, out);
+			received = true;
+		}
+		catch (final IOException e) {
+			LOG.error("Could not save attachment data: ", e);
+			throw e;
+		}
+		finally {
+			if (!received) {
+				deleteUpload(upload);
+			}
+		}
+		return upload;
+	}
+
+	private static void deleteUpload(final Path upload) {
+		try {
+			Files.deleteIfExists(upload);
+		}
+		catch (final IOException e) {
+			LOG.warn("Could not delete the temporary file of an attachment upload: {}", upload, e);
 		}
 	}
 

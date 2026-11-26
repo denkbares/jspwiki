@@ -21,6 +21,7 @@ package org.apache.wiki.providers;
 import org.apache.wiki.TestEngine;
 import org.apache.wiki.api.core.Attachment;
 import org.apache.wiki.api.exceptions.ProviderException;
+import org.apache.wiki.api.providers.WikiProvider;
 import org.apache.wiki.api.spi.Wiki;
 import org.apache.wiki.util.FileUtil;
 import org.awaitility.Awaitility;
@@ -32,11 +33,21 @@ import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 
 public class BasicAttachmentProviderTest {
@@ -293,6 +304,149 @@ public class BasicAttachmentProviderTest {
 
         Assertions.assertEquals( att.getName(), a1.getName(), "a1 name :: " + res );
         Assertions.assertEquals( att2.getName(), a2.getName(), "a2 name :: " + res );
+    }
+
+    /**
+     *  An attachment's stream is copied without holding the attachment lock: a slow upload or URL import used to block every
+     *  attachment read and write of the wiki. The new version only becomes visible once its stream is complete.
+     */
+    @Test
+    public void testStalledStreamDoesNotBlockOtherAttachments() throws Exception {
+        final File in = makeAttachmentFile();
+        final Attachment other = Wiki.contents().attachment( m_engine, NAME2, "other.txt" );
+        m_provider.putAttachmentData( other, Files.newInputStream( in.toPath() ) );
+        final File storageDir = new File( m_engine.getWikiProperties().getProperty( BasicAttachmentProvider.PROP_STORAGEDIR ) );
+        final Set< String > storageBefore = new HashSet<>( Arrays.asList( Objects.requireNonNull( storageDir.list() ) ) );
+
+        final StalledStream stalled = new StalledStream( FILE_CONTENTS.getBytes( StandardCharsets.UTF_8 ), false );
+        final Attachment slow = Wiki.contents().attachment( m_engine, NAME1, "slow.txt" );
+        slow.setAuthor( "Uploader" );
+        final AtomicReference< Throwable > uploadFailure = new AtomicReference<>();
+        final Thread upload = startDaemon( "stalled-upload", () -> m_provider.putAttachmentData( slow, stalled ), uploadFailure );
+        try {
+            Assertions.assertTrue( stalled.stalled.await( 10, TimeUnit.SECONDS ), "upload did not start" );
+            // the storage directory may be the working tree of a git repository, which commits any file it finds there
+            Assertions.assertEquals( storageBefore, new HashSet<>( Arrays.asList( Objects.requireNonNull( storageDir.list() ) ) ),
+                                     "an upload in progress must not create files in the storage directory" );
+
+            final AtomicReference< Throwable > othersFailure = new AtomicReference<>();
+            final Attachment[] seen = new Attachment[ 2 ];
+            final Thread others = startDaemon( "other-attachments", () -> {
+                seen[ 0 ] = m_provider.getAttachmentInfo( Wiki.contents().page( m_engine, NAME2 ), "other.txt", WikiProvider.LATEST_VERSION );
+                seen[ 1 ] = m_provider.getAttachmentInfo( Wiki.contents().page( m_engine, NAME1 ), "slow.txt", WikiProvider.LATEST_VERSION );
+                m_provider.putAttachmentData( Wiki.contents().attachment( m_engine, NAME2, "third.txt" ), Files.newInputStream( in.toPath() ) );
+            }, othersFailure );
+            others.join( 5_000 );
+            Assertions.assertFalse( others.isAlive(), "other attachments waited for the stalled upload" );
+            Assertions.assertNull( othersFailure.get() );
+            Assertions.assertNotNull( seen[ 0 ], "the other attachment is readable" );
+            Assertions.assertNull( seen[ 1 ], "the stalled attachment must not be visible before its stream is complete" );
+        } finally {
+            stalled.release.countDown();
+            upload.join( 10_000 );
+        }
+
+        Assertions.assertFalse( upload.isAlive(), "upload did not finish" );
+        Assertions.assertNull( uploadFailure.get() );
+        final Attachment stored = m_provider.getAttachmentInfo( Wiki.contents().page( m_engine, NAME1 ), "slow.txt", WikiProvider.LATEST_VERSION );
+        Assertions.assertNotNull( stored );
+        Assertions.assertEquals( 1, stored.getVersion() );
+        Assertions.assertEquals( "Uploader", stored.getAuthor() );
+        try( final InputStream data = m_provider.getAttachmentData( stored ) ) {
+            Assertions.assertEquals( FILE_CONTENTS, new String( data.readAllBytes(), StandardCharsets.UTF_8 ) );
+        }
+
+        final Set< String > storageAfter = new HashSet<>( Arrays.asList( Objects.requireNonNull( storageDir.list() ) ) );
+        storageAfter.removeAll( storageBefore );
+        Assertions.assertEquals( Set.of( NAME1 + BasicAttachmentProvider.DIR_EXTENSION ), storageAfter, "no temporary file is left behind" );
+    }
+
+    /**
+     *  A stream that fails while it is copied neither creates a version nor leaves a part of it behind, the next upload gets the
+     *  version number the failed one would have had.
+     */
+    @Test
+    public void testFailedStreamLeavesNoVersion() throws Exception {
+        final File in = makeAttachmentFile();
+        final Attachment att = Wiki.contents().attachment( m_engine, NAME1, "broken.txt" );
+        final File storageDir = new File( m_engine.getWikiProperties().getProperty( BasicAttachmentProvider.PROP_STORAGEDIR ) );
+        final Set< String > storageBefore = new HashSet<>( Arrays.asList( Objects.requireNonNull( storageDir.list() ) ) );
+
+        Assertions.assertThrows( IOException.class,
+                                 () -> m_provider.putAttachmentData( att, new StalledStream( FILE_CONTENTS.getBytes( StandardCharsets.UTF_8 ), true ) ) );
+        Assertions.assertNull( m_provider.getAttachmentInfo( Wiki.contents().page( m_engine, NAME1 ), "broken.txt", WikiProvider.LATEST_VERSION ),
+                               "a broken upload must not become a version" );
+        Assertions.assertEquals( storageBefore, new HashSet<>( Arrays.asList( Objects.requireNonNull( storageDir.list() ) ) ),
+                                 "no temporary file is left behind" );
+
+        m_provider.putAttachmentData( att, Files.newInputStream( in.toPath() ) );
+        final Attachment stored = m_provider.getAttachmentInfo( Wiki.contents().page( m_engine, NAME1 ), "broken.txt", WikiProvider.LATEST_VERSION );
+        Assertions.assertNotNull( stored );
+        Assertions.assertEquals( 1, stored.getVersion() );
+    }
+
+    private static Thread startDaemon( final String name, final ThrowingRunnable task, final AtomicReference< Throwable > failure ) {
+        final Thread thread = new Thread( () -> {
+            try {
+                task.run();
+            } catch( final Throwable e ) {
+                failure.set( e );
+            }
+        }, name );
+        thread.setDaemon( true );
+        thread.start();
+        return thread;
+    }
+
+    private interface ThrowingRunnable {
+        void run() throws Exception;
+    }
+
+    /**
+     *  Delivers the first half of its content, then waits until released (or fails, if so configured), like a stalled upload.
+     */
+    private static final class StalledStream extends InputStream {
+        final CountDownLatch stalled = new CountDownLatch( 1 );
+        final CountDownLatch release = new CountDownLatch( 1 );
+        private final byte[] content;
+        private final boolean fail;
+        private int pos;
+
+        StalledStream( final byte[] content, final boolean fail ) {
+            this.content = content;
+            this.fail = fail;
+        }
+
+        @Override
+        public int read() throws IOException {
+            if( pos == content.length / 2 && stalled.getCount() > 0 ) {
+                stalled.countDown();
+                if( fail ) {
+                    throw new IOException( "connection reset" );
+                }
+                try {
+                    release.await();
+                } catch( final InterruptedException e ) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException( e );
+                }
+            }
+            return pos < content.length ? content[ pos++ ] : -1;
+        }
+
+        @Override
+        public int read( final byte[] b, final int off, final int len ) throws IOException {
+            // one byte at a time, so the copy reaches the stall point on its own and does not swallow the failure
+            if( len == 0 ) {
+                return 0;
+            }
+            final int c = read();
+            if( c < 0 ) {
+                return -1;
+            }
+            b[ off ] = ( byte )c;
+            return 1;
+        }
     }
 
     @Test
