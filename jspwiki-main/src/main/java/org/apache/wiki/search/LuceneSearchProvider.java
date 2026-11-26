@@ -543,6 +543,28 @@ public class LuceneSearchProvider implements SearchProvider {
     /**
      * Updater thread that updates Lucene indexes.
      */
+    /**
+     *  Indexes the pages queued by {@link #reindexPage(Page)}, in the order they were queued. The queue is only locked to take the
+     *  waiting pages: every page save queues its page, and must not wait until a whole backlog is indexed.
+     */
+    void processQueuedUpdates() {
+        while( true ) {
+            final List< Object[] > batch;
+            synchronized( m_updates ) {
+                if( m_updates.isEmpty() ) {
+                    return;
+                }
+                batch = new ArrayList<>( m_updates );
+                m_updates.clear();
+            }
+            for( final Object[] pair : batch ) {
+                final Page page = ( Page )pair[ 0 ];
+                final String text = ( String )pair[ 1 ];
+                updateLuceneIndex( page, text );
+            }
+        }
+    }
+
     private static final class LuceneUpdater extends WikiBackgroundThread {
         static final int INDEX_DELAY    = 5;
         static final int INITIAL_DELAY = 60;
@@ -580,14 +602,7 @@ public class LuceneSearchProvider implements SearchProvider {
         public void backgroundTask() {
             m_watchdog.enterState( "Emptying index queue", 60 );
 
-            synchronized( m_provider.m_updates ) {
-                while(!m_provider.m_updates.isEmpty()) {
-                    final Object[] pair = m_provider.m_updates.remove( 0 );
-                    final Page page = ( Page )pair[ 0 ];
-                    final String text = ( String )pair[ 1 ];
-                    m_provider.updateLuceneIndex( page, text );
-                }
-            }
+            m_provider.processQueuedUpdates();
 
             m_watchdog.exitState();
         }
