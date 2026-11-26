@@ -21,6 +21,8 @@ package org.apache.wiki.event;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 
 public class WikiEventManagerTest {
 
@@ -66,6 +68,34 @@ public class WikiEventManagerTest {
 
         Assertions.assertEquals( 1, listener.getInvoked() );
         WikiEventManager.removeWikiEventListener( listener ); // dispose listener; if not done, listener would still be attached to test4 on other tests
+    }
+
+    /**
+     * Listeners are called without holding the delegate's listener list. A listener may wait for another thread that asks the same
+     * delegate whether anyone listens, as a page save does in Workflow.start while a workflow decision is being dispatched: both used to
+     * wait for each other forever.
+     */
+    @Test
+    public void shouldNotifyListenersWithoutBlockingOtherThreadsOfTheSameDelegate() throws Exception {
+        final String client = "test5";
+        final AtomicBoolean answered = new AtomicBoolean();
+        final WikiEventListener listener = event -> {
+            final Thread other = new Thread( () -> answered.set( WikiEventManager.isListening( client ) ), "asks-the-delegate" );
+            other.setDaemon( true );
+            other.start();
+            try {
+                other.join( 5_000 );
+            } catch( final InterruptedException e ) {
+                Thread.currentThread().interrupt();
+            }
+        };
+        WikiEventManager.addWikiEventListener( client, listener );
+        try {
+            WikiEventManager.fireEvent( client, new WikiPageEvent( "object which fires the event", WikiPageEvent.PAGE_REQUESTED, "page" ) );
+            Assertions.assertTrue( answered.get(), "another thread could not use the delegate while its listener ran" );
+        } finally {
+            WikiEventManager.removeWikiEventListener( listener );
+        }
     }
 
 }

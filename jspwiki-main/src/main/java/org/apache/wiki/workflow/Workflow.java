@@ -194,7 +194,8 @@ public class Workflow implements Serializable {
 
     private final LinkedList< Step > m_history;
 
-    private int m_id;
+    /** Volatile instead of the workflow's monitor: the monitor is held for a whole running step, e.g. a page save. */
+    private volatile int m_id;
 
     private final String m_key;
 
@@ -344,7 +345,7 @@ public class Workflow implements Serializable {
      *
      * @return the unique identifier
      */
-    public final synchronized int getId()
+    public final int getId()
     {
         return m_id;
     }

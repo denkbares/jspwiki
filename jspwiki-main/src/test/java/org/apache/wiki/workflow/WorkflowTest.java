@@ -357,4 +357,38 @@ public class WorkflowTest {
         Assertions.assertEquals( 1001, w.getId() );
     }
 
+    /**
+     * The id of a running workflow can be read by other threads. Workflow.start holds the workflow's monitor for the whole page save,
+     * and the workflow manager reads the ids of all workflows when a decision is made: it used to wait for every save in progress.
+     */
+    @Test
+    public void testIdIsReadableWhileWorkflowHoldsItsMonitor() throws Exception {
+        final int[] id = { Workflow.ID_NOT_SET };
+        final java.util.concurrent.CountDownLatch locked = new java.util.concurrent.CountDownLatch( 1 );
+        final java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch( 1 );
+        final Thread holder = new Thread( () -> {
+            synchronized( w ) { // stands for a Workflow.start running a long step
+                locked.countDown();
+                try {
+                    release.await();
+                } catch( final InterruptedException e ) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }, "running-workflow" );
+        holder.setDaemon( true );
+        holder.start();
+        Assertions.assertTrue( locked.await( 5, java.util.concurrent.TimeUnit.SECONDS ) );
+        try {
+            final Thread reader = new Thread( () -> id[ 0 ] = w.getId(), "reads-the-id" );
+            reader.setDaemon( true );
+            reader.start();
+            reader.join( 5_000 );
+            Assertions.assertNotEquals( Workflow.ID_NOT_SET, id[ 0 ], "reading the id waited for the running workflow" );
+        } finally {
+            release.countDown();
+            holder.join( 5_000 );
+        }
+    }
+
 }

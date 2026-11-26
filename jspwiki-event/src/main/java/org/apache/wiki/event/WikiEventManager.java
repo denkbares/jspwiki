@@ -29,6 +29,7 @@ import java.util.Comparator;
 import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -452,26 +453,26 @@ public final class WikiEventManager {
         public void fireEvent( final WikiEvent event ) {
             boolean needsCleanup = false;
             try {
+                // The listeners are called without holding the list: a listener may wait for another thread that uses this delegate,
+                // e.g. a workflow decision waiting for a page save that fires its own workflow events, and both would wait forever.
+                final List< WeakReference< WikiEventListener > > listeners;
                 synchronized( m_listenerList ) {
-                    for( final WeakReference< WikiEventListener > wikiEventListenerWeakReference : new ArrayList<>(m_listenerList) ) {
-                        final WikiEventListener listener = wikiEventListenerWeakReference.get();
-                        if( listener != null ) {
-                            listener.actionPerformed( event );
-                        } else {
-                            needsCleanup = true;
-                        }
+                    listeners = new ArrayList<>( m_listenerList );
+                }
+                for( final WeakReference< WikiEventListener > wikiEventListenerWeakReference : listeners ) {
+                    final WikiEventListener listener = wikiEventListenerWeakReference.get();
+                    if( listener != null ) {
+                        listener.actionPerformed( event );
+                    } else {
+                        needsCleanup = true;
                     }
+                }
 
-                    //  Remove all such listeners which have expired
-                    if( needsCleanup ) {
-                        for( int i = 0; i < m_listenerList.size(); i++ ) {
-                            final WeakReference< WikiEventListener > w = m_listenerList.get( i );
-                            if( w.get() == null ) {
-                                m_listenerList.remove(i--);
-                            }
-                        }
+                //  Remove all such listeners which have expired
+                if( needsCleanup ) {
+                    synchronized( m_listenerList ) {
+                        m_listenerList.removeIf( w -> w.get() == null );
                     }
-
                 }
             } catch( final ConcurrentModificationException e ) {
                 //  We don't die, we just don't do notifications in that case.
