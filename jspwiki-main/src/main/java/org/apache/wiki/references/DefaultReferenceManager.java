@@ -47,6 +47,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.stream.Collectors;
 
 /*
@@ -64,20 +65,12 @@ import java.util.stream.Collectors;
 /*
    A word about synchronizing:
 
-   I expect this object to be accessed in three situations:
-   - when an Engine is created, and it scans its wikipages
-   - when the Engine saves a page
-   - when a JSP page accesses one of the Engine's ReferenceManagers to display a list of (un)referenced pages.
-
-   So, access to this class is fairly rare, and usually triggered by user interaction. OTOH, the methods in this class use their storage
-   objects intensively (and, sorry to say, in an unoptimized manner =). My deduction: using unsynchronized HashMaps etc. and syncing methods
-   or code blocks is preferrable to using slow, synced storage objects. We don't have iterative code here, so I'm going to use synced
-   methods for now.
-
-   Please contact me if you notice problems with ReferenceManager, and especially with synchronization, or if you have suggestions about
-   syncing.
-
-   ebu@memecry.net
+   Saves of different pages update the references at the same time, and requests read them meanwhile (e.g. the rendering cache
+   flushes the referrers of a saved page). Both maps are ConcurrentHashMaps, and the sets in them are concurrent sets, because two
+   saves linking to the same page change its referrer set at the same time: a plain TreeSet lost referrers, made readers and the
+   serialization fail, and could be corrupted so that a request thread looped forever. Adding to a referrer set and dropping an empty
+   one happen atomically per page (ConcurrentHashMap.compute), so a referrer is never added to a set that was just dropped. No other
+   lock is held while the page manager is asked whether a page exists. Only the (un)serialization synchronizes on this object.
 */
 
 /**
@@ -253,8 +246,13 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
             }
 
             saved        = in.readLong();
-            m_refersTo   = ( Map< String, Collection< String > > ) in.readObject();
-            m_referredBy = ( Map< String, Set< String > > ) in.readObject();
+            // files written before the sets became concurrent hold TreeSets, which must not be changed by concurrent saves
+            final Map< String, Collection< String > > refersTo = new ConcurrentHashMap<>();
+            ( ( Map< String, Collection< String > > ) in.readObject() ).forEach( ( page, names ) -> refersTo.put( page, newReferenceSet( names ) ) );
+            final Map< String, Set< String > > referredBy = new ConcurrentHashMap<>();
+            ( ( Map< String, Set< String > > ) in.readObject() ).forEach( ( page, names ) -> referredBy.put( page, newReferenceSet( names ) ) );
+            m_refersTo   = refersTo;
+            m_referredBy = referredBy;
 
             m_unmutableReferredBy = Collections.unmodifiableMap( m_referredBy );
             m_unmutableRefersTo   = Collections.unmodifiableMap( m_refersTo );
@@ -475,12 +473,11 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
                 }
 
                 refBy.remove( pageName );
-                m_referredBy.remove( referredPageName );
 
-                // We won't put it back again if it becomes empty and does not exist.  It will be added
+                // We won't keep it if it becomes empty and does not exist.  It will be added
                 // later on anyway, if it becomes referenced again.
-                if( !( refBy.isEmpty() && !m_engine.getManager( PageManager.class ).wikiPageExists( referredPageName ) ) ) {
-                    m_referredBy.put( referredPageName, refBy );
+                if( refBy.isEmpty() && !m_engine.getManager( PageManager.class ).wikiPageExists( referredPageName ) ) {
+                    removeIfUnreferenced( referredPageName );
                 }
             }
 
@@ -488,10 +485,7 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
             m_refersTo.remove( pageName );
         }
 
-        final Set< String > refBy = m_referredBy.get( pageName );
-        if( refBy == null || refBy.isEmpty() ) {
-            m_referredBy.remove( pageName );
-        }
+        removeIfUnreferenced( pageName );
 
         //  Remove any traces from the disk, too
         serializeToDisk();
@@ -545,19 +539,14 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
     private void internalUpdateReferences( String page, final Collection< String > references) {
         page = getFinalPageName( page );
 
+        final Set< String > cleanedRefs = references.stream().map(this::getFinalPageName).collect(Collectors.toCollection(ConcurrentSkipListSet::new));
+
         // Create a new entry in m_refersTo.
-        final Collection< String > oldRefTo = m_refersTo.get( page );
-        m_refersTo.remove( page );
-
-        final TreeSet< String > cleanedRefs = references.stream().map(this::getFinalPageName).collect(Collectors.toCollection(TreeSet::new));
-
-        m_refersTo.put( page, cleanedRefs );
+        final Collection< String > oldRefTo = m_refersTo.put( page, cleanedRefs );
 
         //  We know the page exists, since it's making references somewhere. If an entry for it didn't exist previously
         //  in m_referredBy, make sure one is added now.
-        if( !m_referredBy.containsKey( page ) ) {
-            m_referredBy.put( page, new TreeSet<>() );
-        }
+        m_referredBy.putIfAbsent( page, newReferenceSet() );
 
         //  Get all pages that used to be referred to by 'page' and remove that reference. (We don't want to try to figure out
         //  which particular references were removed...)
@@ -613,9 +602,32 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
             // If the page is referred to by no one AND it doesn't even exist, we might just as well forget about this
             // entry. It will be added again elsewhere if new references appear.
             if( ( oldRefBy == null || oldRefBy.isEmpty() ) && !m_engine.getManager( PageManager.class ).wikiPageExists( referredPage ) ) {
-                m_referredBy.remove( referredPage );
+                removeIfUnreferenced( referredPage );
             }
         }
+    }
+
+    /**
+     * Drops the referrer set of the page if it is (still) empty. Atomic with {@link #updateReferredBy(String, String)} of the same
+     * page: a referrer added by a concurrent save in the meantime keeps the set.
+     */
+    private void removeIfUnreferenced( final String page ) {
+        m_referredBy.computeIfPresent( page, ( name, referrers ) -> referrers.isEmpty() ? null : referrers );
+    }
+
+    /**
+     * Creates a set for the reference maps. Concurrent saves change these sets while requests read them, so they must be concurrent.
+     */
+    private static Set< String > newReferenceSet() {
+        return new ConcurrentSkipListSet<>();
+    }
+
+    private static Set< String > newReferenceSet( final Collection< String > names ) {
+        final Set< String > set = newReferenceSet();
+        if( names != null ) {
+            names.stream().filter( Objects::nonNull ).forEach( set::add );
+        }
+        return set;
     }
 
     /**
@@ -637,9 +649,9 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
         try {
             for( final Page page : pages ) {
                 // We add a non-null entry to referredBy to indicate the referred page exists
-                m_referredBy.put( page.getName(), new TreeSet<>() );
+                m_referredBy.put( page.getName(), newReferenceSet() );
                 // Just add a key to refersTo; the keys need to be in sync with referredBy.
-                m_refersTo.put( page.getName(), new TreeSet<>() );
+                m_refersTo.put( page.getName(), newReferenceSet() );
             }
         } catch( final ClassCastException e ) {
             LOG.error( "Invalid collection entry in ReferenceManager.buildKeyLists().", e );
@@ -668,9 +680,13 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
         }
 
         // Even if 'page' has not been created yet, it can still be referenced. This requires we don't use m_referredBy
-        // keys when looking up missing pages, of course.
-        final Set< String > referrers = m_referredBy.computeIfAbsent( page, k -> new TreeSet<>() );
-        referrers.add( referrer );
+        // keys when looking up missing pages, of course. Adding within compute() keeps a concurrent removeIfUnreferenced()
+        // from dropping the set between looking it up and adding to it.
+        m_referredBy.compute( page, ( name, referrers ) -> {
+            final Set< String > set = referrers != null ? referrers : newReferenceSet();
+            set.add( referrer );
+            return set;
+        } );
     }
 
 
@@ -688,7 +704,9 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
         if( c != null ) {
             for( final String key : c ) {
                 final Collection< ? > dref = m_referredBy.get( key );
-                dref.remove( pagename );
+                if( dref != null ) {
+                    dref.remove( pagename );
+                }
             }
         }
 
@@ -761,7 +779,10 @@ public class DefaultReferenceManager extends BasePageFilter implements Reference
 
             if( refs2 != null ) {
                 if( refs != null ) {
-                    refs.addAll( refs2 );
+                    // a merged copy: the stored set holds the direct referrers only, and a reader must not change it
+                    final Set< T > merged = new TreeSet<>( refs );
+                    merged.addAll( refs2 );
+                    refs = merged;
                 } else {
                     refs = refs2;
                 }

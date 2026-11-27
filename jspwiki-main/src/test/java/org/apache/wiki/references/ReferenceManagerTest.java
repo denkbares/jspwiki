@@ -22,9 +22,17 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.wiki.TestEngine.with;
 
@@ -309,6 +317,71 @@ public class ReferenceManagerTest  {
 
         Assertions.assertEquals( "Foobar", result[0], "item 0" );
         Assertions.assertEquals( "This is a link", result[1], "item 1" );
+    }
+
+    /**
+     * Saves of different pages that link to the same page change the referrer set of that page at the same time, while other
+     * requests read it. Unguarded, the set lost referrers, readers and the serialization failed with a
+     * ConcurrentModificationException, and a corrupted set could send a request thread into an endless loop.
+     */
+    @Test
+    public void testConcurrentSavesLinkingToTheSamePage() throws Exception {
+        final int writers = 8;
+        final int pagesPerWriter = 150;
+        final List< String > targets = List.of( "SharedTargetOne", "SharedTargetTwo", "SharedTargetThree", "Foobar" );
+        final ExecutorService pool = Executors.newFixedThreadPool( writers + 1, task -> {
+            final Thread thread = new Thread( task, "reference-updates" );
+            thread.setDaemon( true ); // a thread caught in a corrupted set must not keep the test JVM alive
+            return thread;
+        } );
+        try {
+            final CountDownLatch start = new CountDownLatch( 1 );
+            final AtomicBoolean writing = new AtomicBoolean( true );
+            final List< Future< ? > > updates = new ArrayList<>();
+            for( int w = 0; w < writers; w++ ) {
+                final int writer = w;
+                updates.add( pool.submit( () -> {
+                    start.await();
+                    for( int i = 0; i < pagesPerWriter; i++ ) {
+                        mgr.updateReferences( "ConcurrentPage" + writer + "x" + i, targets );
+                    }
+                    return null;
+                } ) );
+            }
+            final Future< ? > reads = pool.submit( () -> {
+                start.await();
+                while( writing.get() ) {
+                    for( final String target : targets ) {
+                        final Set< String > referrers = mgr.findReferredBy( target );
+                        if( referrers != null ) {
+                            Assertions.assertNotNull( new ArrayList<>( referrers ) );
+                        }
+                    }
+                }
+                return null;
+            } );
+
+            start.countDown();
+            Assertions.assertTimeoutPreemptively( Duration.ofSeconds( 60 ), () -> {
+                try {
+                    for( final Future< ? > update : updates ) {
+                        update.get();
+                    }
+                } finally {
+                    writing.set( false );
+                }
+                reads.get();
+            }, "reference updates did not finish" );
+        } finally {
+            pool.shutdownNow();
+        }
+
+        for( final String target : targets ) {
+            final Set< String > referrers = mgr.findReferredBy( target );
+            Assertions.assertNotNull( referrers, target );
+            final long concurrentReferrers = referrers.stream().filter( name -> name.startsWith( "ConcurrentPage" ) ).count();
+            Assertions.assertEquals( writers * pagesPerWriter, concurrentReferrers, "referrers of " + target );
+        }
     }
 
     /**
